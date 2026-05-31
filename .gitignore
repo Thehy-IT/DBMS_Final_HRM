@@ -1,0 +1,112 @@
+# ============================================================
+#   .gitignore — DBMS Final HRM Project
+# ============================================================
+
+# -----------------------------------------------------------
+# Database connection & credentials (NEVER commit these!)
+# -----------------------------------------------------------
+*.config
+*.env
+.env
+.env.*
+connection.config
+db.config
+database.config
+secrets.*
+
+# -----------------------------------------------------------
+# SQL Server / Database files
+# -----------------------------------------------------------
+*.mdf
+*.ldf
+*.ndf
+*.bak
+*.trn
+*.sqlproj.user
+
+# -----------------------------------------------------------
+# OS generated files
+# -----------------------------------------------------------
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# -----------------------------------------------------------
+# IDEs & Editors
+# -----------------------------------------------------------
+# Visual Studio Code
+.vscode/
+!.vscode/extensions.json
+
+# Visual Studio
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.vs/
+[Dd]ebug/
+[Rr]elease/
+[Bb]in/
+[Oo]bj/
+
+# JetBrains (DataGrip, Rider...)
+.idea/
+*.iml
+
+# -----------------------------------------------------------
+# Application / Runtime artifacts
+# -----------------------------------------------------------
+# Logs
+logs/
+*.log
+*.log.*
+
+# Temporary files
+*.tmp
+*.temp
+~$*
+
+# Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.cache/
+*.cache
+
+# Node.js (nếu có frontend)
+node_modules/
+dist/
+build/
+.npm/
+*.lock
+package-lock.json
+yarn.lock
+
+# -----------------------------------------------------------
+# Reporting / Export outputs
+# -----------------------------------------------------------
+03_App/reports/*.pdf
+03_App/reports/*.xlsx
+03_App/reports/*.csv
+04_Testing/*.result
+04_Testing/*.out
+
+# -----------------------------------------------------------
+# Documentation build artifacts
+# -----------------------------------------------------------
+05_Docs/*.pdf
+05_Docs/~*
+
+# -----------------------------------------------------------
+# Antigravity CLI (AI assistant workspace)
+# -----------------------------------------------------------
+.antigravitycli/
