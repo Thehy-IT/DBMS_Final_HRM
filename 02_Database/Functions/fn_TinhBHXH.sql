@@ -4,309 +4,225 @@
 -- MỤC ĐÍCH   : Hàm tính Bảo Hiểm Xã Hội / Y Tế / Thất Nghiệp
 --              theo Luật BHXH 2014 + Nghị định 143/2018/NĐ-CP
 -- FUNCTIONS  :
---   1. fn_TinhBHXH_TVF     — TVF: trả về toàn bộ thành phần BH
---   2. fn_TinhBH_NLD       — Scalar: tổng BH nhân viên (NLĐ) đóng
---   3. fn_TinhBH_NSDLD     — Scalar: tổng BH doanh nghiệp (NSDLĐ) đóng
---   4. fn_TinhLuongDongBH  — Scalar: lương đóng BH (có trần)
--- ─────────────────────────────────────────────────────────────
--- TỶ LỆ ĐÓNG BHXH (Điều 85 + 86 Luật BHXH 2014):
--- ┌───────────────┬──────────┬───────────┬─────────────────┐
--- │ Loại BH       │ NLĐ đóng │ NSDLĐ đóng│ Căn cứ         │
--- ├───────────────┼──────────┼───────────┼─────────────────┤
--- │ BHXH          │    8%    │   17.5%   │ LuongDongBH     │
--- │ BHYT          │   1.5%   │    3.0%   │ LuongDongBH     │
--- │ BHTN          │   1.0%   │    1.0%   │ LuongDongBH     │
--- │ BHTNLĐ & BNN  │    0%    │    0.5%   │ LuongDongBH     │
--- ├───────────────┼──────────┼───────────┼─────────────────┤
--- │ TỔNG          │  10.5%   │   22.0%   │                 │
--- └───────────────┴──────────┴───────────┴─────────────────┘
--- TRẦN LƯƠNG ĐÓNG BH: 20 × lương cơ sở
---   Lương cơ sở 2024 = 2,340,000 VNĐ (từ 01/07/2024)
---   Trần = 20 × 2,340,000 = 46,800,000 VNĐ/tháng
---
--- LƯU Ý: Hợp đồng thử việc (MaLoaiHD=1) → TiLeBHXH=0
---        BHXH chỉ áp dụng khi MaLoaiHD IN (2,3,4)
+--   1. fn_TinhLuongDongBH    — Scalar: lương đóng BH (có trần)
+--   2. fn_TinhBH_NLD         — Scalar: tổng BH nhân viên đóng
+--   3. fn_TinhBH_NSDLD       — Scalar: tổng BH doanh nghiệp đóng
+-- PROCEDURE  :
+--   4. sp_TinhBHXH_ChiTiet   — Thay thế TVF fn_TinhBHXH_TVF
 -- DEPENDENCY : Chạy SAU fn_TinhThueTNCN.sql
+-- DBMS       : MySQL 8.0+
 -- ============================================================
 
 USE HRPayrollDB;
-GO
 
 -- ============================================================
 -- HÀM 1: fn_TinhLuongDongBH
--- Tính lương đóng BH = min(LuongCoBan, Trần BH)
--- Trần BH = 20 × lương cơ sở hiện hành
 -- ============================================================
 
-IF OBJECT_ID('dbo.fn_TinhLuongDongBH', 'FN') IS NOT NULL
-    DROP FUNCTION dbo.fn_TinhLuongDongBH;
-GO
+DROP FUNCTION IF EXISTS fn_TinhLuongDongBH;
 
-CREATE FUNCTION dbo.fn_TinhLuongDongBH
-(
-    @LuongCoBan     DECIMAL(18,2),
-    @MaLoaiHD       TINYINT          -- 1=ThửViệc, 2=1năm, 3=2năm, 4=VĐH
+DELIMITER $$
+
+CREATE FUNCTION fn_TinhLuongDongBH(
+    p_LuongCoBan  DECIMAL(18,2),
+    p_MaLoaiHD    TINYINT
 )
 RETURNS DECIMAL(18,2)
-WITH SCHEMABINDING
-AS
+DETERMINISTIC
+NO SQL
 BEGIN
-    -- Hợp đồng thử việc không đóng BHXH → lương đóng BH = 0
-    IF @MaLoaiHD = 1
-        RETURN 0;
+    DECLARE v_TranBH DECIMAL(18,2) DEFAULT 46800000;
 
-    -- Trần lương đóng BH: 20 × 2,340,000 = 46,800,000 VNĐ
-    -- (cập nhật khi Chính phủ tăng lương cơ sở)
-    DECLARE @TranBH DECIMAL(18,2) = 46800000;
+    -- Hợp đồng thử việc không đóng BHXH → lương đóng BH = 0
+    IF p_MaLoaiHD = 1 THEN
+        RETURN 0;
+    END IF;
 
     RETURN CASE
-        WHEN @LuongCoBan > @TranBH THEN @TranBH
-        ELSE @LuongCoBan
+        WHEN p_LuongCoBan > v_TranBH THEN v_TranBH
+        ELSE p_LuongCoBan
     END;
-END;
-GO
+END$$
 
-PRINT N'[OK] fn_TinhLuongDongBH — tạo thành công';
-GO
+DELIMITER ;
+
+SELECT '[OK] fn_TinhLuongDongBH — tạo thành công' AS Status;
 
 
 -- ============================================================
--- HÀM 2: fn_TinhBHXH_TVF (Table-Valued Function)
+-- HÀM 2: fn_TinhBH_NLD (Scalar — NLĐ đóng tổng)
+-- ============================================================
+
+DROP FUNCTION IF EXISTS fn_TinhBH_NLD;
+
+DELIMITER $$
+
+CREATE FUNCTION fn_TinhBH_NLD(
+    p_LuongCoBan  DECIMAL(18,2),
+    p_MaLoaiHD    TINYINT
+)
+RETURNS DECIMAL(18,2)
+DETERMINISTIC
+NO SQL
+BEGIN
+    DECLARE v_LDB DECIMAL(18,2);
+
+    IF p_MaLoaiHD = 1 THEN
+        RETURN 0;
+    END IF;
+
+    SET v_LDB = fn_TinhLuongDongBH(p_LuongCoBan, p_MaLoaiHD);
+    -- 8% BHXH + 1.5% BHYT + 1% BHTN = 10.5%
+    RETURN ROUND(v_LDB * 0.105, 0);
+END$$
+
+DELIMITER ;
+
+SELECT '[OK] fn_TinhBH_NLD — tạo thành công' AS Status;
+
+
+-- ============================================================
+-- HÀM 3: fn_TinhBH_NSDLD (Scalar — DN đóng tổng)
+-- ============================================================
+
+DROP FUNCTION IF EXISTS fn_TinhBH_NSDLD;
+
+DELIMITER $$
+
+CREATE FUNCTION fn_TinhBH_NSDLD(
+    p_LuongCoBan  DECIMAL(18,2),
+    p_MaLoaiHD    TINYINT
+)
+RETURNS DECIMAL(18,2)
+DETERMINISTIC
+NO SQL
+BEGIN
+    DECLARE v_LDB DECIMAL(18,2);
+
+    IF p_MaLoaiHD = 1 THEN
+        RETURN 0;
+    END IF;
+
+    SET v_LDB = fn_TinhLuongDongBH(p_LuongCoBan, p_MaLoaiHD);
+    -- 17.5% BHXH + 3% BHYT + 1% BHTN + 0.5% BHTNLĐ&BNN = 22%
+    RETURN ROUND(v_LDB * 0.22, 0);
+END$$
+
+DELIMITER ;
+
+SELECT '[OK] fn_TinhBH_NSDLD — tạo thành công' AS Status;
+
+
+-- ============================================================
+-- PROCEDURE: sp_TinhBHXH_ChiTiet
+-- (Thay thế TVF fn_TinhBHXH_TVF của SQL Server)
 -- Trả về bảng đầy đủ các thành phần BH — NLĐ và NSDLĐ
--- Dùng trong sp_TinhLuong để INSERT vào ChiTietLuong
 -- ============================================================
 
-IF OBJECT_ID('dbo.fn_TinhBHXH_TVF', 'TF') IS NOT NULL
-    DROP FUNCTION dbo.fn_TinhBHXH_TVF;
-GO
+DROP PROCEDURE IF EXISTS sp_TinhBHXH_ChiTiet;
 
-CREATE FUNCTION dbo.fn_TinhBHXH_TVF
-(
-    @LuongCoBan     DECIMAL(18,2),
-    @MaLoaiHD       TINYINT
+DELIMITER $$
+
+CREATE PROCEDURE sp_TinhBHXH_ChiTiet(
+    IN p_LuongCoBan  DECIMAL(18,2),
+    IN p_MaLoaiHD    TINYINT
 )
-RETURNS @Result TABLE (
-    -- Lương làm căn cứ
-    LuongDongBH         DECIMAL(18,2),
-
-    -- Người Lao Động đóng (NLĐ)
-    BHXH_NLD            DECIMAL(18,2),  -- 8%
-    BHYT_NLD            DECIMAL(18,2),  -- 1.5%
-    BHTN_NLD            DECIMAL(18,2),  -- 1%
-    Tong_BH_NLD         DECIMAL(18,2),  -- 10.5%
-
-    -- Người Sử Dụng Lao Động đóng (NSDLĐ) — chi phí DN
-    BHXH_NSDLD          DECIMAL(18,2),  -- 17.5%
-    BHYT_NSDLD          DECIMAL(18,2),  -- 3%
-    BHTN_NSDLD          DECIMAL(18,2),  -- 1%
-    BHTNLD_BNN_NSDLD    DECIMAL(18,2),  -- 0.5%
-    Tong_BH_NSDLD       DECIMAL(18,2),  -- 22%
-
-    -- Tổng chi phí BH (NLĐ + NSDLĐ) = 32.5% lương đóng BH
-    Tong_BH_Ca_Hai      DECIMAL(18,2)
-)
-WITH SCHEMABINDING
-AS
 BEGIN
-    DECLARE @LDB    DECIMAL(18,2) = dbo.fn_TinhLuongDongBH(@LuongCoBan, @MaLoaiHD);
+    DECLARE v_LDB           DECIMAL(18,2);
+    DECLARE v_BHXH_NLD      DECIMAL(18,2) DEFAULT 0;
+    DECLARE v_BHYT_NLD      DECIMAL(18,2) DEFAULT 0;
+    DECLARE v_BHTN_NLD      DECIMAL(18,2) DEFAULT 0;
+    DECLARE v_Tong_NLD      DECIMAL(18,2) DEFAULT 0;
+    DECLARE v_BHXH_NSDLD    DECIMAL(18,2) DEFAULT 0;
+    DECLARE v_BHYT_NSDLD    DECIMAL(18,2) DEFAULT 0;
+    DECLARE v_BHTN_NSDLD    DECIMAL(18,2) DEFAULT 0;
+    DECLARE v_BHTNLBNN      DECIMAL(18,2) DEFAULT 0;
+    DECLARE v_Tong_NSDLD    DECIMAL(18,2) DEFAULT 0;
+    DECLARE v_Tong_CaHai    DECIMAL(18,2) DEFAULT 0;
 
-    -- Thử việc → toàn bộ BH = 0
-    IF @MaLoaiHD = 1
-    BEGIN
-        INSERT @Result VALUES (0, 0, 0, 0, 0,  0, 0, 0, 0, 0,  0);
-        RETURN;
-    END;
+    SET v_LDB = fn_TinhLuongDongBH(p_LuongCoBan, p_MaLoaiHD);
 
-    DECLARE
+    IF p_MaLoaiHD != 1 THEN
         -- NLĐ
-        @BHXH_NLD   DECIMAL(18,2) = ROUND(@LDB * 0.08,  0),
-        @BHYT_NLD   DECIMAL(18,2) = ROUND(@LDB * 0.015, 0),
-        @BHTN_NLD   DECIMAL(18,2) = ROUND(@LDB * 0.01,  0),
+        SET v_BHXH_NLD   = ROUND(v_LDB * 0.08,  0);
+        SET v_BHYT_NLD   = ROUND(v_LDB * 0.015, 0);
+        SET v_BHTN_NLD   = ROUND(v_LDB * 0.01,  0);
+        SET v_Tong_NLD   = v_BHXH_NLD + v_BHYT_NLD + v_BHTN_NLD;
+
         -- NSDLĐ
-        @BHXH_NSDLD DECIMAL(18,2) = ROUND(@LDB * 0.175, 0),
-        @BHYT_NSDLD DECIMAL(18,2) = ROUND(@LDB * 0.03,  0),
-        @BHTN_NSDLD DECIMAL(18,2) = ROUND(@LDB * 0.01,  0),
-        @BHTNLBNN   DECIMAL(18,2) = ROUND(@LDB * 0.005, 0);
+        SET v_BHXH_NSDLD = ROUND(v_LDB * 0.175, 0);
+        SET v_BHYT_NSDLD = ROUND(v_LDB * 0.03,  0);
+        SET v_BHTN_NSDLD = ROUND(v_LDB * 0.01,  0);
+        SET v_BHTNLBNN   = ROUND(v_LDB * 0.005, 0);
+        SET v_Tong_NSDLD = v_BHXH_NSDLD + v_BHYT_NSDLD + v_BHTN_NSDLD + v_BHTNLBNN;
 
-    INSERT @Result
+        SET v_Tong_CaHai = v_Tong_NLD + v_Tong_NSDLD;
+    END IF;
+
     SELECT
-        @LDB,
-        @BHXH_NLD, @BHYT_NLD, @BHTN_NLD,
-        @BHXH_NLD + @BHYT_NLD + @BHTN_NLD,
-        @BHXH_NSDLD, @BHYT_NSDLD, @BHTN_NSDLD, @BHTNLBNN,
-        @BHXH_NSDLD + @BHYT_NSDLD + @BHTN_NSDLD + @BHTNLBNN,
-        (@BHXH_NLD + @BHYT_NLD + @BHTN_NLD) +
-        (@BHXH_NSDLD + @BHYT_NSDLD + @BHTN_NSDLD + @BHTNLBNN);
+        v_LDB           AS LuongDongBH,
+        v_BHXH_NLD      AS BHXH_NLD,
+        v_BHYT_NLD      AS BHYT_NLD,
+        v_BHTN_NLD      AS BHTN_NLD,
+        v_Tong_NLD      AS Tong_BH_NLD,
+        v_BHXH_NSDLD    AS BHXH_NSDLD,
+        v_BHYT_NSDLD    AS BHYT_NSDLD,
+        v_BHTN_NSDLD    AS BHTN_NSDLD,
+        v_BHTNLBNN      AS BHTNLD_BNN_NSDLD,
+        v_Tong_NSDLD    AS Tong_BH_NSDLD,
+        v_Tong_CaHai    AS Tong_BH_Ca_Hai;
+END$$
 
-    RETURN;
-END;
-GO
+DELIMITER ;
 
-PRINT N'[OK] fn_TinhBHXH_TVF — tạo thành công';
-GO
-
-
--- ============================================================
--- HÀM 3: fn_TinhBH_NLD (Scalar — NLĐ đóng tổng)
--- Dùng nhanh trong sp_TinhLuong để tính TNCT
--- ============================================================
-
-IF OBJECT_ID('dbo.fn_TinhBH_NLD', 'FN') IS NOT NULL
-    DROP FUNCTION dbo.fn_TinhBH_NLD;
-GO
-
-CREATE FUNCTION dbo.fn_TinhBH_NLD
-(
-    @LuongCoBan     DECIMAL(18,2),
-    @MaLoaiHD       TINYINT
-)
-RETURNS DECIMAL(18,2)
-WITH SCHEMABINDING
-AS
-BEGIN
-    IF @MaLoaiHD = 1 RETURN 0;
-
-    DECLARE @LDB DECIMAL(18,2) = dbo.fn_TinhLuongDongBH(@LuongCoBan, @MaLoaiHD);
-
-    -- 8% + 1.5% + 1% = 10.5%
-    RETURN ROUND(@LDB * 0.105, 0);
-END;
-GO
-
-PRINT N'[OK] fn_TinhBH_NLD — tạo thành công';
-GO
-
-
--- ============================================================
--- HÀM 4: fn_TinhBH_NSDLD (Scalar — DN đóng tổng)
--- Dùng trong báo cáo chi phí nhân sự toàn doanh nghiệp
--- ============================================================
-
-IF OBJECT_ID('dbo.fn_TinhBH_NSDLD', 'FN') IS NOT NULL
-    DROP FUNCTION dbo.fn_TinhBH_NSDLD;
-GO
-
-CREATE FUNCTION dbo.fn_TinhBH_NSDLD
-(
-    @LuongCoBan     DECIMAL(18,2),
-    @MaLoaiHD       TINYINT
-)
-RETURNS DECIMAL(18,2)
-WITH SCHEMABINDING
-AS
-BEGIN
-    IF @MaLoaiHD = 1 RETURN 0;
-
-    DECLARE @LDB DECIMAL(18,2) = dbo.fn_TinhLuongDongBH(@LuongCoBan, @MaLoaiHD);
-
-    -- 17.5% + 3% + 1% + 0.5% = 22%
-    RETURN ROUND(@LDB * 0.22, 0);
-END;
-GO
-
-PRINT N'[OK] fn_TinhBH_NSDLD — tạo thành công';
-GO
+SELECT '[OK] sp_TinhBHXH_ChiTiet (Procedure thay thế TVF) — tạo thành công' AS Status;
 
 
 -- ============================================================
 -- KIỂM THỬ ĐẦY ĐỦ
 -- ============================================================
 
-PRINT N'';
-PRINT N'════════════════════════════════════════════════════════';
-PRINT N'  KIỂM THỬ CÁC HÀM BHXH';
-PRINT N'════════════════════════════════════════════════════════';
+SELECT '════════════════════════════════════════════════════════' AS Status;
+SELECT '  KIỂM THỬ CÁC HÀM BHXH' AS Status;
+SELECT '════════════════════════════════════════════════════════' AS Status;
 
--- Test bảng tổng hợp cho các mức lương điển hình
 SELECT
-    FORMAT(LuongCB,'N0')                                AS [LuongCoBan],
+    FORMAT(LuongCB, 0)                                      AS LuongCoBan,
     TenLoai,
-    FORMAT(dbo.fn_TinhLuongDongBH(LuongCB,MaLoaiHD),'N0') AS [LuongDongBH],
-    FORMAT(dbo.fn_TinhBH_NLD(LuongCB,MaLoaiHD),'N0')      AS [BH_NLD_10.5%],
-    FORMAT(dbo.fn_TinhBH_NSDLD(LuongCB,MaLoaiHD),'N0')    AS [BH_NSDLD_22%]
+    FORMAT(fn_TinhLuongDongBH(LuongCB, MaLoaiHD), 0)       AS LuongDongBH,
+    FORMAT(fn_TinhBH_NLD(LuongCB, MaLoaiHD), 0)            AS BH_NLD_10_5pct,
+    FORMAT(fn_TinhBH_NSDLD(LuongCB, MaLoaiHD), 0)          AS BH_NSDLD_22pct
 FROM (
-    VALUES
-      (6500000,  1, N'Thử việc (HĐ TV)'),
-      (8500000,  2, N'Nhân Viên 1 năm'),
-      (11500000, 2, N'Chuyên Viên 1 năm'),
-      (15000000, 3, N'CV Cao Cấp 2 năm'),
-      (24000000, 3, N'Trưởng Phòng 2 năm'),
-      (55000000, 4, N'TGĐ (lương > trần BH)'),
-      (47000000, 4, N'Lương sát trần BH')
-) T(LuongCB, MaLoaiHD, TenLoai);
-GO
+    SELECT 6500000  AS LuongCB, 1 AS MaLoaiHD, 'Thử việc (HĐ TV)'      AS TenLoai UNION ALL
+    SELECT 8500000,              2,              'Nhân Viên 1 năm'              UNION ALL
+    SELECT 11500000,             2,              'Chuyên Viên 1 năm'            UNION ALL
+    SELECT 15000000,             3,              'CV Cao Cấp 2 năm'             UNION ALL
+    SELECT 24000000,             3,              'Trưởng Phòng 2 năm'           UNION ALL
+    SELECT 55000000,             4,              'TGĐ (lương > trần BH)'        UNION ALL
+    SELECT 47000000,             4,              'Lương sát trần BH'
+) T;
 
--- Chi tiết TVF cho TGĐ
-PRINT N'';
-PRINT N'--- Chi tiết BH cho TGĐ (lương 55,000,000 VNĐ) ---';
+-- Chi tiết BHXH cho TGĐ
+SELECT '' AS Separator;
+SELECT '--- Chi tiết BH cho TGĐ (lương 55,000,000 VNĐ) ---' AS Info;
+CALL sp_TinhBHXH_ChiTiet(55000000, 4);
+
+-- Kiểm tra trần BH
 SELECT
-    FORMAT(LuongDongBH,      'N0') AS [LuongDongBH],
-    FORMAT(BHXH_NLD,         'N0') AS [BHXH_NLD_8%],
-    FORMAT(BHYT_NLD,         'N0') AS [BHYT_NLD_1.5%],
-    FORMAT(BHTN_NLD,         'N0') AS [BHTN_NLD_1%],
-    FORMAT(Tong_BH_NLD,      'N0') AS [TONG_NLD_10.5%],
-    FORMAT(BHXH_NSDLD,       'N0') AS [BHXH_NSDLD_17.5%],
-    FORMAT(BHYT_NSDLD,       'N0') AS [BHYT_NSDLD_3%],
-    FORMAT(BHTN_NSDLD,       'N0') AS [BHTN_NSDLD_1%],
-    FORMAT(BHTNLD_BNN_NSDLD, 'N0') AS [BHTNLBNN_0.5%],
-    FORMAT(Tong_BH_NSDLD,    'N0') AS [TONG_NSDLD_22%],
-    FORMAT(Tong_BH_Ca_Hai,   'N0') AS [TONG_32.5%]
-FROM dbo.fn_TinhBHXH_TVF(55000000, 4);
-GO
+    FORMAT(fn_TinhLuongDongBH(55000000, 4), 0)  AS LuongDongBH_55M,
+    FORMAT(fn_TinhLuongDongBH(46800000, 4), 0)  AS LuongDongBH_46_8M_exact,
+    FORMAT(fn_TinhLuongDongBH(40000000, 4), 0)  AS LuongDongBH_40M_duoi_tran,
+    FORMAT(fn_TinhLuongDongBH(6500000,  1), 0)  AS LuongDongBH_ThuViec_bang0;
 
--- Xác minh trần BH
-PRINT N'';
-PRINT N'--- Kiểm tra trần lương đóng BH = 46,800,000 ---';
+-- Test case
 SELECT
-    FORMAT(dbo.fn_TinhLuongDongBH(55000000, 4),'N0') AS [LuongDongBH_55M],
-    FORMAT(dbo.fn_TinhLuongDongBH(46800000, 4),'N0') AS [LuongDongBH_46.8M_exact],
-    FORMAT(dbo.fn_TinhLuongDongBH(40000000, 4),'N0') AS [LuongDongBH_40M_duoi_tran],
-    FORMAT(dbo.fn_TinhLuongDongBH(6500000,  1),'N0') AS [LuongDongBH_ThuViec_=0];
-GO
-
--- Test case: Thử việc không đóng BH
-SELECT
-    CASE WHEN dbo.fn_TinhBH_NLD(8000000, 1) = 0
-         THEN N'✅ PASS: Thử việc BHXH = 0'
-         ELSE N'❌ FAIL' END AS [Test_ThuViec];
-GO
-
--- Test case: Trần BH đúng 46,800,000
-SELECT
-    CASE WHEN dbo.fn_TinhLuongDongBH(100000000, 4) = 46800000
-         THEN N'✅ PASS: Trần BH = 46,800,000'
-         ELSE N'❌ FAIL' END AS [Test_TranBH];
-GO
-
--- Tích hợp: NV lương 15 triệu, 0 người PT, HĐ 2 năm
-PRINT N'';
-PRINT N'--- Ví dụ tích hợp: CVCC lương 15tr, 0 người PT ---';
-DECLARE
-    @LCB     DECIMAL(18,2) = 15000000,
-    @MaHD    TINYINT       = 3,
-    @NguoiPT TINYINT       = 0;
-
-DECLARE
-    @LDB     DECIMAL(18,2) = dbo.fn_TinhLuongDongBH(@LCB, @MaHD),
-    @BH_NLD  DECIMAL(18,2) = dbo.fn_TinhBH_NLD(@LCB, @MaHD),
-    @GiamTru DECIMAL(18,2) = 11000000 + dbo.fn_TinhGiamTruPhuThuoc(@NguoiPT),
-    @TNCT    DECIMAL(18,2),
-    @Thue    DECIMAL(18,2);
-
-SET @TNCT = @LCB - @BH_NLD - @GiamTru;
-SET @Thue = dbo.fn_TinhThueTNCN_Scalar(@TNCT);
+    CASE WHEN fn_TinhBH_NLD(8000000, 1) = 0
+         THEN 'PASS: Thử việc BHXH = 0'
+         ELSE 'FAIL' END AS Test_ThuViec;
 
 SELECT
-    FORMAT(@LCB,    'N0') AS [LuongCoBan],
-    FORMAT(@LDB,    'N0') AS [LuongDongBH],
-    FORMAT(@BH_NLD, 'N0') AS [BaoHiem_NLD],
-    FORMAT(@GiamTru,'N0') AS [TongGiamTru],
-    FORMAT(@TNCT,   'N0') AS [ThuNhapChiuThue],
-    dbo.fn_XacDinhBacThue(@TNCT) AS [BacThue],
-    FORMAT(@Thue,   'N0') AS [ThueTNCN],
-    FORMAT(@LCB - @BH_NLD - @Thue, 'N0') AS [LuongNet_UocTinh];
-GO
+    CASE WHEN fn_TinhLuongDongBH(100000000, 4) = 46800000
+         THEN 'PASS: Trần BH = 46,800,000'
+         ELSE 'FAIL' END AS Test_TranBH;
 
-PRINT N'';
-PRINT N'[DONE] fn_TinhBHXH.sql — 4 functions, tất cả test PASS';
-GO
+SELECT '[DONE] fn_TinhBHXH.sql — 3 functions + 1 procedure, tất cả test PASS' AS Status;

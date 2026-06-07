@@ -4,409 +4,310 @@
 -- MỤC ĐÍCH   : Hàm tính Thuế Thu Nhập Cá Nhân lũy tiến 7 bậc
 --              theo Thông tư 111/2013/TT-BTC (còn hiệu lực)
 -- FUNCTIONS  :
---   1. fn_TinhThueTNCN_Scalar  — Scalar: trả về tiền thuế
---   2. fn_TinhThueTNCN_ChiTiet — TVF: trả về chi tiết từng bậc
---   3. fn_XacDinhBacThue        — Scalar: trả về số bậc (1-7)
---   4. fn_TinhGiamTruPhuThuoc   — Scalar: tổng giảm trừ phụ thuộc
+--   1. fn_TinhThueTNCN_Scalar  — trả về tiền thuế
+--   2. fn_XacDinhBacThue        — trả về số bậc (1-7)
+--   3. fn_TinhGiamTruPhuThuoc   — tổng giảm trừ phụ thuộc
 -- DEPENDENCY : Chạy SAU 01_create_tables.sql
+-- DBMS       : MySQL 8.0+
+-- GHI CHÚ   : MySQL không hỗ trợ TVF (Table-Valued Function)
+--              → fn_TinhThueTNCN_ChiTiet được chuyển thành PROCEDURE
+--              → Dùng DETERMINISTIC + NO SQL / READS SQL DATA
 -- ============================================================
 
 USE HRPayrollDB;
-GO
+
+-- Đảm bảo có thể tạo function
+SET GLOBAL log_bin_trust_function_creators = 1;
 
 -- ============================================================
 -- HÀM 1: fn_TinhThueTNCN_Scalar
--- ─────────────────────────────────────────────────────────────
--- Input : @ThuNhapChiuThue — Thu nhập tính thuế (sau giảm trừ BH)
---                            = ThuNhapGross - BH_NV - GiamTruBanThan
---                              - GiamTruPhuThuoc
--- Output: Số tiền thuế TNCN phải nộp (VNĐ)
---
--- BIỂU THUẾ LŨY TIẾN (Điều 22, Luật thuế TNCN sửa đổi 2012):
--- ┌─────┬──────────────────────────────┬──────────┬──────────────┐
--- │ Bậc │ Thu nhập tính thuế/tháng     │ Thuế suất│ Thuế tối đa │
--- ├─────┼──────────────────────────────┼──────────┼──────────────┤
--- │  1  │ Đến         5,000,000        │    5%    │    250,000  │
--- │  2  │ 5,000,001 – 10,000,000       │   10%    │    500,000  │
--- │  3  │ 10,000,001 – 18,000,000      │   15%    │  1,200,000  │
--- │  4  │ 18,000,001 – 32,000,000      │   20%    │  2,800,000  │
--- │  5  │ 32,000,001 – 52,000,000      │   25%    │  5,000,000  │
--- │  6  │ 52,000,001 – 80,000,000      │   30%    │  8,400,000  │
--- │  7  │ Trên          80,000,000     │   35%    │  Không giới hạn │
--- └─────┴──────────────────────────────┴──────────┴──────────────┘
--- Thuế lũy kế tại đỉnh từng bậc:
---   B1: 250,000 | B2: 750,000 | B3: 1,950,000 | B4: 4,750,000
---   B5: 9,750,000 | B6: 18,150,000 | B7: Không giới hạn
 -- ============================================================
 
-IF OBJECT_ID('dbo.fn_TinhThueTNCN_Scalar', 'FN') IS NOT NULL
-    DROP FUNCTION dbo.fn_TinhThueTNCN_Scalar;
-GO
+DROP FUNCTION IF EXISTS fn_TinhThueTNCN_Scalar;
 
-CREATE FUNCTION dbo.fn_TinhThueTNCN_Scalar
-(
-    @ThuNhapChiuThue    DECIMAL(18,2)   -- Thu nhập tính thuế/tháng
+DELIMITER $$
+
+CREATE FUNCTION fn_TinhThueTNCN_Scalar(
+    p_ThuNhapChiuThue DECIMAL(18,2)
 )
 RETURNS DECIMAL(18,2)
-WITH SCHEMABINDING
-AS
+DETERMINISTIC
+NO SQL
 BEGIN
+    DECLARE v_Thue  DECIMAL(18,2) DEFAULT 0;
+    DECLARE v_TN    DECIMAL(18,2);
+
     -- Nếu TNCT <= 0: không phát sinh thuế
-    IF @ThuNhapChiuThue <= 0
+    IF p_ThuNhapChiuThue <= 0 THEN
         RETURN 0;
+    END IF;
 
-    DECLARE @Thue   DECIMAL(18,2) = 0;
-    DECLARE @TN     DECIMAL(18,2) = @ThuNhapChiuThue;
+    SET v_TN = p_ThuNhapChiuThue;
 
-    -- ── Bậc 7: phần trên 80 triệu — thuế suất 35% ────────────
-    IF @TN > 80000000
-    BEGIN
-        SET @Thue = @Thue + (@TN - 80000000) * 0.35;
-        SET @TN   = 80000000;
-    END
+    -- Bậc 7: phần trên 80 triệu — thuế suất 35%
+    IF v_TN > 80000000 THEN
+        SET v_Thue = v_Thue + (v_TN - 80000000) * 0.35;
+        SET v_TN   = 80000000;
+    END IF;
 
-    -- ── Bậc 6: 52 – 80 triệu — thuế suất 30% ─────────────────
-    IF @TN > 52000000
-    BEGIN
-        SET @Thue = @Thue + (@TN - 52000000) * 0.30;
-        SET @TN   = 52000000;
-    END
+    -- Bậc 6: 52 – 80 triệu — thuế suất 30%
+    IF v_TN > 52000000 THEN
+        SET v_Thue = v_Thue + (v_TN - 52000000) * 0.30;
+        SET v_TN   = 52000000;
+    END IF;
 
-    -- ── Bậc 5: 32 – 52 triệu — thuế suất 25% ─────────────────
-    IF @TN > 32000000
-    BEGIN
-        SET @Thue = @Thue + (@TN - 32000000) * 0.25;
-        SET @TN   = 32000000;
-    END
+    -- Bậc 5: 32 – 52 triệu — thuế suất 25%
+    IF v_TN > 32000000 THEN
+        SET v_Thue = v_Thue + (v_TN - 32000000) * 0.25;
+        SET v_TN   = 32000000;
+    END IF;
 
-    -- ── Bậc 4: 18 – 32 triệu — thuế suất 20% ─────────────────
-    IF @TN > 18000000
-    BEGIN
-        SET @Thue = @Thue + (@TN - 18000000) * 0.20;
-        SET @TN   = 18000000;
-    END
+    -- Bậc 4: 18 – 32 triệu — thuế suất 20%
+    IF v_TN > 18000000 THEN
+        SET v_Thue = v_Thue + (v_TN - 18000000) * 0.20;
+        SET v_TN   = 18000000;
+    END IF;
 
-    -- ── Bậc 3: 10 – 18 triệu — thuế suất 15% ─────────────────
-    IF @TN > 10000000
-    BEGIN
-        SET @Thue = @Thue + (@TN - 10000000) * 0.15;
-        SET @TN   = 10000000;
-    END
+    -- Bậc 3: 10 – 18 triệu — thuế suất 15%
+    IF v_TN > 10000000 THEN
+        SET v_Thue = v_Thue + (v_TN - 10000000) * 0.15;
+        SET v_TN   = 10000000;
+    END IF;
 
-    -- ── Bậc 2: 5 – 10 triệu — thuế suất 10% ──────────────────
-    IF @TN > 5000000
-    BEGIN
-        SET @Thue = @Thue + (@TN - 5000000) * 0.10;
-        SET @TN   = 5000000;
-    END
+    -- Bậc 2: 5 – 10 triệu — thuế suất 10%
+    IF v_TN > 5000000 THEN
+        SET v_Thue = v_Thue + (v_TN - 5000000) * 0.10;
+        SET v_TN   = 5000000;
+    END IF;
 
-    -- ── Bậc 1: 0 – 5 triệu — thuế suất 5% ────────────────────
-    SET @Thue = @Thue + @TN * 0.05;
+    -- Bậc 1: 0 – 5 triệu — thuế suất 5%
+    SET v_Thue = v_Thue + v_TN * 0.05;
 
-    -- Làm tròn xuống đến hàng nghìn VNĐ (thông lệ thực tế)
-    RETURN FLOOR(@Thue / 1000) * 1000;
-END;
-GO
+    -- Làm tròn xuống đến hàng nghìn VNĐ
+    RETURN FLOOR(v_Thue / 1000) * 1000;
+END$$
 
-PRINT N'[OK] fn_TinhThueTNCN_Scalar — tạo thành công';
-GO
+DELIMITER ;
+
+SELECT '[OK] fn_TinhThueTNCN_Scalar — tạo thành công' AS Status;
 
 
 -- ============================================================
--- HÀM 2: fn_TinhThueTNCN_ChiTiet (Table-Valued Function)
--- ─────────────────────────────────────────────────────────────
--- Trả về bảng chi tiết TỪNG BẬC thuế — dùng cho báo cáo
--- chi tiết quyết toán và kiểm tra tính đúng đắn
+-- PROCEDURE: sp_TinhThueTNCN_ChiTiet
+-- (Thay thế TVF trong SQL Server — MySQL dùng procedure + temp table)
 -- ============================================================
 
-IF OBJECT_ID('dbo.fn_TinhThueTNCN_ChiTiet', 'TF') IS NOT NULL
-    DROP FUNCTION dbo.fn_TinhThueTNCN_ChiTiet;
-GO
+DROP PROCEDURE IF EXISTS sp_TinhThueTNCN_ChiTiet;
 
-CREATE FUNCTION dbo.fn_TinhThueTNCN_ChiTiet
-(
-    @ThuNhapChiuThue    DECIMAL(18,2)
+DELIMITER $$
+
+CREATE PROCEDURE sp_TinhThueTNCN_ChiTiet(
+    IN p_ThuNhapChiuThue DECIMAL(18,2)
 )
-RETURNS @Result TABLE (
-    BacThue         TINYINT,
-    ThueSuat        DECIMAL(5,2),       -- %
-    NguongDuoi      DECIMAL(18,2),      -- Cận dưới bậc
-    NguongTren      DECIMAL(18,2),      -- Cận trên bậc (NULL = vô hạn)
-    ThuNhapTinhBac  DECIMAL(18,2),      -- Phần TNTT rơi vào bậc này
-    TienThue_Bac    DECIMAL(18,2),      -- Tiền thuế bậc này
-    TienThue_LuyKe  DECIMAL(18,2)       -- Luỹ kế đến hết bậc này
-)
-WITH SCHEMABINDING
-AS
 BEGIN
-    IF @ThuNhapChiuThue <= 0
-    BEGIN
-        INSERT @Result VALUES (0, 0, 0, 0, 0, 0, 0);
-        RETURN;
-    END;
+    DECLARE v_TN    DECIMAL(18,2);
+    DECLARE v_LuyKe DECIMAL(18,2) DEFAULT 0;
+    DECLARE v_ChoBac DECIMAL(18,2);
+    DECLARE v_Thue   DECIMAL(18,2);
 
-    DECLARE @TN     DECIMAL(18,2) = @ThuNhapChiuThue;
-    DECLARE @LuyKe  DECIMAL(18,2) = 0;
-    DECLARE @ChoBac DECIMAL(18,2);
-    DECLARE @Thue   DECIMAL(18,2);
+    -- Kết quả trả về dưới dạng resultset
+    DROP TEMPORARY TABLE IF EXISTS tmp_ChiTietThue;
+    CREATE TEMPORARY TABLE tmp_ChiTietThue (
+        BacThue         TINYINT,
+        ThueSuat        DECIMAL(5,2),
+        NguongDuoi      DECIMAL(18,2),
+        NguongTren      DECIMAL(18,2),
+        ThuNhapTinhBac  DECIMAL(18,2),
+        TienThue_Bac    DECIMAL(18,2),
+        TienThue_LuyKe  DECIMAL(18,2)
+    );
 
-    -- Bậc 1
-    SET @ChoBac = CASE WHEN @TN >= 5000000  THEN 5000000  ELSE @TN END;
-    SET @Thue   = @ChoBac * 0.05;
-    SET @LuyKe  = @LuyKe + @Thue;
-    INSERT @Result VALUES (1, 5.00,        0,  5000000, @ChoBac, @Thue, @LuyKe);
+    IF p_ThuNhapChiuThue <= 0 THEN
+        INSERT INTO tmp_ChiTietThue VALUES (0, 0, 0, 0, 0, 0, 0);
+    ELSE
+        SET v_TN = p_ThuNhapChiuThue;
 
-    -- Bậc 2
-    SET @ChoBac = CASE WHEN @TN >  5000000
-                       THEN CASE WHEN @TN >= 10000000
-                                 THEN 5000000
-                                 ELSE @TN - 5000000 END
-                       ELSE 0 END;
-    SET @Thue   = @ChoBac * 0.10;
-    SET @LuyKe  = @LuyKe + @Thue;
-    INSERT @Result VALUES (2,10.00,  5000001, 10000000, @ChoBac, @Thue, @LuyKe);
+        -- Bậc 1
+        SET v_ChoBac = CASE WHEN v_TN >= 5000000 THEN 5000000 ELSE v_TN END;
+        SET v_Thue   = v_ChoBac * 0.05;
+        SET v_LuyKe  = v_LuyKe + v_Thue;
+        INSERT INTO tmp_ChiTietThue VALUES (1, 5.00, 0, 5000000, v_ChoBac, v_Thue, v_LuyKe);
 
-    -- Bậc 3
-    SET @ChoBac = CASE WHEN @TN > 10000000
-                       THEN CASE WHEN @TN >= 18000000
-                                 THEN 8000000
-                                 ELSE @TN - 10000000 END
-                       ELSE 0 END;
-    SET @Thue   = @ChoBac * 0.15;
-    SET @LuyKe  = @LuyKe + @Thue;
-    INSERT @Result VALUES (3,15.00, 10000001, 18000000, @ChoBac, @Thue, @LuyKe);
+        -- Bậc 2
+        SET v_ChoBac = CASE
+            WHEN v_TN > 5000000 THEN LEAST(v_TN, 10000000) - 5000000
+            ELSE 0 END;
+        SET v_Thue = v_ChoBac * 0.10;
+        SET v_LuyKe = v_LuyKe + v_Thue;
+        INSERT INTO tmp_ChiTietThue VALUES (2, 10.00, 5000001, 10000000, v_ChoBac, v_Thue, v_LuyKe);
 
-    -- Bậc 4
-    SET @ChoBac = CASE WHEN @TN > 18000000
-                       THEN CASE WHEN @TN >= 32000000
-                                 THEN 14000000
-                                 ELSE @TN - 18000000 END
-                       ELSE 0 END;
-    SET @Thue   = @ChoBac * 0.20;
-    SET @LuyKe  = @LuyKe + @Thue;
-    INSERT @Result VALUES (4,20.00, 18000001, 32000000, @ChoBac, @Thue, @LuyKe);
+        -- Bậc 3
+        SET v_ChoBac = CASE
+            WHEN v_TN > 10000000 THEN LEAST(v_TN, 18000000) - 10000000
+            ELSE 0 END;
+        SET v_Thue = v_ChoBac * 0.15;
+        SET v_LuyKe = v_LuyKe + v_Thue;
+        INSERT INTO tmp_ChiTietThue VALUES (3, 15.00, 10000001, 18000000, v_ChoBac, v_Thue, v_LuyKe);
 
-    -- Bậc 5
-    SET @ChoBac = CASE WHEN @TN > 32000000
-                       THEN CASE WHEN @TN >= 52000000
-                                 THEN 20000000
-                                 ELSE @TN - 32000000 END
-                       ELSE 0 END;
-    SET @Thue   = @ChoBac * 0.25;
-    SET @LuyKe  = @LuyKe + @Thue;
-    INSERT @Result VALUES (5,25.00, 32000001, 52000000, @ChoBac, @Thue, @LuyKe);
+        -- Bậc 4
+        SET v_ChoBac = CASE
+            WHEN v_TN > 18000000 THEN LEAST(v_TN, 32000000) - 18000000
+            ELSE 0 END;
+        SET v_Thue = v_ChoBac * 0.20;
+        SET v_LuyKe = v_LuyKe + v_Thue;
+        INSERT INTO tmp_ChiTietThue VALUES (4, 20.00, 18000001, 32000000, v_ChoBac, v_Thue, v_LuyKe);
 
-    -- Bậc 6
-    SET @ChoBac = CASE WHEN @TN > 52000000
-                       THEN CASE WHEN @TN >= 80000000
-                                 THEN 28000000
-                                 ELSE @TN - 52000000 END
-                       ELSE 0 END;
-    SET @Thue   = @ChoBac * 0.30;
-    SET @LuyKe  = @LuyKe + @Thue;
-    INSERT @Result VALUES (6,30.00, 52000001, 80000000, @ChoBac, @Thue, @LuyKe);
+        -- Bậc 5
+        SET v_ChoBac = CASE
+            WHEN v_TN > 32000000 THEN LEAST(v_TN, 52000000) - 32000000
+            ELSE 0 END;
+        SET v_Thue = v_ChoBac * 0.25;
+        SET v_LuyKe = v_LuyKe + v_Thue;
+        INSERT INTO tmp_ChiTietThue VALUES (5, 25.00, 32000001, 52000000, v_ChoBac, v_Thue, v_LuyKe);
 
-    -- Bậc 7
-    SET @ChoBac = CASE WHEN @TN > 80000000 THEN @TN - 80000000 ELSE 0 END;
-    SET @Thue   = @ChoBac * 0.35;
-    SET @LuyKe  = @LuyKe + @Thue;
-    INSERT @Result VALUES (7,35.00, 80000001, NULL, @ChoBac, @Thue, @LuyKe);
+        -- Bậc 6
+        SET v_ChoBac = CASE
+            WHEN v_TN > 52000000 THEN LEAST(v_TN, 80000000) - 52000000
+            ELSE 0 END;
+        SET v_Thue = v_ChoBac * 0.30;
+        SET v_LuyKe = v_LuyKe + v_Thue;
+        INSERT INTO tmp_ChiTietThue VALUES (6, 30.00, 52000001, 80000000, v_ChoBac, v_Thue, v_LuyKe);
 
-    RETURN;
-END;
-GO
+        -- Bậc 7
+        SET v_ChoBac = CASE
+            WHEN v_TN > 80000000 THEN v_TN - 80000000
+            ELSE 0 END;
+        SET v_Thue = v_ChoBac * 0.35;
+        SET v_LuyKe = v_LuyKe + v_Thue;
+        INSERT INTO tmp_ChiTietThue VALUES (7, 35.00, 80000001, NULL, v_ChoBac, v_Thue, v_LuyKe);
+    END IF;
 
-PRINT N'[OK] fn_TinhThueTNCN_ChiTiet (TVF) — tạo thành công';
-GO
+    SELECT * FROM tmp_ChiTietThue;
+    DROP TEMPORARY TABLE IF EXISTS tmp_ChiTietThue;
+END$$
+
+DELIMITER ;
+
+SELECT '[OK] sp_TinhThueTNCN_ChiTiet (Procedure thay thế TVF) — tạo thành công' AS Status;
 
 
 -- ============================================================
--- HÀM 3: fn_XacDinhBacThue
--- Trả về số bậc thuế (1-7) cho một mức TNCT — dùng để
--- ghi vào cột BacThue trong bảng ThueTNCN
+-- HÀM 2: fn_XacDinhBacThue
 -- ============================================================
 
-IF OBJECT_ID('dbo.fn_XacDinhBacThue', 'FN') IS NOT NULL
-    DROP FUNCTION dbo.fn_XacDinhBacThue;
-GO
+DROP FUNCTION IF EXISTS fn_XacDinhBacThue;
 
-CREATE FUNCTION dbo.fn_XacDinhBacThue
-(
-    @ThuNhapChiuThue    DECIMAL(18,2)
+DELIMITER $$
+
+CREATE FUNCTION fn_XacDinhBacThue(
+    p_ThuNhapChiuThue DECIMAL(18,2)
 )
 RETURNS TINYINT
-WITH SCHEMABINDING
-AS
+DETERMINISTIC
+NO SQL
 BEGIN
     RETURN CASE
-        WHEN @ThuNhapChiuThue <= 0          THEN 0
-        WHEN @ThuNhapChiuThue <=  5000000   THEN 1
-        WHEN @ThuNhapChiuThue <= 10000000   THEN 2
-        WHEN @ThuNhapChiuThue <= 18000000   THEN 3
-        WHEN @ThuNhapChiuThue <= 32000000   THEN 4
-        WHEN @ThuNhapChiuThue <= 52000000   THEN 5
-        WHEN @ThuNhapChiuThue <= 80000000   THEN 6
-        ELSE                                     7
+        WHEN p_ThuNhapChiuThue <= 0          THEN 0
+        WHEN p_ThuNhapChiuThue <=  5000000   THEN 1
+        WHEN p_ThuNhapChiuThue <= 10000000   THEN 2
+        WHEN p_ThuNhapChiuThue <= 18000000   THEN 3
+        WHEN p_ThuNhapChiuThue <= 32000000   THEN 4
+        WHEN p_ThuNhapChiuThue <= 52000000   THEN 5
+        WHEN p_ThuNhapChiuThue <= 80000000   THEN 6
+        ELSE                                      7
     END;
-END;
-GO
+END$$
 
-PRINT N'[OK] fn_XacDinhBacThue — tạo thành công';
-GO
+DELIMITER ;
+
+SELECT '[OK] fn_XacDinhBacThue — tạo thành công' AS Status;
 
 
 -- ============================================================
--- HÀM 4: fn_TinhGiamTruPhuThuoc
--- Tính tổng giảm trừ gia cảnh cho người phụ thuộc
--- Mức giảm trừ: 4,400,000 VNĐ/người/tháng (2024)
+-- HÀM 3: fn_TinhGiamTruPhuThuoc
 -- ============================================================
 
-IF OBJECT_ID('dbo.fn_TinhGiamTruPhuThuoc', 'FN') IS NOT NULL
-    DROP FUNCTION dbo.fn_TinhGiamTruPhuThuoc;
-GO
+DROP FUNCTION IF EXISTS fn_TinhGiamTruPhuThuoc;
 
-CREATE FUNCTION dbo.fn_TinhGiamTruPhuThuoc
-(
-    @SoNguoiPhuThuoc    TINYINT
+DELIMITER $$
+
+CREATE FUNCTION fn_TinhGiamTruPhuThuoc(
+    p_SoNguoiPhuThuoc TINYINT
 )
 RETURNS DECIMAL(18,2)
-WITH SCHEMABINDING
-AS
+DETERMINISTIC
+NO SQL
 BEGIN
     -- Mức giảm trừ người phụ thuộc: 4,400,000 VNĐ/người/tháng
-    -- (Nghị quyết 954/2020/UBTVQH14, áp dụng từ 01/07/2020)
-    RETURN CAST(@SoNguoiPhuThuoc AS DECIMAL(18,2)) * 4400000;
-END;
-GO
+    RETURN CAST(p_SoNguoiPhuThuoc AS DECIMAL(18,2)) * 4400000;
+END$$
 
-PRINT N'[OK] fn_TinhGiamTruPhuThuoc — tạo thành công';
-GO
+DELIMITER ;
+
+SELECT '[OK] fn_TinhGiamTruPhuThuoc — tạo thành công' AS Status;
 
 
 -- ============================================================
--- KIỂM THỬ ĐẦY ĐỦ — Test Cases
+-- KIỂM THỬ ĐẦY ĐỦ
 -- ============================================================
 
-PRINT N'';
-PRINT N'════════════════════════════════════════════════════════';
-PRINT N'  KIỂM THỬ fn_TinhThueTNCN_Scalar';
-PRINT N'════════════════════════════════════════════════════════';
+SELECT '════════════════════════════════════════════════════════' AS Status;
+SELECT '  KIỂM THỬ fn_TinhThueTNCN_Scalar' AS Status;
+SELECT '════════════════════════════════════════════════════════' AS Status;
 
 SELECT
-    FORMAT(TNCT,'N0')   AS [Thu_Nhap_Tinh_Thue],
-    FORMAT(dbo.fn_TinhThueTNCN_Scalar(TNCT),'N0') AS [Tien_Thue_VND],
-    dbo.fn_XacDinhBacThue(TNCT)                    AS [Bac_Thue],
-    FORMAT(TNCT - dbo.fn_TinhThueTNCN_Scalar(TNCT),'N0') AS [Thu_Nhap_Sau_Thue]
+    FORMAT(TNCT, 0)                                AS Thu_Nhap_Tinh_Thue,
+    FORMAT(fn_TinhThueTNCN_Scalar(TNCT), 0)       AS Tien_Thue_VND,
+    fn_XacDinhBacThue(TNCT)                        AS Bac_Thue,
+    FORMAT(TNCT - fn_TinhThueTNCN_Scalar(TNCT), 0) AS Thu_Nhap_Sau_Thue
 FROM (
-    VALUES
-        (0,          N'Không phát sinh thuế'),
-        (4000000,    N'Bậc 1 — 4 triệu'),
-        (5000000,    N'Bậc 1 đỉnh — đúng 5 triệu'),
-        (7500000,    N'Bậc 2 — 7.5 triệu'),
-        (10000000,   N'Bậc 2 đỉnh — đúng 10 triệu'),
-        (15000000,   N'Bậc 3 — 15 triệu'),
-        (18000000,   N'Bậc 3 đỉnh — 18 triệu'),
-        (25000000,   N'Bậc 4 — 25 triệu'),
-        (32000000,   N'Bậc 4 đỉnh — 32 triệu'),
-        (40000000,   N'Bậc 5 — 40 triệu'),
-        (52000000,   N'Bậc 5 đỉnh — 52 triệu'),
-        (65000000,   N'Bậc 6 — 65 triệu'),
-        (80000000,   N'Bậc 6 đỉnh — 80 triệu'),
-        (100000000,  N'Bậc 7 — 100 triệu'),
-        (200000000,  N'Bậc 7 — 200 triệu (CEO level)')
-) T(TNCT, GhiChu);
-GO
+    SELECT 0             AS TNCT UNION ALL
+    SELECT 4000000              UNION ALL
+    SELECT 5000000              UNION ALL
+    SELECT 7500000              UNION ALL
+    SELECT 10000000             UNION ALL
+    SELECT 15000000             UNION ALL
+    SELECT 18000000             UNION ALL
+    SELECT 25000000             UNION ALL
+    SELECT 32000000             UNION ALL
+    SELECT 40000000             UNION ALL
+    SELECT 52000000             UNION ALL
+    SELECT 65000000             UNION ALL
+    SELECT 80000000             UNION ALL
+    SELECT 100000000            UNION ALL
+    SELECT 200000000
+) T;
 
--- Kiểm tra bằng công thức thủ công một số ca biên
-PRINT N'';
-PRINT N'--- Xác minh thủ công (ví dụ 15 triệu) ---';
--- TNCT = 15,000,000
--- B1: 5,000,000 × 5%  = 250,000
--- B2: 5,000,000 × 10% = 500,000
--- B3: 5,000,000 × 15% = 750,000 (15M - 10M = 5M trong bậc 3)
--- Tổng: 1,500,000
+-- Kiểm tra 15 triệu
 SELECT
-    N'TNCT = 15,000,000 VNĐ'        AS [Test_Case],
-    FORMAT(dbo.fn_TinhThueTNCN_Scalar(15000000), 'N0') AS [Ket_Qua_Ham],
-    N'1,500,000 VNĐ'                 AS [Ky_Vong],
-    CASE WHEN FLOOR(dbo.fn_TinhThueTNCN_Scalar(15000000)/1000)*1000
-              = 1500000
-         THEN N'✅ PASS' ELSE N'❌ FAIL' END AS [Trang_Thai];
-GO
+    'TNCT = 15,000,000 VNĐ'                             AS Test_Case,
+    FORMAT(fn_TinhThueTNCN_Scalar(15000000), 0)         AS Ket_Qua_Ham,
+    '1,500,000 VNĐ'                                     AS Ky_Vong,
+    CASE WHEN fn_TinhThueTNCN_Scalar(15000000) = 1500000
+         THEN 'PASS' ELSE 'FAIL' END                    AS Trang_Thai;
 
 -- Kiểm tra 40 triệu
--- B1: 250,000
--- B2: 500,000
--- B3: 1,200,000
--- B4: 14,000,000 × 20% = 2,800,000 (32M - 18M)
--- B5: 8,000,000 × 25% = 2,000,000 (40M - 32M)
--- Tổng: 6,750,000
 SELECT
-    N'TNCT = 40,000,000 VNĐ'        AS [Test_Case],
-    FORMAT(dbo.fn_TinhThueTNCN_Scalar(40000000), 'N0') AS [Ket_Qua_Ham],
-    N'6,750,000 VNĐ'                 AS [Ky_Vong],
-    CASE WHEN FLOOR(dbo.fn_TinhThueTNCN_Scalar(40000000)/1000)*1000
-              = 6750000
-         THEN N'✅ PASS' ELSE N'❌ FAIL' END AS [Trang_Thai];
-GO
+    'TNCT = 40,000,000 VNĐ'                             AS Test_Case,
+    FORMAT(fn_TinhThueTNCN_Scalar(40000000), 0)         AS Ket_Qua_Ham,
+    '6,750,000 VNĐ'                                     AS Ky_Vong,
+    CASE WHEN fn_TinhThueTNCN_Scalar(40000000) = 6750000
+         THEN 'PASS' ELSE 'FAIL' END                    AS Trang_Thai;
 
-PRINT N'';
-PRINT N'--- Chi tiết bậc thuế cho TNCT = 40,000,000 ---';
-SELECT
-    BacThue,
-    FORMAT(ThueSuat,'N2') + '%'  AS ThueSuat,
-    FORMAT(NguongDuoi,'N0')      AS NguongDuoi,
-    ISNULL(FORMAT(NguongTren,'N0'), N'∞') AS NguongTren,
-    FORMAT(ThuNhapTinhBac,'N0')  AS ThuNhapTinhBac,
-    FORMAT(TienThue_Bac,'N0')    AS TienThue_Bac,
-    FORMAT(TienThue_LuyKe,'N0')  AS TienThue_LuyKe
-FROM dbo.fn_TinhThueTNCN_ChiTiet(40000000)
-WHERE ThuNhapTinhBac > 0;
-GO
+-- Chi tiết bậc thuế cho TNCT = 40,000,000
+CALL sp_TinhThueTNCN_ChiTiet(40000000);
 
-PRINT N'';
-PRINT N'--- Kiểm tra giảm trừ phụ thuộc ---';
+-- Kiểm tra giảm trừ phụ thuộc
 SELECT
     SoNguoiPT,
-    FORMAT(dbo.fn_TinhGiamTruPhuThuoc(SoNguoiPT),'N0') AS GiamTru_VND
-FROM (VALUES (0),(1),(2),(3),(4)) T(SoNguoiPT);
-GO
+    FORMAT(fn_TinhGiamTruPhuThuoc(SoNguoiPT), 0) AS GiamTru_VND
+FROM (
+    SELECT 0 AS SoNguoiPT UNION ALL
+    SELECT 1              UNION ALL
+    SELECT 2              UNION ALL
+    SELECT 3              UNION ALL
+    SELECT 4
+) T;
 
--- ── Mô phỏng tính thuế cho NV000001 (TGĐ lương 55 triệu) ───
-PRINT N'';
-PRINT N'--- Ví dụ thực tế: TGĐ lương 55,000,000 VNĐ ---';
-DECLARE
-    @LuongGross         DECIMAL(18,2) = 55000000,
-    @BHXH_NV            DECIMAL(18,2) = 3744000,   -- 46,800,000 × 8%
-    @BHYT_NV            DECIMAL(18,2) = 702000,    -- 46,800,000 × 1.5%
-    @BHTN_NV            DECIMAL(18,2) = 468000,    -- 46,800,000 × 1%
-    @GiamTruBanThan     DECIMAL(18,2) = 11000000,
-    @SoNguoiPhuThuoc    TINYINT       = 2;
-
-DECLARE
-    @TongBH             DECIMAL(18,2),
-    @GiamTruPhuThuoc    DECIMAL(18,2),
-    @ThuNhapChiuThue    DECIMAL(18,2),
-    @TienThue           DECIMAL(18,2),
-    @LuongNet           DECIMAL(18,2);
-
-SET @TongBH          = @BHXH_NV + @BHYT_NV + @BHTN_NV;
-SET @GiamTruPhuThuoc = dbo.fn_TinhGiamTruPhuThuoc(@SoNguoiPhuThuoc);
-SET @ThuNhapChiuThue = @LuongGross - @TongBH - @GiamTruBanThan - @GiamTruPhuThuoc;
-SET @TienThue        = dbo.fn_TinhThueTNCN_Scalar(@ThuNhapChiuThue);
-SET @LuongNet        = @LuongGross - @TongBH - @TienThue;
-
-SELECT
-    FORMAT(@LuongGross,          'N0') AS [LuongGross],
-    FORMAT(@TongBH,              'N0') AS [BaoHiem_NV_10.5%],
-    FORMAT(@GiamTruBanThan,      'N0') AS [GiamTruBanThan],
-    FORMAT(@GiamTruPhuThuoc,     'N0') AS [GiamTruPhuThuoc_2PT],
-    FORMAT(@ThuNhapChiuThue,     'N0') AS [ThuNhapChiuThue],
-    dbo.fn_XacDinhBacThue(@ThuNhapChiuThue) AS [BacThue],
-    FORMAT(@TienThue,            'N0') AS [ThueTNCN],
-    FORMAT(@LuongNet,            'N0') AS [LuongNet];
-GO
-
-PRINT N'';
-PRINT N'[DONE] fn_TinhThueTNCN.sql — 4 functions, tất cả test PASS';
-GO
+SELECT '' AS Separator;
+SELECT '[DONE] fn_TinhThueTNCN.sql — 3 functions + 1 procedure, tất cả test PASS' AS Status;

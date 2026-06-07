@@ -4,161 +4,145 @@
 -- MỤC ĐÍCH   : Các hàm tính ngày công — nền tảng cho sp_TinhLuong
 -- FUNCTIONS  :
 --   1. fn_SoNgayChuanThang  — Scalar: ngày chuẩn làm việc/tháng
---                             (loại cuối tuần + lễ)
---   2. fn_SoNgayChamCong    — Scalar: ngày đi làm thực tế (từ ChamCong)
---   3. fn_SoNgayNghiCoLuong — Scalar: ngày nghỉ hưởng lương (phép + ốm)
---   4. fn_HeSoLuongThang    — Scalar: hệ số lương theo ngày công
---                             = SoNgayDiLam / SoNgayChuanThang
---   5. fn_TinhLuongLamThem  — Scalar: lương tăng ca kỳ tháng
+--   2. fn_SoNgayChamCong    — Scalar: ngày đi làm thực tế
+--   3. fn_SoNgayNghiCoLuong — Scalar: ngày nghỉ hưởng lương
+--   4. fn_SoNgayNghiKhongLuong — Scalar: ngày nghỉ không lương
+--   5. fn_HeSoLuongThang    — Scalar: hệ số lương theo ngày công
+--   6. fn_TinhLuongLamThem  — Scalar: lương tăng ca kỳ tháng
 -- DEPENDENCY : Chạy SAU fn_TinhBHXH.sql, cần seed_data.sql
+-- DBMS       : MySQL 8.0+
+-- GHI CHÚ   : MySQL không hỗ trợ WHILE loop tốt trong scalar function
+--              dùng recursive CTE hoặc bảng số thay thế
 -- ============================================================
 
 USE HRPayrollDB;
-GO
 
 -- ============================================================
 -- HÀM 1: fn_SoNgayChuanThang
--- ─────────────────────────────────────────────────────────────
--- Đếm số ngày làm việc tiêu chuẩn trong tháng:
---   = tổng ngày trong tháng - cuối tuần - ngày lễ chính thức
--- Dùng để tính: HeSoNgayCong = NgayDiLam / NgayChuanThang
+-- Đếm số ngày làm việc tiêu chuẩn trong tháng
+-- (loại cuối tuần + ngày lễ trong bảng NgayLe)
 -- ============================================================
 
-IF OBJECT_ID('dbo.fn_SoNgayChuanThang', 'FN') IS NOT NULL
-    DROP FUNCTION dbo.fn_SoNgayChuanThang;
-GO
+DROP FUNCTION IF EXISTS fn_SoNgayChuanThang;
 
-CREATE FUNCTION dbo.fn_SoNgayChuanThang
-(
-    @Thang  TINYINT,
-    @Nam    SMALLINT
+DELIMITER $$
+
+CREATE FUNCTION fn_SoNgayChuanThang(
+    p_Thang TINYINT,
+    p_Nam   SMALLINT
 )
 RETURNS TINYINT
-AS
+READS SQL DATA
+DETERMINISTIC
 BEGIN
-    -- Bảng ngày lễ cứng (không đổi hàng năm)
-    -- Ngày lễ theo ngày dương (không tính Tết ÂL vì biến động)
-    DECLARE @NgayDauThang  DATE = DATEFROMPARTS(@Nam, @Thang, 1);
-    DECLARE @NgayCuoiThang DATE = EOMONTH(@NgayDauThang);
-    DECLARE @NgayChuan     INT  = 0;
-    DECLARE @NgayLay       DATE = @NgayDauThang;
+    DECLARE v_NgayDauThang  DATE;
+    DECLARE v_NgayCuoiThang DATE;
+    DECLARE v_NgayChuan     INT DEFAULT 0;
+    DECLARE v_NgayLay       DATE;
+
+    SET v_NgayDauThang  = MAKEDATE(p_Nam, 1);
+    SET v_NgayDauThang  = DATE(CONCAT(p_Nam, '-', LPAD(p_Thang, 2, '0'), '-01'));
+    SET v_NgayCuoiThang = LAST_DAY(v_NgayDauThang);
+    SET v_NgayLay       = v_NgayDauThang;
 
     -- Duyệt từng ngày trong tháng
-    WHILE @NgayLay <= @NgayCuoiThang
-    BEGIN
-        -- Chỉ đếm ngày trong tuần (thứ 2 đến thứ 6)
-        IF DATENAME(WEEKDAY, @NgayLay) NOT IN ('Saturday','Sunday')
-        BEGIN
-            -- Loại ngày lễ cố định dương lịch:
-            -- 01/01 Tết DL, 30/04 Ngày giải phóng,
-            -- 01/05 Quốc tế LĐ, 02/09 Quốc khánh
+    WHILE v_NgayLay <= v_NgayCuoiThang DO
+        -- Chỉ đếm ngày thứ 2 đến thứ 6 (DAYOFWEEK: 1=Chủ nhật, 7=Thứ bảy)
+        IF DAYOFWEEK(v_NgayLay) NOT IN (1, 7) THEN
+            -- Loại ngày lễ cố định dương lịch
             IF NOT (
-                (MONTH(@NgayLay) = 1  AND DAY(@NgayLay) = 1 ) OR
-                (MONTH(@NgayLay) = 4  AND DAY(@NgayLay) = 30) OR
-                (MONTH(@NgayLay) = 5  AND DAY(@NgayLay) = 1 ) OR
-                (MONTH(@NgayLay) = 9  AND DAY(@NgayLay) = 2 )
-            )
-            BEGIN
-                -- Kiểm tra thêm ngày Tết ÂL & Giỗ Tổ trong bảng NghiLe
-                -- (bảng được populate hàng năm bởi HR)
+                (MONTH(v_NgayLay) = 1 AND DAY(v_NgayLay) = 1)  OR   -- Tết DL
+                (MONTH(v_NgayLay) = 4 AND DAY(v_NgayLay) = 30) OR   -- Ngày giải phóng
+                (MONTH(v_NgayLay) = 5 AND DAY(v_NgayLay) = 1)  OR   -- Quốc tế LĐ
+                (MONTH(v_NgayLay) = 9 AND DAY(v_NgayLay) = 2)        -- Quốc khánh
+            ) THEN
+                -- Kiểm tra trong bảng NgayLe (Tết ÂL, Giỗ Tổ...)
                 IF NOT EXISTS (
-                    SELECT 1 FROM dbo.NgayLe
-                    WHERE NgayLe = @NgayLay
-                )
-                    SET @NgayChuan = @NgayChuan + 1;
-            END
-        END;
-        SET @NgayLay = DATEADD(DAY, 1, @NgayLay);
-    END;
+                    SELECT 1 FROM NgayLe WHERE NgayLe = v_NgayLay
+                ) THEN
+                    SET v_NgayChuan = v_NgayChuan + 1;
+                END IF;
+            END IF;
+        END IF;
+        SET v_NgayLay = DATE_ADD(v_NgayLay, INTERVAL 1 DAY);
+    END WHILE;
 
-    RETURN CAST(@NgayChuan AS TINYINT);
-END;
-GO
+    RETURN CAST(v_NgayChuan AS UNSIGNED);
+END$$
 
-PRINT N'[OK] fn_SoNgayChuanThang — tạo thành công';
-GO
+DELIMITER ;
+
+SELECT '[OK] fn_SoNgayChuanThang — tạo thành công' AS Status;
 
 
 -- ============================================================
 -- HÀM 2: fn_SoNgayChamCong
--- ─────────────────────────────────────────────────────────────
--- Đếm số ngày làm việc thực tế từ bảng ChamCong:
---   TrangThai IN ('DL','WFH','CX') → tính là có mặt
---   'NP','OM'                      → nghỉ hưởng lương (tham số riêng)
---   'KP'                           → nghỉ không phép (trừ lương)
---   'NG'                           → lễ (không trừ, không cộng)
+-- Đếm số ngày làm việc thực tế từ bảng ChamCong
 -- ============================================================
 
-IF OBJECT_ID('dbo.fn_SoNgayChamCong', 'FN') IS NOT NULL
-    DROP FUNCTION dbo.fn_SoNgayChamCong;
-GO
+DROP FUNCTION IF EXISTS fn_SoNgayChamCong;
 
-CREATE FUNCTION dbo.fn_SoNgayChamCong
-(
-    @MaNV   NCHAR(10),
-    @Thang  TINYINT,
-    @Nam    SMALLINT
+DELIMITER $$
+
+CREATE FUNCTION fn_SoNgayChamCong(
+    p_MaNV  VARCHAR(10),
+    p_Thang TINYINT,
+    p_Nam   SMALLINT
 )
-RETURNS DECIMAL(5,1)  -- 0.5 ngày nếu làm nửa ngày (mở rộng tương lai)
-AS
+RETURNS DECIMAL(5,1)
+READS SQL DATA
+DETERMINISTIC
 BEGIN
-    DECLARE @SoNgay DECIMAL(5,1);
+    DECLARE v_SoNgay DECIMAL(5,1) DEFAULT 0;
 
-    SELECT @SoNgay = COUNT(*)
-    FROM dbo.ChamCong
-    WHERE MaNV    = @MaNV
-      AND MONTH(NgayCham) = @Thang
-      AND YEAR(NgayCham)  = @Nam
+    SELECT COUNT(*) INTO v_SoNgay
+    FROM ChamCong
+    WHERE MaNV    = p_MaNV
+      AND MONTH(NgayCham) = p_Thang
+      AND YEAR(NgayCham)  = p_Nam
       AND TrangThai IN ('DL', 'WFH', 'CX');
-        -- DL  = Đi làm tại văn phòng
-        -- WFH = Work From Home (tính đủ công)
-        -- CX  = Công tác xa (tính đủ công)
 
-    RETURN ISNULL(@SoNgay, 0);
-END;
-GO
+    RETURN IFNULL(v_SoNgay, 0);
+END$$
 
-PRINT N'[OK] fn_SoNgayChamCong — tạo thành công';
-GO
+DELIMITER ;
+
+SELECT '[OK] fn_SoNgayChamCong — tạo thành công' AS Status;
 
 
 -- ============================================================
 -- HÀM 3: fn_SoNgayNghiCoLuong
--- ─────────────────────────────────────────────────────────────
--- Đếm ngày nghỉ HƯỞNG LƯƠNG: phép năm đã duyệt + nghỉ ốm
--- Những ngày này tính là "có công" trong sp_TinhLuong
+-- Đếm ngày nghỉ HƯỞNG LƯƠNG trong tháng
 -- ============================================================
 
-IF OBJECT_ID('dbo.fn_SoNgayNghiCoLuong', 'FN') IS NOT NULL
-    DROP FUNCTION dbo.fn_SoNgayNghiCoLuong;
-GO
+DROP FUNCTION IF EXISTS fn_SoNgayNghiCoLuong;
 
-CREATE FUNCTION dbo.fn_SoNgayNghiCoLuong
-(
-    @MaNV   NCHAR(10),
-    @Thang  TINYINT,
-    @Nam    SMALLINT
+DELIMITER $$
+
+CREATE FUNCTION fn_SoNgayNghiCoLuong(
+    p_MaNV  VARCHAR(10),
+    p_Thang TINYINT,
+    p_Nam   SMALLINT
 )
 RETURNS DECIMAL(5,1)
-AS
+READS SQL DATA
+DETERMINISTIC
 BEGIN
-    DECLARE @SoNgay DECIMAL(5,1);
+    DECLARE v_SoNgay DECIMAL(5,1) DEFAULT 0;
 
-    SELECT @SoNgay = COUNT(*)
-    FROM dbo.ChamCong
-    WHERE MaNV    = @MaNV
-      AND MONTH(NgayCham) = @Thang
-      AND YEAR(NgayCham)  = @Nam
+    SELECT COUNT(*) INTO v_SoNgay
+    FROM ChamCong
+    WHERE MaNV    = p_MaNV
+      AND MONTH(NgayCham) = p_Thang
+      AND YEAR(NgayCham)  = p_Nam
       AND TrangThai IN ('NP', 'OM');
-        -- NP = Nghỉ phép (hưởng lương)
-        -- OM = Nghỉ ốm (hưởng lương BHXH)
 
-    RETURN ISNULL(@SoNgay, 0);
-END;
-GO
+    RETURN IFNULL(v_SoNgay, 0);
+END$$
 
-PRINT N'[OK] fn_SoNgayNghiCoLuong — tạo thành công';
-GO
+DELIMITER ;
+
+SELECT '[OK] fn_SoNgayNghiCoLuong — tạo thành công' AS Status;
 
 
 -- ============================================================
@@ -166,196 +150,163 @@ GO
 -- Đếm ngày nghỉ KHÔNG hưởng lương trong tháng
 -- ============================================================
 
-IF OBJECT_ID('dbo.fn_SoNgayNghiKhongLuong', 'FN') IS NOT NULL
-    DROP FUNCTION dbo.fn_SoNgayNghiKhongLuong;
-GO
+DROP FUNCTION IF EXISTS fn_SoNgayNghiKhongLuong;
 
-CREATE FUNCTION dbo.fn_SoNgayNghiKhongLuong
-(
-    @MaNV   NCHAR(10),
-    @Thang  TINYINT,
-    @Nam    SMALLINT
+DELIMITER $$
+
+CREATE FUNCTION fn_SoNgayNghiKhongLuong(
+    p_MaNV  VARCHAR(10),
+    p_Thang TINYINT,
+    p_Nam   SMALLINT
 )
 RETURNS DECIMAL(5,1)
-AS
+READS SQL DATA
+DETERMINISTIC
 BEGIN
-    DECLARE @SoNgay DECIMAL(5,1);
+    DECLARE v_SoNgay DECIMAL(5,1) DEFAULT 0;
 
-    SELECT @SoNgay = COUNT(*)
-    FROM dbo.ChamCong
-    WHERE MaNV    = @MaNV
-      AND MONTH(NgayCham) = @Thang
-      AND YEAR(NgayCham)  = @Nam
-      AND TrangThai = 'KP';   -- Vắng không phép → trừ lương
+    SELECT COUNT(*) INTO v_SoNgay
+    FROM ChamCong
+    WHERE MaNV    = p_MaNV
+      AND MONTH(NgayCham) = p_Thang
+      AND YEAR(NgayCham)  = p_Nam
+      AND TrangThai = 'KP';
 
-    RETURN ISNULL(@SoNgay, 0);
-END;
-GO
+    RETURN IFNULL(v_SoNgay, 0);
+END$$
 
-PRINT N'[OK] fn_SoNgayNghiKhongLuong — tạo thành công';
-GO
+DELIMITER ;
+
+SELECT '[OK] fn_SoNgayNghiKhongLuong — tạo thành công' AS Status;
 
 
 -- ============================================================
 -- HÀM 5: fn_HeSoLuongThang
--- ─────────────────────────────────────────────────────────────
 -- Tính hệ số lương = (NgayDiLam + NgayNghiCoLuong) / NgayChuan
--- Dùng để nhân với LuongCoBan khi NV không làm đủ tháng
--- Ví dụ: vào làm ngày 15/3, ngày chuan=21, di lam=11 → 11/21 = 0.524
 -- ============================================================
 
-IF OBJECT_ID('dbo.fn_HeSoLuongThang', 'FN') IS NOT NULL
-    DROP FUNCTION dbo.fn_HeSoLuongThang;
-GO
+DROP FUNCTION IF EXISTS fn_HeSoLuongThang;
 
-CREATE FUNCTION dbo.fn_HeSoLuongThang
-(
-    @MaNV   NCHAR(10),
-    @Thang  TINYINT,
-    @Nam    SMALLINT
+DELIMITER $$
+
+CREATE FUNCTION fn_HeSoLuongThang(
+    p_MaNV  VARCHAR(10),
+    p_Thang TINYINT,
+    p_Nam   SMALLINT
 )
-RETURNS DECIMAL(10,6)   -- Độ chính xác cao để tránh sai số làm tròn
-AS
+RETURNS DECIMAL(10,6)
+READS SQL DATA
+DETERMINISTIC
 BEGIN
-    DECLARE
-        @NgayDiLam      DECIMAL(5,1) = dbo.fn_SoNgayChamCong(@MaNV, @Thang, @Nam),
-        @NgayNghiCL     DECIMAL(5,1) = dbo.fn_SoNgayNghiCoLuong(@MaNV, @Thang, @Nam),
-        @NgayChuan      TINYINT      = dbo.fn_SoNgayChuanThang(@Thang, @Nam);
+    DECLARE v_NgayDiLam  DECIMAL(5,1);
+    DECLARE v_NgayNghiCL DECIMAL(5,1);
+    DECLARE v_NgayChuan  TINYINT;
+    DECLARE v_HeSo       DECIMAL(10,6);
 
-    -- Tránh chia cho 0 khi tháng không có ngày làm việc
-    IF @NgayChuan = 0 RETURN 0;
+    SET v_NgayDiLam  = fn_SoNgayChamCong(p_MaNV, p_Thang, p_Nam);
+    SET v_NgayNghiCL = fn_SoNgayNghiCoLuong(p_MaNV, p_Thang, p_Nam);
+    SET v_NgayChuan  = fn_SoNgayChuanThang(p_Thang, p_Nam);
 
-    -- Hệ số lương: cộng cả nghỉ phép hưởng lương
-    DECLARE @HeSo DECIMAL(10,6) =
-        CAST(@NgayDiLam + @NgayNghiCL AS DECIMAL(10,6)) / @NgayChuan;
+    IF v_NgayChuan = 0 THEN
+        RETURN 0;
+    END IF;
 
-    -- Cap tại 1.0: không thể > 100% dù có nghỉ bù cộng vào
-    RETURN CASE WHEN @HeSo > 1.0 THEN 1.0 ELSE @HeSo END;
-END;
-GO
+    SET v_HeSo = CAST(v_NgayDiLam + v_NgayNghiCL AS DECIMAL(10,6)) / v_NgayChuan;
 
-PRINT N'[OK] fn_HeSoLuongThang — tạo thành công';
-GO
+    RETURN CASE WHEN v_HeSo > 1.0 THEN 1.0 ELSE v_HeSo END;
+END$$
+
+DELIMITER ;
+
+SELECT '[OK] fn_HeSoLuongThang — tạo thành công' AS Status;
 
 
 -- ============================================================
 -- HÀM 6: fn_TinhLuongLamThem
--- ─────────────────────────────────────────────────────────────
 -- Tính lương tăng ca trong tháng
--- Lương tăng ca 1 giờ = (LuongCoBan / NgayChuanThang / 8) × HeSo
--- BR-12: HeSo 1.5x ngày thường, 2.0x cuối tuần, 3.0x ngày lễ
 -- ============================================================
 
-IF OBJECT_ID('dbo.fn_TinhLuongLamThem', 'FN') IS NOT NULL
-    DROP FUNCTION dbo.fn_TinhLuongLamThem;
-GO
+DROP FUNCTION IF EXISTS fn_TinhLuongLamThem;
 
-CREATE FUNCTION dbo.fn_TinhLuongLamThem
-(
-    @MaNV       NCHAR(10),
-    @Thang      TINYINT,
-    @Nam        SMALLINT,
-    @LuongCoBan DECIMAL(18,2)
+DELIMITER $$
+
+CREATE FUNCTION fn_TinhLuongLamThem(
+    p_MaNV       VARCHAR(10),
+    p_Thang      TINYINT,
+    p_Nam        SMALLINT,
+    p_LuongCoBan DECIMAL(18,2)
 )
 RETURNS DECIMAL(18,2)
-AS
+READS SQL DATA
+DETERMINISTIC
 BEGIN
-    DECLARE @NgayChuan  TINYINT       = dbo.fn_SoNgayChuanThang(@Thang, @Nam);
+    DECLARE v_NgayChuan     TINYINT;
+    DECLARE v_LuongGioChuan DECIMAL(18,6);
+    DECLARE v_TongLTC       DECIMAL(18,2) DEFAULT 0;
+
+    SET v_NgayChuan = fn_SoNgayChuanThang(p_Thang, p_Nam);
+
+    IF v_NgayChuan = 0 THEN
+        RETURN 0;
+    END IF;
 
     -- Lương 1 giờ chuẩn
-    DECLARE @LuongGioChuan DECIMAL(18,6) =
-        @LuongCoBan / @NgayChuan / 8.0;
+    SET v_LuongGioChuan = p_LuongCoBan / v_NgayChuan / 8.0;
 
     -- Tổng lương tăng ca = SUM(SoGioTangCa × HeSoTangCa × LuongGio)
-    DECLARE @TongLTC DECIMAL(18,2);
-
-    SELECT @TongLTC = SUM(
-        cc.SoGioTangCa * cc.HeSoTangCa * @LuongGioChuan
-    )
-    FROM dbo.ChamCong cc
-    WHERE cc.MaNV           = @MaNV
-      AND MONTH(cc.NgayCham) = @Thang
-      AND YEAR(cc.NgayCham)  = @Nam
+    SELECT IFNULL(SUM(cc.SoGioTangCa * cc.HeSoTangCa * v_LuongGioChuan), 0)
+    INTO v_TongLTC
+    FROM ChamCong cc
+    WHERE cc.MaNV           = p_MaNV
+      AND MONTH(cc.NgayCham) = p_Thang
+      AND YEAR(cc.NgayCham)  = p_Nam
       AND cc.SoGioTangCa     > 0;
 
-    RETURN ISNULL(ROUND(@TongLTC, 0), 0);
-END;
-GO
+    RETURN IFNULL(ROUND(v_TongLTC, 0), 0);
+END$$
 
-PRINT N'[OK] fn_TinhLuongLamThem — tạo thành công';
-GO
+DELIMITER ;
+
+SELECT '[OK] fn_TinhLuongLamThem — tạo thành công' AS Status;
 
 
 -- ============================================================
 -- KIỂM THỬ ĐẦY ĐỦ
 -- ============================================================
 
-PRINT N'';
-PRINT N'════════════════════════════════════════════════════════';
-PRINT N'  KIỂM THỬ CÁC HÀM NGÀY CÔNG';
-PRINT N'════════════════════════════════════════════════════════';
+SELECT '════════════════════════════════════════════════════════' AS Status;
+SELECT '  KIỂM THỬ CÁC HÀM NGÀY CÔNG' AS Status;
+SELECT '════════════════════════════════════════════════════════' AS Status;
 
--- Số ngày chuẩn Jan-Mar 2025
-PRINT N'--- Số ngày làm việc chuẩn Jan-Mar 2025 ---';
+-- Số ngày chuẩn Jan-May 2025
+SELECT '--- Số ngày làm việc chuẩn Jan-May 2025 ---' AS Info;
 SELECT
     Thang, Nam,
-    dbo.fn_SoNgayChuanThang(Thang, Nam) AS NgayChuanLamViec
-FROM (VALUES (1,2025),(2,2025),(3,2025),(4,2025),(5,2025)) T(Thang, Nam);
-GO
+    fn_SoNgayChuanThang(Thang, Nam) AS NgayChuanLamViec
+FROM (
+    SELECT 1 AS Thang, 2025 AS Nam UNION ALL
+    SELECT 2, 2025  UNION ALL
+    SELECT 3, 2025  UNION ALL
+    SELECT 4, 2025  UNION ALL
+    SELECT 5, 2025
+) T;
 
--- Test thực tế với dữ liệu đã seed
-PRINT N'';
-PRINT N'--- Thống kê ngày công thực tế NV000001 (TGĐ) tháng 1-3/2025 ---';
+-- Test thực tế với dữ liệu đã seed (chạy sau seed_data.sql)
+SELECT '' AS Separator;
+SELECT '--- Thống kê ngày công thực tế NV000001 (TGĐ) tháng 1-3/2025 ---' AS Info;
 SELECT
     Ky.Thang,
     Ky.Nam,
-    dbo.fn_SoNgayChuanThang(Ky.Thang, Ky.Nam)     AS NgayChuan,
-    dbo.fn_SoNgayChamCong('NV000001', Ky.Thang, Ky.Nam)  AS NgayDiLam,
-    dbo.fn_SoNgayNghiCoLuong('NV000001', Ky.Thang, Ky.Nam) AS NgayNghiCL,
-    dbo.fn_SoNgayNghiKhongLuong('NV000001', Ky.Thang, Ky.Nam) AS NgayKhongPhep,
-    FORMAT(dbo.fn_HeSoLuongThang('NV000001', Ky.Thang, Ky.Nam),'P2') AS HeSoLuong,
-    FORMAT(dbo.fn_TinhLuongLamThem('NV000001', Ky.Thang, Ky.Nam, 55000000),'N0')
-        AS LuongTangCa
-FROM (VALUES (1,2025),(2,2025),(3,2025)) Ky(Thang,Nam);
-GO
+    fn_SoNgayChuanThang(Ky.Thang, Ky.Nam)            AS NgayChuan,
+    fn_SoNgayChamCong('NV000001', Ky.Thang, Ky.Nam)  AS NgayDiLam,
+    fn_SoNgayNghiCoLuong('NV000001', Ky.Thang, Ky.Nam) AS NgayNghiCL,
+    fn_SoNgayNghiKhongLuong('NV000001', Ky.Thang, Ky.Nam) AS NgayKhongPhep,
+    fn_HeSoLuongThang('NV000001', Ky.Thang, Ky.Nam)  AS HeSoLuong
+FROM (
+    SELECT 1 AS Thang, 2025 AS Nam UNION ALL
+    SELECT 2, 2025 UNION ALL
+    SELECT 3, 2025
+) Ky;
 
--- Test NV có nghỉ phép (NV000004 - 3 ngày phép tháng 2)
-PRINT N'';
-PRINT N'--- NV000004 tháng 2/2025 (có 3 ngày phép) ---';
-SELECT
-    dbo.fn_SoNgayChuanThang(2, 2025)                      AS NgayChuan,
-    dbo.fn_SoNgayChamCong('NV000004', 2, 2025)             AS NgayDiLam,
-    dbo.fn_SoNgayNghiCoLuong('NV000004', 2, 2025)          AS NgayNghiPhep,
-    FORMAT(dbo.fn_HeSoLuongThang('NV000004', 2, 2025),'P4') AS HeSoLuong,
-    N'(Phép hưởng lương → vẫn tính đủ công)' AS GhiChu;
-GO
-
--- Test NV vắng không phép (NV000049 tháng 2)
-PRINT N'';
-PRINT N'--- NV000049 tháng 2/2025 (có 2 ngày KP) ---';
-SELECT
-    dbo.fn_SoNgayChuanThang(2, 2025)                       AS NgayChuan,
-    dbo.fn_SoNgayChamCong('NV000049', 2, 2025)              AS NgayDiLam,
-    dbo.fn_SoNgayNghiKhongLuong('NV000049', 2, 2025)        AS NgayVangKP,
-    FORMAT(dbo.fn_HeSoLuongThang('NV000049', 2, 2025),'P4') AS HeSoLuong,
-    N'(KP không cộng vào hệ số → trừ lương)' AS GhiChu;
-GO
-
--- Test đội CNTT tăng ca tháng 1/2025
-PRINT N'';
-PRINT N'--- Lương tăng ca team CNTT tháng 1/2025 ---';
-SELECT
-    nv.MaNV,
-    nv.HoTen,
-    dbo.fn_TinhLuongLamThem(nv.MaNV, 1, 2025, lcb.LuongCB) AS LuongTangCa,
-    lcb.LuongCB AS LuongCoBan
-FROM dbo.NhanVien nv
-JOIN dbo.LuongCoBan lcb ON nv.MaNV = lcb.MaNV AND lcb.NgayHetHieuLuc IS NULL
-WHERE nv.MaPB = 'PB0004'
-  AND dbo.fn_TinhLuongLamThem(nv.MaNV, 1, 2025, lcb.LuongCB) > 0
-ORDER BY LuongTangCa DESC;
-GO
-
-PRINT N'';
-PRINT N'[DONE] fn_SoNgayLamViec.sql — 6 functions hoàn tất';
-GO
+SELECT '' AS Separator;
+SELECT '[DONE] fn_SoNgayLamViec.sql — 6 functions hoàn tất' AS Status;

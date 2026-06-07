@@ -5,314 +5,229 @@
 -- TRIGGERS   :
 --   1. trg_LuongCoBan_AfterInsert  — log điều chỉnh lương mới
 --   2. trg_LuongCoBan_AfterUpdate  — log từng cột thay đổi
---   3. trg_BangLuong_GuardChot     — ngăn sửa bảng lương CHOT
---   4. trg_KiemTraChamCong         — validate chấm công
--- BR-13: Mọi thay đổi lương → ghi AuditLog_Luong tự động
--- BR-14: BangLuong TrangThai='C'/'P'/'L' → không cho sửa/xoá
+--   3. trg_BangLuong_BeforeUpdate  — ngăn sửa bảng lương CHOT
+--   4. trg_BangLuong_BeforeDelete  — ngăn xóa bảng lương CHOT
+--   5. trg_BangLuong_AfterUpdate   — log chuyển trạng thái
+-- DBMS       : MySQL 8.0+
+-- GHI CHÚ   : Không có INSERTED/DELETED virtual table trong MySQL
+--              Dùng NEW và OLD thay thế
 -- ============================================================
 
 USE HRPayrollDB;
-GO
 
 -- ============================================================
 -- TRIGGER 1: trg_LuongCoBan_AfterInsert
--- Log khi thêm mức lương mới (điều chỉnh lương nhân viên)
 -- ============================================================
-IF OBJECT_ID('dbo.trg_LuongCoBan_AfterInsert','TR') IS NOT NULL
-    DROP TRIGGER dbo.trg_LuongCoBan_AfterInsert;
-GO
+DROP TRIGGER IF EXISTS trg_LuongCoBan_AfterInsert;
 
-CREATE TRIGGER dbo.trg_LuongCoBan_AfterInsert
-ON dbo.LuongCoBan
-AFTER INSERT
-AS
+DELIMITER $$
+
+CREATE TRIGGER trg_LuongCoBan_AfterInsert
+AFTER INSERT ON LuongCoBan
+FOR EACH ROW
 BEGIN
-    SET NOCOUNT ON;
-    IF @@ROWCOUNT = 0 RETURN;
+    DECLARE v_LuongCu VARCHAR(100);
 
-    INSERT INTO dbo.AuditLog_Luong
-        (MaLCB, MaNV, HanhDong, TenCot, GiaTriCu, GiaTriMoi)
-    SELECT
-        i.MaLCB,
-        i.MaNV,
+    -- Lấy mức lương trước đó (nếu có)
+    SELECT CONCAT(FORMAT(LuongCB, 0), ' VNĐ')
+    INTO v_LuongCu
+    FROM LuongCoBan prev
+    WHERE prev.MaNV        = NEW.MaNV
+      AND prev.MaLCB        < NEW.MaLCB
+      AND prev.NgayHieuLuc  < NEW.NgayHieuLuc
+    ORDER BY prev.NgayHieuLuc DESC
+    LIMIT 1;
+
+    INSERT INTO AuditLog_Luong
+        (MaNV, LoaiThayDoi, TenCot, GiaTriCu, GiaTriMoi)
+    VALUES (
+        NEW.MaNV,
         'INSERT',
-        N'LuongCoBan',
-        -- Lấy mức lương trước đó (nếu có)
-        (
-            SELECT TOP 1 FORMAT(LuongCB,'N0') + N' VNĐ'
-            FROM dbo.LuongCoBan prev
-            WHERE prev.MaNV          = i.MaNV
-              AND prev.MaLCB         < i.MaLCB
-              AND prev.NgayHieuLuc   < i.NgayHieuLuc
-            ORDER BY prev.NgayHieuLuc DESC
-        ),
-        FORMAT(i.LuongCB,'N0') + N' VNĐ'
-        + N' (hiệu lực: ' + CONVERT(NVARCHAR,i.NgayHieuLuc,103) + N')'
-    FROM INSERTED i;
-END;
-GO
-PRINT N'[OK] trg_LuongCoBan_AfterInsert';
-GO
+        'LuongCoBan',
+        v_LuongCu,
+        CONCAT(FORMAT(NEW.LuongCB, 0), ' VNĐ (hiệu lực: ',
+               DATE_FORMAT(NEW.NgayHieuLuc, '%d/%m/%Y'), ')')
+    );
+END$$
+
+DELIMITER ;
+
+SELECT '[OK] trg_LuongCoBan_AfterInsert' AS Status;
+
 
 -- ============================================================
 -- TRIGGER 2: trg_LuongCoBan_AfterUpdate
--- Log chi tiết từng cột thay đổi trên LuongCoBan
 -- ============================================================
-IF OBJECT_ID('dbo.trg_LuongCoBan_AfterUpdate','TR') IS NOT NULL
-    DROP TRIGGER dbo.trg_LuongCoBan_AfterUpdate;
-GO
+DROP TRIGGER IF EXISTS trg_LuongCoBan_AfterUpdate;
 
-CREATE TRIGGER dbo.trg_LuongCoBan_AfterUpdate
-ON dbo.LuongCoBan
-AFTER UPDATE
-AS
+DELIMITER $$
+
+CREATE TRIGGER trg_LuongCoBan_AfterUpdate
+AFTER UPDATE ON LuongCoBan
+FOR EACH ROW
 BEGIN
-    SET NOCOUNT ON;
-    IF @@ROWCOUNT = 0 RETURN;
-
-    DECLARE @Changes TABLE (
-        MaLCB   INT, MaNV NCHAR(10),
-        TenCot  NVARCHAR(100),
-        Cu      NVARCHAR(MAX),
-        Moi     NVARCHAR(MAX)
-    );
-
     -- LuongCoBan thay đổi
-    INSERT @Changes
-    SELECT d.MaLCB, d.MaNV, 'LuongCB',
-           FORMAT(d.LuongCB,'N0') + ' VNĐ',
-           FORMAT(i.LuongCB,'N0') + ' VNĐ'
-    FROM DELETED d JOIN INSERTED i ON d.MaLCB = i.MaLCB
-    WHERE d.LuongCB <> i.LuongCB;
+    IF OLD.LuongCB <> NEW.LuongCB THEN
+        INSERT INTO AuditLog_Luong (MaNV, LoaiThayDoi, TenCot, GiaTriCu, GiaTriMoi)
+        VALUES (NEW.MaNV, 'UPDATE', 'LuongCB',
+                CONCAT(FORMAT(OLD.LuongCB, 0), ' VNĐ'),
+                CONCAT(FORMAT(NEW.LuongCB, 0), ' VNĐ'));
+    END IF;
 
     -- LuongDongBH thay đổi
-    INSERT @Changes
-    SELECT d.MaLCB, d.MaNV, 'LuongDongBH',
-           FORMAT(d.LuongDongBH,'N0') + ' VNĐ',
-           FORMAT(i.LuongDongBH,'N0') + ' VNĐ'
-    FROM DELETED d JOIN INSERTED i ON d.MaLCB = i.MaLCB
-    WHERE d.LuongDongBH <> i.LuongDongBH;
+    IF OLD.LuongDongBH <> NEW.LuongDongBH THEN
+        INSERT INTO AuditLog_Luong (MaNV, LoaiThayDoi, TenCot, GiaTriCu, GiaTriMoi)
+        VALUES (NEW.MaNV, 'UPDATE', 'LuongDongBH',
+                CONCAT(FORMAT(OLD.LuongDongBH, 0), ' VNĐ'),
+                CONCAT(FORMAT(NEW.LuongDongBH, 0), ' VNĐ'));
+    END IF;
 
     -- NgayHieuLuc thay đổi
-    INSERT @Changes
-    SELECT d.MaLCB, d.MaNV, 'NgayHieuLuc',
-           CONVERT(NVARCHAR,d.NgayHieuLuc,103),
-           CONVERT(NVARCHAR,i.NgayHieuLuc,103)
-    FROM DELETED d JOIN INSERTED i ON d.MaLCB = i.MaLCB
-    WHERE d.NgayHieuLuc <> i.NgayHieuLuc;
+    IF OLD.NgayHieuLuc <> NEW.NgayHieuLuc THEN
+        INSERT INTO AuditLog_Luong (MaNV, LoaiThayDoi, TenCot, GiaTriCu, GiaTriMoi)
+        VALUES (NEW.MaNV, 'UPDATE', 'NgayHieuLuc',
+                DATE_FORMAT(OLD.NgayHieuLuc, '%d/%m/%Y'),
+                DATE_FORMAT(NEW.NgayHieuLuc, '%d/%m/%Y'));
+    END IF;
 
     -- NgayHetHieuLuc thay đổi
-    INSERT @Changes
-    SELECT d.MaLCB, d.MaNV, 'NgayHetHieuLuc',
-           ISNULL(CONVERT(NVARCHAR,d.NgayHetHieuLuc,103), 'Còn hiệu lực'),
-           ISNULL(CONVERT(NVARCHAR,i.NgayHetHieuLuc,103), 'Còn hiệu lực')
-    FROM DELETED d JOIN INSERTED i ON d.MaLCB = i.MaLCB
-    WHERE ISNULL(CAST(d.NgayHetHieuLuc AS NVARCHAR),'')
-       <> ISNULL(CAST(i.NgayHetHieuLuc AS NVARCHAR),'');
+    IF IFNULL(CAST(OLD.NgayHetHieuLuc AS CHAR), '') <>
+       IFNULL(CAST(NEW.NgayHetHieuLuc AS CHAR), '')
+    THEN
+        INSERT INTO AuditLog_Luong (MaNV, LoaiThayDoi, TenCot, GiaTriCu, GiaTriMoi)
+        VALUES (NEW.MaNV, 'UPDATE', 'NgayHetHieuLuc',
+                IFNULL(DATE_FORMAT(OLD.NgayHetHieuLuc, '%d/%m/%Y'), 'Còn hiệu lực'),
+                IFNULL(DATE_FORMAT(NEW.NgayHetHieuLuc, '%d/%m/%Y'), 'Còn hiệu lực'));
+    END IF;
+END$$
 
-    INSERT INTO dbo.AuditLog_Luong
-        (MaLCB, MaNV, HanhDong, TenCot, GiaTriCu, GiaTriMoi)
-    SELECT MaLCB, MaNV, 'UPDATE', TenCot, Cu, Moi
-    FROM @Changes;
-END;
-GO
-PRINT N'[OK] trg_LuongCoBan_AfterUpdate';
-GO
+DELIMITER ;
+
+SELECT '[OK] trg_LuongCoBan_AfterUpdate' AS Status;
+
 
 -- ============================================================
--- TRIGGER 3: trg_BangLuong_GuardChot
--- Ngăn mọi UPDATE/DELETE trên BangLuong đã được xác nhận
--- BR-14: TrangThai IN ('C','P','L') → KHÔNG cho phép sửa/xoá
--- Chỉ cho phép cập nhật NgayThanhToan khi chuyển D→C→P
+-- TRIGGER 3: trg_BangLuong_BeforeUpdate
+-- Ngăn sửa bảng lương đã xác nhận / thanh toán
 -- ============================================================
-IF OBJECT_ID('dbo.trg_BangLuong_GuardChot','TR') IS NOT NULL
-    DROP TRIGGER dbo.trg_BangLuong_GuardChot;
-GO
+DROP TRIGGER IF EXISTS trg_BangLuong_BeforeUpdate;
 
-CREATE TRIGGER dbo.trg_BangLuong_GuardChot
-ON dbo.BangLuong
-AFTER UPDATE, DELETE
-AS
+DELIMITER $$
+
+CREATE TRIGGER trg_BangLuong_BeforeUpdate
+BEFORE UPDATE ON BangLuong
+FOR EACH ROW
 BEGIN
-    SET NOCOUNT ON;
-    IF @@ROWCOUNT = 0 RETURN;
-
     -- Kiểm tra có dòng CHOT bị tác động không
-    IF NOT EXISTS (
-        SELECT 1 FROM DELETED d
-        WHERE d.TrangThai IN ('C','P','L')
-    ) RETURN;   -- Không có dòng CHOT → bỏ qua
+    IF OLD.TrangThai IN ('C', 'P', 'L') THEN
+        -- Cho phép C→P và P→L (chuyển trạng thái)
+        -- Chặn nếu đang cố sửa số liệu
+        IF NOT (
+            (OLD.TrangThai = 'C' AND NEW.TrangThai = 'P') OR
+            (OLD.TrangThai = 'P' AND NEW.TrangThai = 'L')
+        ) AND (
+            NEW.LuongCoBan   <> OLD.LuongCoBan   OR
+            NEW.TongPhuCap   <> OLD.TongPhuCap   OR
+            NEW.BHXH_NLD     <> OLD.BHXH_NLD     OR
+            NEW.ThueTNCN     <> OLD.ThueTNCN      OR
+            NEW.TongKhauTru  <> OLD.TongKhauTru
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'trg_BangLuong_BeforeUpdate: Không thể sửa số liệu bảng lương đã XÁC NHẬN. Chỉ cho phép chuyển trạng thái C→P hoặc P→L.';
+        END IF;
+    END IF;
+END$$
 
-    -- Trường hợp DELETE → luôn chặn
-    IF NOT EXISTS (SELECT 1 FROM INSERTED)
-    BEGIN
-        RAISERROR(
-            N'trg_BangLuong_GuardChot: Không thể XÓA bảng lương đã XÁC NHẬN / THANH TOÁN.',
-            16, 1
-        );
-        ROLLBACK TRANSACTION;
-        RETURN;
-    END;
+DELIMITER ;
 
-    -- Trường hợp UPDATE — cho phép 2 trường hợp hợp lệ:
-    --   1. C → P (Confirmed → Paid): cập nhật NgayThanhToan
-    --   2. P → L (Paid → Locked):    khoá bảng lương
-    IF EXISTS (
-        SELECT 1
-        FROM INSERTED i JOIN DELETED d ON i.MaBL = d.MaBL
-        WHERE d.TrangThai IN ('C','P','L')
-          AND NOT (
-              -- Cho phép C→P khi chỉ cập nhật NgayThanhToan + TrangThai
-              (d.TrangThai = 'C' AND i.TrangThai = 'P')
-              OR
-              -- Cho phép P→L để khoá hoàn toàn
-              (d.TrangThai = 'P' AND i.TrangThai = 'L')
-          )
-          AND (
-              -- Phát hiện có cột số liệu bị sửa
-              i.LuongCoBan    <> d.LuongCoBan   OR
-              i.LuongGross    <> d.LuongGross    OR
-              i.TongBaoHiem   <> d.TongBaoHiem   OR
-              i.ThueTNCN      <> d.ThueTNCN      OR
-              i.LuongNet      <> d.LuongNet
-          )
-    )
-    BEGIN
-        RAISERROR(
-            N'trg_BangLuong_GuardChot: Không thể sửa số liệu bảng lương đã XÁC NHẬN. '
-            + N'Chỉ cho phép chuyển trạng thái C→P hoặc P→L.',
-            16, 1
-        );
-        ROLLBACK TRANSACTION;
-        RETURN;
-    END;
+SELECT '[OK] trg_BangLuong_BeforeUpdate (Guard)' AS Status;
 
-    -- Ghi log chuyển trạng thái hợp lệ
-    INSERT INTO dbo.AuditLog_Luong
-        (MaNV, HanhDong, TenCot, GiaTriCu, GiaTriMoi)
-    SELECT
-        i.MaNV,
-        'STATUS_CHANGE',
-        'TrangThai',
-        d.TrangThai,
-        i.TrangThai + N' (NgayTT: '
-            + ISNULL(CONVERT(NVARCHAR,i.NgayThanhToan,103),'—') + N')'
-    FROM INSERTED i JOIN DELETED d ON i.MaBL = d.MaBL
-    WHERE d.TrangThai <> i.TrangThai;
-END;
-GO
-PRINT N'[OK] trg_BangLuong_GuardChot';
-GO
 
 -- ============================================================
--- TRIGGER 4: trg_KiemTraChamCong
--- Validate chấm công: không trùng ngày, không tương lai,
--- tự động tính SoGioLam từ GioVao/GioRa
+-- TRIGGER 4: trg_BangLuong_BeforeDelete
+-- Ngăn xóa bảng lương đã xác nhận
 -- ============================================================
-IF OBJECT_ID('dbo.trg_KiemTraChamCong','TR') IS NOT NULL
-    DROP TRIGGER dbo.trg_KiemTraChamCong;
-GO
+DROP TRIGGER IF EXISTS trg_BangLuong_BeforeDelete;
 
-CREATE TRIGGER dbo.trg_KiemTraChamCong
-ON dbo.ChamCong
-AFTER INSERT, UPDATE
-AS
+DELIMITER $$
+
+CREATE TRIGGER trg_BangLuong_BeforeDelete
+BEFORE DELETE ON BangLuong
+FOR EACH ROW
 BEGIN
-    SET NOCOUNT ON;
-    IF @@ROWCOUNT = 0 RETURN;
+    IF OLD.TrangThai IN ('C', 'P', 'L') THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'trg_BangLuong_BeforeDelete: Không thể XÓA bảng lương đã XÁC NHẬN / THANH TOÁN.';
+    END IF;
+END$$
 
-    -- Validate 1: Không chấm công ngày tương lai
-    IF EXISTS (
-        SELECT 1 FROM INSERTED
-        WHERE NgayCham > CAST(GETDATE() AS DATE)
-    )
-    BEGIN
-        RAISERROR(
-            N'trg_KiemTraChamCong: Không được chấm công ngày tương lai.',
-            16, 1
+DELIMITER ;
+
+SELECT '[OK] trg_BangLuong_BeforeDelete (Guard)' AS Status;
+
+
+-- ============================================================
+-- TRIGGER 5: trg_BangLuong_AfterUpdate
+-- Log chuyển trạng thái hợp lệ (C→P hoặc P→L)
+-- ============================================================
+DROP TRIGGER IF EXISTS trg_BangLuong_AfterUpdate;
+
+DELIMITER $$
+
+CREATE TRIGGER trg_BangLuong_AfterUpdate
+AFTER UPDATE ON BangLuong
+FOR EACH ROW
+BEGIN
+    -- Log chuyển trạng thái
+    IF OLD.TrangThai <> NEW.TrangThai THEN
+        INSERT INTO AuditLog_Luong
+            (MaBL, MaNV, Thang, Nam, LoaiThayDoi, TenCot, GiaTriCu, GiaTriMoi)
+        VALUES (
+            NEW.MaBL,
+            NEW.MaNV,
+            NEW.Thang,
+            NEW.Nam,
+            'STATUS_CHANGE',
+            'TrangThai',
+            OLD.TrangThai,
+            CONCAT(NEW.TrangThai, ' (NgayTT: ',
+                   IFNULL(DATE_FORMAT(NEW.NgayThanhToan, '%d/%m/%Y'), '—'), ')')
         );
-        ROLLBACK TRANSACTION;
-        RETURN;
-    END;
+    END IF;
+END$$
 
-    -- Validate 2: Không overlap date range trong NghiPhep
-    -- (NV không thể cùng lúc DL và có đơn nghỉ phép đã duyệt)
-    IF EXISTS (
-        SELECT 1
-        FROM INSERTED cc
-        JOIN dbo.NghiPhep np ON cc.MaNV = np.MaNV
-        WHERE cc.TrangThai IN ('DL','WFH','CX')
-          AND np.TrangThai = 'A'              -- Đã duyệt
-          AND cc.NgayCham BETWEEN np.NgayBatDau AND np.NgayKetThuc
-    )
-    BEGIN
-        RAISERROR(
-            N'trg_KiemTraChamCong: Ngày chấm công trùng với đơn nghỉ phép đã duyệt.',
-            16, 1
-        );
-        ROLLBACK TRANSACTION;
-        RETURN;
-    END;
+DELIMITER ;
 
-    -- Tự động cập nhật SoGioLam = GioRa - GioVao (trừ 1h nghỉ trưa)
-    UPDATE cc
-    SET SoGioLam = CASE
-        WHEN ins.GioVao IS NOT NULL AND ins.GioRa IS NOT NULL
-             AND ins.TrangThai IN ('DL','WFH','CX')
-        THEN
-            CAST(
-                DATEDIFF(MINUTE, ins.GioVao, ins.GioRa) / 60.0
-                -- Trừ 1h nghỉ trưa nếu làm > 5h
-                - CASE WHEN DATEDIFF(MINUTE, ins.GioVao, ins.GioRa) > 300
-                       THEN 1.0 ELSE 0.0 END
-            AS DECIMAL(5,2))
-        ELSE 0
-        END
-    FROM dbo.ChamCong cc
-    JOIN INSERTED ins ON cc.MaCC = ins.MaCC;
-END;
-GO
-PRINT N'[OK] trg_KiemTraChamCong';
-GO
+SELECT '[OK] trg_BangLuong_AfterUpdate (Audit)' AS Status;
+
 
 -- ============================================================
 -- KIỂM THỬ
 -- ============================================================
-PRINT N'';
-PRINT N'════════════════════════════════════════════════════════';
-PRINT N'  KIỂM THỬ TRIGGERS LUONG & CHAMCONG';
-PRINT N'════════════════════════════════════════════════════════';
+SELECT '' AS Separator;
+SELECT '════════════════════════════════════════════════════════' AS Status;
+SELECT '  KIỂM THỬ TRIGGERS LUONG' AS Status;
+SELECT '════════════════════════════════════════════════════════' AS Status;
 
--- Test: Tăng lương NV000003 (Trưởng phòng Nhân Sự)
+-- Test: Tăng lương NV000003 (chạy sau seed_data.sql)
 -- Bước 1: Đóng mức lương cũ
-UPDATE dbo.LuongCoBan
+UPDATE LuongCoBan
 SET NgayHetHieuLuc = '2025-03-31'
 WHERE MaNV = 'NV000003' AND NgayHetHieuLuc IS NULL;
 
 -- Bước 2: Thêm mức lương mới (trigger tự log)
-INSERT INTO dbo.LuongCoBan
+INSERT INTO LuongCoBan
     (MaNV, LuongCB, LuongDongBH, NgayHieuLuc, NgayHetHieuLuc, LyDo, NguoiDuyet)
 VALUES
     ('NV000003', 28000000, 28000000, '2025-04-01', NULL,
-     N'Tăng lương theo đánh giá năm 2024', 'NV000001');
+     'Tăng lương theo đánh giá năm 2024', 'NV000001');
 
 -- Xem audit log tự động
-SELECT TOP 5
-    MaLog, MaNV, HanhDong, TenCot,
-    GiaTriCu, GiaTriMoi,
-    FORMAT(NgayThayDoi,'dd/MM HH:mm:ss') ThoiGian
-FROM dbo.AuditLog_Luong
-ORDER BY MaLog DESC;
-GO
+SELECT
+    MaLog, MaNV, LoaiThayDoi, TenCot, GiaTriCu, GiaTriMoi,
+    DATE_FORMAT(ThoiGianThayDoi, '%d/%m %H:%i:%s') AS ThoiGian
+FROM AuditLog_Luong
+ORDER BY MaLog DESC
+LIMIT 5;
 
--- Test: Guard chặn DELETE BangLuong đã CHOT
--- (Chạy sau khi có dữ liệu BangLuong từ sp_TinhLuong)
-PRINT N'--- Test Guard: UPDATE số liệu bảng lương nháp (D) → được phép ---';
-UPDATE dbo.BangLuong
-SET LuongGross = LuongGross + 0   -- Không đổi giá trị, chỉ test trigger
-WHERE TrangThai = 'D' AND Thang = 1 AND Nam = 2025;
-PRINT N'    UPDATE Draft → OK (không bị chặn)';
-GO
-
-PRINT N'[DONE] trg_LogLuong.sql — 4 triggers hoàn tất';
-GO
+SELECT '[DONE] trg_LogLuong.sql — 5 triggers hoàn tất' AS Status;
