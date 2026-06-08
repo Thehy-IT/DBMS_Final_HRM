@@ -8,11 +8,14 @@
 --              §4  Covering index cho Audit & tra cứu
 --              §5  Kiểm tra index usage (MySQL DMV equivalent)
 -- DEPENDENCY : Chạy SAU 01_create_tables.sql + 02_constraints.sql
--- DBMS       : MySQL 8.0+
+-- DBMS       : MySQL 8.0.46
 -- GHI CHÚ   : MySQL KHÔNG hỗ trợ COLUMNSTORE INDEX (SQL Server only)
 --              → Dùng InnoDB clustered index + covering index thay thế
 --              → Cho analytics nặng, cân nhắc dùng MariaDB ColumnStore
 --                hoặc kết nối với ClickHouse
+--              LƯU Ý MySQL 8.0.46: CREATE INDEX IF NOT EXISTS OK
+--              Index với ASC/DESC: MySQL 8.0 hỗ trợ descending index
+--              nhưng INDEX trên GENERATED COLUMN cần từ khoá VIRTUAL/STORED
 -- ============================================================
 
 USE HRPayrollDB;
@@ -32,7 +35,7 @@ SELECT '[OK] §1.1 IX_NhanVien_TinhLuong_Active' AS Status;
 
 -- ── §1.2  STEP B: Lương cơ bản hiệu lực tại kỳ lương
 CREATE INDEX IF NOT EXISTS IX_LuongCoBan_TinhLuong_Lookup
-    ON LuongCoBan (MaNV, NgayHieuLuc DESC, NgayHetHieuLuc);
+    ON LuongCoBan (MaNV, NgayHieuLuc, NgayHetHieuLuc);
 SELECT '[OK] §1.2 IX_LuongCoBan_TinhLuong_Lookup' AS Status;
 
 -- ── §1.3  STEP C: Đếm ngày công trong tháng theo loại
@@ -97,8 +100,10 @@ CREATE INDEX IF NOT EXISTS IX_PhongBan_Active_Include
 SELECT '[OK] §2.5 IX_PhongBan_Active_Include' AS Status;
 
 -- ── §2.6  ChucVu: tra hệ số lương theo nhóm
+-- LƯU Ý: Loại bỏ DESC trong index definition cho tương thích tối đa
+--         MySQL 8.0 hỗ trợ descending index nhưng không cần thiết ở đây
 CREATE INDEX IF NOT EXISTS IX_ChucVu_HeSo_CapBac
-    ON ChucVu (IsActive, CapBac DESC);
+    ON ChucVu (IsActive, CapBac);
 SELECT '[OK] §2.6 IX_ChucVu_HeSo_CapBac' AS Status;
 
 
@@ -107,13 +112,15 @@ SELECT '[OK] §2.6 IX_ChucVu_HeSo_CapBac' AS Status;
 -- ============================================================
 
 -- ── §3.1  vw_BangLuong: xếp hạng lương
+-- LƯU Ý: MySQL 8.0 hỗ trợ descending index — giữ nguyên ASC cho ThuNhapThucLinh
+--         vì GENERATED STORED COLUMN có thể index trực tiếp
 CREATE INDEX IF NOT EXISTS IX_BangLuong_View_Rank
-    ON BangLuong (Nam DESC, Thang DESC, ThuNhapThucLinh DESC);
+    ON BangLuong (Nam, Thang, ThuNhapThucLinh);
 SELECT '[OK] §3.1 IX_BangLuong_View_Rank' AS Status;
 
 -- ── §3.2  vw_TongHopChamCong: aggregate theo tháng/năm
 CREATE INDEX IF NOT EXISTS IX_ChamCong_View_ThongKe
-    ON ChamCong (MaNV, NgayCham DESC, TrangThai);
+    ON ChamCong (MaNV, NgayCham, TrangThai);
 SELECT '[OK] §3.2 IX_ChamCong_View_ThongKe' AS Status;
 
 -- ── §3.3  Báo cáo thuế TNCN theo kỳ: ChiTietLuong
@@ -123,7 +130,7 @@ SELECT '[OK] §3.3 IX_ChiTietLuong_BaoCao_Loai' AS Status;
 
 -- ── §3.4  So sánh quỹ lương nhiều tháng (trend analysis)
 CREATE INDEX IF NOT EXISTS IX_BangLuong_Trend_Analysis
-    ON BangLuong (Nam ASC, Thang ASC, TrangThai);
+    ON BangLuong (Nam, Thang, TrangThai);
 SELECT '[OK] §3.4 IX_BangLuong_Trend_Analysis' AS Status;
 
 
@@ -133,22 +140,22 @@ SELECT '[OK] §3.4 IX_BangLuong_Trend_Analysis' AS Status;
 
 -- ── §4.1  Audit HopDong: tra cứu ai thay đổi gì trong ngày
 CREATE INDEX IF NOT EXISTS IX_AuditHD_Time_Action
-    ON AuditLog_HopDong (ThoiGianThayDoi DESC, LoaiThayDoi);
+    ON AuditLog_HopDong (ThoiGianThayDoi, LoaiThayDoi);
 SELECT '[OK] §4.1 IX_AuditHD_Time_Action' AS Status;
 
 -- ── §4.2  Audit Luong: lịch sử tăng lương của 1 NV
 CREATE INDEX IF NOT EXISTS IX_AuditLuong_NV_History
-    ON AuditLog_Luong (MaNV, ThoiGianThayDoi DESC);
+    ON AuditLog_Luong (MaNV, ThoiGianThayDoi);
 SELECT '[OK] §4.2 IX_AuditLuong_NV_History' AS Status;
 
 -- ── §4.3  Lịch sử lương cơ bản của NV qua các năm
 CREATE INDEX IF NOT EXISTS IX_LuongCoBan_History_NV
-    ON LuongCoBan (MaNV, NgayHieuLuc DESC);
+    ON LuongCoBan (MaNV, NgayHieuLuc);
 SELECT '[OK] §4.3 IX_LuongCoBan_History_NV' AS Status;
 
 -- ── §4.4  KhauTru đã áp dụng vào lương kỳ nào
 CREATE INDEX IF NOT EXISTS IX_KhauTru_Applied
-    ON KhauTru (MaNV, TrangThai, NgayPhatSinh DESC);
+    ON KhauTru (MaNV, TrangThai, NgayPhatSinh);
 SELECT '[OK] §4.4 IX_KhauTru_Applied' AS Status;
 
 

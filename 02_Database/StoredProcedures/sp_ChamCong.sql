@@ -77,6 +77,8 @@ BEGIN
     END IF;
 
     -- UPSERT chấm công
+    -- LƯU Ý MySQL 8.0.46: VALUES() bị deprecated từ 8.0.20
+    -- Dùng alias row syntax: INSERT ... AS new_row ON DUPLICATE KEY UPDATE col = new_row.col
     INSERT INTO ChamCong (
         MaNV, NgayCham, GioVao, GioRa,
         TrangThai, SoGioTangCa, HeSoTangCa,
@@ -86,15 +88,15 @@ BEGIN
         p_MaNV, p_NgayCham, p_GioVao, p_GioRa,
         p_TrangThai, v_SoGioTangCa, v_HeSoTangCa,
         p_GhiChu, IFNULL(p_NguoiCapNhat, CURRENT_USER())
-    )
+    ) AS cc_new
     ON DUPLICATE KEY UPDATE
-        GioVao          = VALUES(GioVao),
-        GioRa           = VALUES(GioRa),
-        TrangThai       = VALUES(TrangThai),
-        SoGioTangCa     = VALUES(SoGioTangCa),
-        HeSoTangCa      = VALUES(HeSoTangCa),
-        GhiChu          = VALUES(GhiChu),
-        NguoiCapNhat    = VALUES(NguoiCapNhat);
+        GioVao          = cc_new.GioVao,
+        GioRa           = cc_new.GioRa,
+        TrangThai       = cc_new.TrangThai,
+        SoGioTangCa     = cc_new.SoGioTangCa,
+        HeSoTangCa      = cc_new.HeSoTangCa,
+        GhiChu          = cc_new.GhiChu,
+        NguoiCapNhat    = cc_new.NguoiCapNhat;
 
     -- Trả MaCC
     IF ROW_COUNT() > 0 THEN
@@ -156,6 +158,8 @@ BEGIN
        OR NOT EXISTS (SELECT 1 FROM NhanVien WHERE MaNV = ti.MaNV AND TrangThai IN ('A','P','L'));
 
     -- INSERT hàng loạt (chỉ dòng hợp lệ)
+    -- LƯU Ý MySQL 8.0.46: VALUES() bị deprecated từ 8.0.20
+    -- Dùng alias row syntax
     INSERT INTO ChamCong (
         MaNV, NgayCham, GioVao, GioRa,
         TrangThai, SoGioTangCa, HeSoTangCa,
@@ -172,14 +176,15 @@ BEGIN
     WHERE ti.NgayCham <= CURDATE()
       AND ti.TrangThai IN ('DL','WFH','CX','NP','OM','KP','NG')
       AND EXISTS (SELECT 1 FROM NhanVien WHERE MaNV = ti.MaNV AND TrangThai IN ('A','P','L'))
+    AS cc_batch
     ON DUPLICATE KEY UPDATE
-        TrangThai    = VALUES(TrangThai),
-        GioVao       = VALUES(GioVao),
-        GioRa        = VALUES(GioRa),
-        SoGioTangCa  = VALUES(SoGioTangCa),
-        HeSoTangCa   = VALUES(HeSoTangCa),
-        GhiChu       = VALUES(GhiChu),
-        NguoiCapNhat = VALUES(NguoiCapNhat);
+        TrangThai    = cc_batch.TrangThai,
+        GioVao       = cc_batch.GioVao,
+        GioRa        = cc_batch.GioRa,
+        SoGioTangCa  = cc_batch.SoGioTangCa,
+        HeSoTangCa   = cc_batch.HeSoTangCa,
+        GhiChu       = cc_batch.GhiChu,
+        NguoiCapNhat = cc_batch.NguoiCapNhat;
 
     SET v_SoThanhCong = ROW_COUNT();
 
@@ -284,6 +289,7 @@ BEGIN
     END WHILE;
 
     -- Đồng bộ đơn nghỉ đã duyệt (NP) vào ChamCong
+    -- LƯU Ý MySQL 8.0.46: VALUES() bị deprecated từ 8.0.20 → dùng alias row syntax
     INSERT INTO ChamCong (MaNV, NgayCham, TrangThai, GhiChu, NguoiCapNhat)
     SELECT DISTINCT
         np.MaNV,
@@ -300,9 +306,10 @@ BEGIN
     WHERE np.TrangThai = 'A'
       AND ng.NgayLam BETWEEN v_NgayDauThang AND v_NgayCuoiThang
       AND DAYOFWEEK(ng.NgayLam) NOT IN (1, 7)  -- Loại cuối tuần
+    AS cc_sync
     ON DUPLICATE KEY UPDATE
-        TrangThai = VALUES(TrangThai),
-        GhiChu    = VALUES(GhiChu);
+        TrangThai = cc_sync.TrangThai,
+        GhiChu    = cc_sync.GhiChu;
 
     SET v_SoDongBo = ROW_COUNT();
     DROP TEMPORARY TABLE IF EXISTS tmp_NgayTrongThang;

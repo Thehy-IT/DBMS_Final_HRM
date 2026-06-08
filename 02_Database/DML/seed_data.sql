@@ -2,7 +2,7 @@
 -- FILE       : seed_data.sql
 -- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Dữ liệu mẫu thực tế cho toàn bộ hệ thống
--- DBMS       : MySQL 8.0+
+-- DBMS       : MySQL 8.0.46
 -- GHI CHÚ   : - Loại bỏ N'' prefix (không cần trong MySQL utf8mb4)
 --              - GO → không dùng (MySQL dùng ; thay thế)
 --              - BEGIN TRANSACTION → START TRANSACTION
@@ -11,6 +11,8 @@
 --              - dbo. prefix → không dùng
 --              - SET NOCOUNT ON → không cần
 --              - PRINT → SELECT 'message' AS Info
+--              - VALUES() trong ON DUPLICATE KEY UPDATE bị deprecated
+--                từ MySQL 8.0.20 → dùng alias row syntax thay thế
 -- ============================================================
 
 USE HRPayrollDB;
@@ -374,6 +376,8 @@ START TRANSACTION;
 
 -- Tạo bảng tạm ngày trong tháng để generate chấm công
 -- Tháng 1/2025 (1-31)
+-- LƯU Ý MySQL 8.0.46: VALUES() trong ON DUPLICATE KEY UPDATE bị deprecated từ 8.0.20
+-- Dùng alias row syntax: INSERT ... AS new_row ON DUPLICATE KEY UPDATE col = new_row.col
 INSERT INTO ChamCong (MaNV, NgayCham, TrangThai, GioVao, GioRa, SoGioTangCa, HeSoTangCa, NguoiCapNhat)
 SELECT
     nv.MaNV,
@@ -436,7 +440,8 @@ FROM (
 CROSS JOIN NhanVien nv
 WHERE nv.TrangThai IN ('A','P')
   AND DAYOFWEEK(ngay.NgayCham) NOT IN (1,7)  -- Chỉ insert ngày làm việc
-ON DUPLICATE KEY UPDATE TrangThai = VALUES(TrangThai);
+AS new_row
+ON DUPLICATE KEY UPDATE TrangThai = new_row.TrangThai;
 
 COMMIT;
 SELECT '[OK] §6 ChamCong — tháng 1-3/2025' AS Info;

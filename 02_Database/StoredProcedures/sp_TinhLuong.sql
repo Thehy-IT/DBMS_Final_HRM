@@ -7,7 +7,7 @@
 --   CALL sp_TinhLuong(3, 2025, NULL, 0, 0);  -- Tính T3/2025 tất cả NV
 --   CALL sp_TinhLuong(3, 2025, 'NV000001', 0, 0); -- Tính riêng 1 NV
 --   CALL sp_TinhLuong(3, 2025, NULL, 1, 0);  -- Tính lại (ghi đè bản nháp)
--- DBMS       : MySQL 8.0+
+-- DBMS       : MySQL 8.0.46
 -- GHI CHÚ   : - CURSOR syntax khác SQL Server
 --              - GOTO không hỗ trợ → dùng ITERATE/LEAVE
 --              - RAISERROR → SIGNAL SQLSTATE
@@ -15,6 +15,8 @@
 --              - EOMONTH → LAST_DAY
 --              - TOP 1 → LIMIT 1
 --              - dbo. prefix không dùng trong MySQL
+--              - VALUES() trong ON DUPLICATE KEY UPDATE deprecated từ 8.0.20
+--                → dùng alias row syntax thay thế
 -- ============================================================
 
 USE HRPayrollDB;
@@ -275,6 +277,8 @@ BEGIN
                 START TRANSACTION;
 
                 -- INSERT BangLuong (header)
+                -- LƯU Ý MySQL 8.0.46: VALUES() bị deprecated từ 8.0.20
+                -- Dùng alias row syntax: INSERT ... AS new_row ON DUPLICATE KEY UPDATE col = new_row.col
                 INSERT INTO BangLuong (
                     MaNV, Thang, Nam,
                     LuongCoBan, SoNgayCong, SoNgayLamChuan,
@@ -296,18 +300,18 @@ BEGIN
                     v_cur_ThueTNCN,
                     'D',
                     NOW()
-                )
+                ) AS bl_new
                 ON DUPLICATE KEY UPDATE
-                    LuongCoBan     = VALUES(LuongCoBan),
-                    SoNgayCong     = VALUES(SoNgayCong),
-                    HeSoTangCa     = VALUES(HeSoTangCa),
-                    TongPhuCap     = VALUES(TongPhuCap),
-                    TongKhauTru    = VALUES(TongKhauTru),
-                    BHXH_NLD       = VALUES(BHXH_NLD),
-                    BHYT_NLD       = VALUES(BHYT_NLD),
-                    BHTN_NLD       = VALUES(BHTN_NLD),
-                    ThueTNCN       = VALUES(ThueTNCN),
-                    NgayTinhLuong  = VALUES(NgayTinhLuong);
+                    LuongCoBan     = bl_new.LuongCoBan,
+                    SoNgayCong     = bl_new.SoNgayCong,
+                    HeSoTangCa     = bl_new.HeSoTangCa,
+                    TongPhuCap     = bl_new.TongPhuCap,
+                    TongKhauTru    = bl_new.TongKhauTru,
+                    BHXH_NLD       = bl_new.BHXH_NLD,
+                    BHYT_NLD       = bl_new.BHYT_NLD,
+                    BHTN_NLD       = bl_new.BHTN_NLD,
+                    ThueTNCN       = bl_new.ThueTNCN,
+                    NgayTinhLuong  = bl_new.NgayTinhLuong;
 
                 SET v_cur_MaBL = LAST_INSERT_ID();
 

@@ -498,7 +498,9 @@ BEGIN
 
     UPDATE BangLuong
     SET TrangThai      = 'P',
-        NgayThanhToan  = NOW()
+        -- LƯU Ý MySQL 8.0.46: NgayThanhToan là kiểu DATE → dùng CURDATE() thay vì NOW()
+        -- NOW() trả về DATETIME sẽ bị truncate khi gán vào cột DATE
+        NgayThanhToan  = CURDATE()
     WHERE Thang        = p_Thang
       AND Nam          = p_Nam
       AND TrangThai    = 'C';

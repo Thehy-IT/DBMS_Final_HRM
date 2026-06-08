@@ -240,7 +240,9 @@ CREATE PROCEDURE sp_BaoCaoNhanSu_BienDong(
     IN p_DenNgay DATE
 )
 BEGIN
-    IF p_TuNgay IS NULL THEN SET p_TuNgay  = DATE_FORMAT(CURDATE(), '%Y-01-01'); END IF;
+    -- LƯU Ý MySQL 8.0.46: DATE_FORMAT() trả về VARCHAR, không phải DATE
+    -- Dùng MAKEDATE() hoặc DATE() để đảm bảo kiểu dữ liệu DATE chính xác
+    IF p_TuNgay IS NULL THEN SET p_TuNgay  = MAKEDATE(YEAR(CURDATE()), 1); END IF;
     IF p_DenNgay IS NULL THEN SET p_DenNgay = CURDATE(); END IF;
 
     -- RS1: Nhân viên mới vào
@@ -385,14 +387,16 @@ BEGIN
         nv.HoTen,
         pb.TenPB                                    AS PhongBan,
         v_PhepTieuChuan                             AS PhepTieuChuan,
+        -- LƯU Ý MySQL 8.0.46: CONCAT(p_Nam, '-12-31') trả về VARCHAR
+        -- Dùng DATE(CONCAT(...)) hoặc MAKEDATE() để đảm bảo kiểu DATE
         IFNULL(SUM(CASE WHEN lnp.TenLoaiNghi LIKE '%năm%'
                         AND np.TrangThai = 'A'
                     THEN DATEDIFF(
-                        CASE WHEN np.NgayKetThuc > LAST_DAY(CONCAT(p_Nam, '-12-31'))
-                             THEN LAST_DAY(CONCAT(p_Nam, '-12-31'))
+                        CASE WHEN np.NgayKetThuc > DATE(CONCAT(p_Nam, '-12-31'))
+                             THEN DATE(CONCAT(p_Nam, '-12-31'))
                              ELSE np.NgayKetThuc END,
-                        CASE WHEN np.NgayBatDau < CONCAT(p_Nam, '-01-01')
-                             THEN CONCAT(p_Nam, '-01-01')
+                        CASE WHEN np.NgayBatDau < DATE(CONCAT(p_Nam, '-01-01'))
+                             THEN DATE(CONCAT(p_Nam, '-01-01'))
                              ELSE np.NgayBatDau END
                     ) + 1
                     ELSE 0 END), 0)                 AS PhepDaNghi,
@@ -400,11 +404,11 @@ BEGIN
         - IFNULL(SUM(CASE WHEN lnp.TenLoaiNghi LIKE '%năm%'
                           AND np.TrangThai = 'A'
                       THEN DATEDIFF(
-                            CASE WHEN np.NgayKetThuc > LAST_DAY(CONCAT(p_Nam, '-12-31'))
-                                 THEN LAST_DAY(CONCAT(p_Nam, '-12-31'))
+                            CASE WHEN np.NgayKetThuc > DATE(CONCAT(p_Nam, '-12-31'))
+                                 THEN DATE(CONCAT(p_Nam, '-12-31'))
                                  ELSE np.NgayKetThuc END,
-                            CASE WHEN np.NgayBatDau < CONCAT(p_Nam, '-01-01')
-                                 THEN CONCAT(p_Nam, '-01-01')
+                            CASE WHEN np.NgayBatDau < DATE(CONCAT(p_Nam, '-01-01'))
+                                 THEN DATE(CONCAT(p_Nam, '-01-01'))
                                  ELSE np.NgayBatDau END
                           ) + 1
                       ELSE 0 END), 0)               AS PhepConLai,
