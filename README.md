@@ -43,7 +43,7 @@ Hệ thống được thiết kế theo mô hình **Database-Centric Architectur
 └────────────────────────┬────────────────────────────────────────┘
                          │  INSERT/UPDATE/DELETE → tự động kích hoạt
 ┌────────────────────────▼────────────────────────────────────────┐
-│                   TRIGGER LAYER (19 Triggers)                   │
+│                   TRIGGER LAYER (21 Triggers)                   │
 │  Audit Trail  │  Data Validation  │  Business Rule Enforcement  │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -109,7 +109,7 @@ Lương Net = Gross − BH_NLĐ − ThuếTNCN − KhauTruKhac
 | **Tables**            | 17          | InnoDB, utf8mb4_unicode_ci                              |
 | **Stored Procedures** | 21          | Tính lương, chấm công, báo cáo, bảng lương    |
 | **Functions**         | 12          | Thuế TNCN, BHXH, ngày công, hệ số lương          |
-| **Triggers**          | 19          | Audit trail, validate, business rules                   |
+| **Triggers**          | 21          | Audit trail, validate, business rules                   |
 | **Views**             | 6           | Bảng lương, chấm công, thuế, tỷ lệ chuyên cần |
 | **Indexes**           | 20+         | Composite index cho tính lương, báo cáo            |
 | **Dữ liệu mẫu**    | 50 NV       | 3 tháng chấm công (≥3,000 records)                  |
@@ -129,18 +129,19 @@ DBMS_Final_HRM/
 │
 ├── 02_Database/
 │   ├── DDL/
-│   │   ├── 01_create_tables.sql    # 19 bảng, constraints, tiering
+│   │   ├── 01_create_tables.sql    # 17 bảng, constraints, tiering
 │   │   ├── 02_constraints.sql      # CHECK constraints, unique index
 │   │   └── 03_indexes.sql          # 20+ composite index
 │   ├── Functions/                  # 12 scalar functions
 │   │   ├── fn_TinhThueTNCN.sql     # Thuế TNCN (3 functions)
 │   │   ├── fn_TinhBHXH.sql         # BHXH/BHYT/BHTN (4 functions)
 │   │   └── fn_SoNgayLamViec.sql    # Ngày công (5 functions)
-    ├── Triggers/                   # 19 triggers
+    ├── Triggers/                   # 21 triggers
     │   ├── trg_LogHopDong.sql      # Audit hợp đồng (6 triggers)
     │   ├── trg_NhanVien_CheckTuoi.sql # Check tuổi (2 triggers)
     │   ├── trg_LogLuong.sql        # Audit lương + bảo vệ (5 triggers)
     │   ├── trg_LuongCoBan_CheckOneCurrent.sql # Check lương duy nhất (2 triggers)
+    │   ├── trg_KhauTru_Validate.sql # Check khấu trừ (2 triggers)
     │   ├── trg_NghiPhep_CheckOverlap.sql # Check trùng nghỉ phép (2 triggers)
     │   └── trg_KiemTraChamCong.sql # Validate chấm công (2 triggers)
 │   ├── StoredProcedures/           # 21 stored procedures
@@ -273,7 +274,7 @@ CALL sp_TinhLuong(3, 2025, NULL, 0, 0);
 |                       | `fn_SoNgayNghiKhongLuong` | Ngày nghỉ không lương                 |
 |                       | `fn_HeSoLuongThang`       | Hệ số lương theo ngày công thực tế |
 
-### Triggers (19)
+### Triggers (21)
 
 | Bảng          | Trigger                        | Thời điểm  | Mục đích                             |
 | -------------- | ------------------------------ | ------------- | --------------------------------------- |
@@ -291,6 +292,8 @@ CALL sp_TinhLuong(3, 2025, NULL, 0, 0);
 |                | `trg_LuongCoBan_CheckOneCurrent_Update` | BEFORE UPDATE | Ngăn chuyển 2 mức lương sang áp dụng |
 | `NghiPhep`   | `trg_NghiPhep_CheckOverlap_Insert` | BEFORE INSERT | Chặn trùng lịch nghỉ đã duyệt      |
 |                | `trg_NghiPhep_CheckOverlap_Update` | BEFORE UPDATE | Chặn trùng lịch nghỉ khi sửa ngày  |
+| `KhauTru`    | `trg_KhauTru_BeforeInsert_NgayHopLe` | BEFORE INSERT | Chặn ngày khấu trừ tương lai        |
+|                | `trg_KhauTru_BeforeUpdate_NgayHopLe` | BEFORE UPDATE | Chặn ngày khấu trừ tương lai        |
 | `BangLuong`  | `trg_BangLuong_BeforeUpdate` | BEFORE UPDATE | Ngăn sửa bảng lương CHỐT          |
 |                | `trg_BangLuong_BeforeDelete` | BEFORE DELETE | Ngăn xóa bảng lương CHỐT          |
 |                | `trg_BangLuong_AfterUpdate`  | AFTER UPDATE  | Log chuyển trạng thái                |

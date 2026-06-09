@@ -116,7 +116,8 @@ DBMS_Final_HRM/
 ║  ✅ [5c] Triggers/trg_LogLuong.sql        Audit lương          ║
 ║  ✅ [5d] Triggers/trg_LuongCoBan_CheckOneCurrent.sql Check lương duy nhất ║
 ║  ✅ [5e] Triggers/trg_KiemTraChamCong.sql Validate chấm công   ║
-║  ✅ [5f] Triggers/trg_NghiPhep_CheckOverlap.sql Check trùng nghỉ phép ║
+║  ✅ [5f] Triggers/trg_KhauTru_Validate.sql   Check ngày khấu trừ  ║
+║  ✅ [5g] Triggers/trg_NghiPhep_CheckOverlap.sql Check trùng nghỉ phép ║
 ║                                                                  ║
 ║  STORED PROCEDURES (Phụ thuộc Functions)                        ║
 ║  ──────────────────────────────────────────────────────────────  ║
@@ -290,6 +291,10 @@ DELIMITER $$
 CREATE TRIGGER trg_LuongCoBan_AfterInsert
 AFTER INSERT ON LuongCoBan
 ```
+
+**File:** `02_Database/Triggers/trg_KhauTru_Validate.sql`
+- `trg_KhauTru_BeforeInsert_NgayHopLe` — Chặn ngày phát sinh khấu trừ ở tương lai khi thêm mới.
+- `trg_KhauTru_BeforeUpdate_NgayHopLe` — Chặn ngày phát sinh khấu trừ ở tương lai khi cập nhật.
 
 **File:** `02_Database/Triggers/trg_NghiPhep_CheckOverlap.sql`
 - `trg_NghiPhep_CheckOverlap` — Ngăn chặn đơn nghỉ phép trùng lặp (Overlap) của cùng một nhân viên.

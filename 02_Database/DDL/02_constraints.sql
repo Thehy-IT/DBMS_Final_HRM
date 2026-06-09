@@ -104,7 +104,6 @@ CALL _AddConstraintSafe(
 );
 
 -- ── §3.7  ChamCong: Không chấm công tương lai
--- PHẢI DÙNG TRIGGER vì CURDATE() là non-deterministic trong CHECK
 -- → Đã có trong trg_ChamCong_BeforeInsert và trg_ChamCong_BeforeUpdate
 
 -- ── §3.8  ChamCong: Giờ vào hợp lệ (05:00 – 11:00)
@@ -131,7 +130,6 @@ CALL _AddConstraintSafe(
 -- ── §3.10  KhauTru: Ngày phát sinh không ở tương lai
 -- PHẢI DÙNG TRIGGER vì CURDATE() là non-deterministic trong CHECK
 -- → Enforce qua trigger / stored procedure nhập liệu
-
 
 -- ============================================================
 -- §4  CHECK TÀI CHÍNH & PHÁP LÝ
@@ -173,33 +171,7 @@ CALL _AddConstraintSafe(
 -- (Lý do: Tách biệt logic Trigger khỏi DDL để dễ quản lý)
 
 -- Trigger kiểm tra KhauTru.NgayPhatSinh không tương lai
-DROP TRIGGER IF EXISTS trg_KhauTru_BeforeInsert_NgayHopLe;
-DELIMITER $$
-CREATE TRIGGER trg_KhauTru_BeforeInsert_NgayHopLe
-BEFORE INSERT ON KhauTru
-FOR EACH ROW
-BEGIN
-    IF NEW.NgayPhatSinh > CURDATE() THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'KhauTru: NgayPhatSinh không được là ngày tương lai.';
-    END IF;
-END$$
-DELIMITER ;
-
-DROP TRIGGER IF EXISTS trg_KhauTru_BeforeUpdate_NgayHopLe;
-DELIMITER $$
-CREATE TRIGGER trg_KhauTru_BeforeUpdate_NgayHopLe
-BEFORE UPDATE ON KhauTru
-FOR EACH ROW
-BEGIN
-    IF NEW.NgayPhatSinh > CURDATE() THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'KhauTru: NgayPhatSinh không được là ngày tương lai.';
-    END IF;
-END$$
-DELIMITER ;
-
-SELECT '[OK] Triggers kiểm tra KhauTru.NgayPhatSinh đã tạo' AS Status;
+-- → Đã chuyển sang: 02_Database/Triggers/trg_KhauTru_Validate.sql
 
 -- Dọn dẹp helper procedure
 DROP PROCEDURE IF EXISTS _AddConstraintSafe;
