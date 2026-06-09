@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS PhongBan (
     MaTruongPhong   CHAR(8)         NULL,              -- FK → NhanVien (set sau)
     NgayThanhLap    DATE            NULL,
     GhiChu          VARCHAR(255)    NULL,
-    IsActive        TINYINT(1)      NOT NULL DEFAULT 1,
+    IsActive        TINYINT      NOT NULL DEFAULT 1,
     NgayTao         DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     NgayCapNhat     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS ChucVu (
     HeSoLuong       DECIMAL(5,2)    NOT NULL DEFAULT 1.00,
     MoTa            VARCHAR(500)    NULL,
     CapBac          TINYINT         NOT NULL DEFAULT 1, -- 1=Nhân viên … 5=Giám đốc
-    IsActive        TINYINT(1)      NOT NULL DEFAULT 1,
+    IsActive        TINYINT      NOT NULL DEFAULT 1,
     NgayTao         DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (MaCV),
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS LoaiHopDong (
 CREATE TABLE IF NOT EXISTS LoaiNghiPhep (
     MaLoaiNghi      TINYINT         NOT NULL AUTO_INCREMENT,
     TenLoaiNghi     VARCHAR(100)    NOT NULL, -- Phép năm, Ốm, Thai sản, Không lương
-    CoHuongLuong    TINYINT(1)      NOT NULL DEFAULT 1,
+    CoHuongLuong    TINYINT      NOT NULL DEFAULT 1,
     SoNgayToiDa     SMALLINT        NULL,     -- Giới hạn năm, NULL = không giới hạn
     MoTa            VARCHAR(255)    NULL,
 
@@ -99,9 +99,9 @@ CREATE TABLE IF NOT EXISTS LoaiPhucLoi (
     TenFL           VARCHAR(100)    NOT NULL,          -- Ăn trưa, Xăng xe, Điện thoại…
     LoaiGiaTri      CHAR(1)         NOT NULL DEFAULT 'F', -- F=Cố định, P=Phần trăm
     GiaTri          DECIMAL(15,2)   NOT NULL DEFAULT 0,
-    CoTinhThue      TINYINT(1)      NOT NULL DEFAULT 0, -- Có chịu thuế TNCN không
+    CoTinhThue      TINYINT      NOT NULL DEFAULT 0, -- Có chịu thuế TNCN không
     MoTa            VARCHAR(255)    NULL,
-    IsActive        TINYINT(1)      NOT NULL DEFAULT 1,
+    IsActive        TINYINT      NOT NULL DEFAULT 1,
 
     PRIMARY KEY (MaFL),
     UNIQUE KEY UQ_LoaiPhucLoi_Ten (TenFL),
@@ -208,7 +208,6 @@ CREATE TABLE IF NOT EXISTS HopDong (
     CONSTRAINT CK_HopDong_NgayBatDauHopLe CHECK (NgayBatDau >= '2000-01-01'),
     CONSTRAINT CK_HopDong_NgayKyHopLe CHECK (NgayKy IS NULL OR NgayKy <= NgayBatDau)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 CREATE INDEX IX_HopDong_NV ON HopDong (MaNV);
 CREATE INDEX IX_HopDong_TT ON HopDong (TrangThai);
 -- Filtered unique index cho 1 hợp đồng active/NV — thực hiện qua trigger trong MySQL
@@ -274,7 +273,7 @@ CREATE TABLE IF NOT EXISTS NhanVienPhucLoi (
     GiaTriOverride  DECIMAL(15,2)   NULL,  -- Ghi đè nếu riêng cho NV này
     NgayApDung      DATE            NOT NULL,
     NgayKetThuc     DATE            NULL,
-    IsActive        TINYINT(1)      NOT NULL DEFAULT 1,
+    IsActive        TINYINT      NOT NULL DEFAULT 1,
     GhiChu          VARCHAR(255)    NULL,
 
     PRIMARY KEY (MaNV, MaFL, NgayApDung),
