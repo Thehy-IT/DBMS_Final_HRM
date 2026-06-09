@@ -112,10 +112,11 @@ DBMS_Final_HRM/
 ║  TRIGGERS (Phụ thuộc bảng)                                      ║
 ║  ──────────────────────────────────────────────────────────────  ║
 ║  ✅ [5a] Triggers/trg_LogHopDong.sql      Audit hợp đồng       ║
-║  ✅ [5b] Triggers/trg_LogLuong.sql        Audit lương          ║
-║  ✅ [5c] Triggers/trg_LuongCoBan_CheckOneCurrent.sql Check lương duy nhất ║
-║  ✅ [5d] Triggers/trg_KiemTraChamCong.sql Validate chấm công   ║
-║  ✅ [5e] Triggers/trg_NghiPhep_CheckOverlap.sql Check trùng nghỉ phép ║
+║  ✅ [5b] Triggers/trg_NhanVien_CheckTuoi.sql Check tuổi NV        ║
+║  ✅ [5c] Triggers/trg_LogLuong.sql        Audit lương          ║
+║  ✅ [5d] Triggers/trg_LuongCoBan_CheckOneCurrent.sql Check lương duy nhất ║
+║  ✅ [5e] Triggers/trg_KiemTraChamCong.sql Validate chấm công   ║
+║  ✅ [5f] Triggers/trg_NghiPhep_CheckOverlap.sql Check trùng nghỉ phép ║
 ║                                                                  ║
 ║  STORED PROCEDURES (Phụ thuộc Functions)                        ║
 ║  ──────────────────────────────────────────────────────────────  ║
@@ -261,6 +262,11 @@ ORDER BY ROUTINE_NAME;
 **File:** `02_Database/Triggers/trg_LogHopDong.sql`
 
 Chứa các trigger audit hợp đồng (AFTER INSERT, AFTER UPDATE).
+
+**File:** `02_Database/Triggers/trg_NhanVien_CheckTuoi.sql`
+
+Chứa trigger đảm bảo nghiệp vụ:
+- `trg_NhanVien_CheckTuoi` — Kiểm soát độ tuổi lao động (18 - 70 tuổi) cho nhân viên.
 
 **File:** `02_Database/Triggers/trg_LogLuong.sql`
 

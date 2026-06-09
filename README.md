@@ -43,7 +43,7 @@ Hệ thống được thiết kế theo mô hình **Database-Centric Architectur
 └────────────────────────┬────────────────────────────────────────┘
                          │  INSERT/UPDATE/DELETE → tự động kích hoạt
 ┌────────────────────────▼────────────────────────────────────────┐
-│                   TRIGGER LAYER (17 Triggers)                   │
+│                   TRIGGER LAYER (19 Triggers)                   │
 │  Audit Trail  │  Data Validation  │  Business Rule Enforcement  │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -65,13 +65,13 @@ Pipeline 8 bước nội bộ: Xác thực đầu vào → Lấy danh sách NV �
 
 ### Thuế TNCN Luỹ Tiến 7 Bậc (fn_TinhThueTNCN_Scalar)
 
-Triển khai đúng theo **Thông tư 111/2017/TT-BTC**:
+Triển khai đúng theo **Thông tư 111/2015/TT-BTC**:
 
 | Bậc | Thu nhập tính thuế/tháng | Thuế suất |
 | ---- | ---------------------------- | ----------- |
 | 1    | ≤ 5,000,000 VND             | 5%          |
 | 2    | 5,000,001 – 10,000,000 VND  | 10%         |
-| 3    | 10,000,001 – 18,000,000 VND | 17%         |
+| 3    | 10,000,001 – 18,000,000 VND | 15%         |
 | 4    | 18,000,001 – 32,000,000 VND | 20%         |
 | 5    | 32,000,001 – 52,000,000 VND | 25%         |
 | 6    | 52,000,001 – 80,000,000 VND | 30%         |
@@ -109,7 +109,7 @@ Lương Net = Gross − BH_NLĐ − ThuếTNCN − KhauTruKhac
 | **Tables**            | 17          | InnoDB, utf8mb4_unicode_ci                              |
 | **Stored Procedures** | 21          | Tính lương, chấm công, báo cáo, bảng lương    |
 | **Functions**         | 12          | Thuế TNCN, BHXH, ngày công, hệ số lương          |
-| **Triggers**          | 17          | Audit trail, validate, business rules                   |
+| **Triggers**          | 19          | Audit trail, validate, business rules                   |
 | **Views**             | 6           | Bảng lương, chấm công, thuế, tỷ lệ chuyên cần |
 | **Indexes**           | 20+         | Composite index cho tính lương, báo cáo            |
 | **Dữ liệu mẫu**    | 50 NV       | 3 tháng chấm công (≥3,000 records)                  |
@@ -129,15 +129,16 @@ DBMS_Final_HRM/
 │
 ├── 02_Database/
 │   ├── DDL/
-│   │   ├── 01_create_tables.sql    # 17 bảng, constraints, tiering
+│   │   ├── 01_create_tables.sql    # 19 bảng, constraints, tiering
 │   │   ├── 02_constraints.sql      # CHECK constraints, unique index
 │   │   └── 03_indexes.sql          # 20+ composite index
 │   ├── Functions/                  # 12 scalar functions
 │   │   ├── fn_TinhThueTNCN.sql     # Thuế TNCN (3 functions)
 │   │   ├── fn_TinhBHXH.sql         # BHXH/BHYT/BHTN (4 functions)
 │   │   └── fn_SoNgayLamViec.sql    # Ngày công (5 functions)
-    ├── Triggers/                   # 17 triggers
+    ├── Triggers/                   # 19 triggers
     │   ├── trg_LogHopDong.sql      # Audit hợp đồng (6 triggers)
+    │   ├── trg_NhanVien_CheckTuoi.sql # Check tuổi (2 triggers)
     │   ├── trg_LogLuong.sql        # Audit lương + bảo vệ (5 triggers)
     │   ├── trg_LuongCoBan_CheckOneCurrent.sql # Check lương duy nhất (2 triggers)
     │   ├── trg_NghiPhep_CheckOverlap.sql # Check trùng nghỉ phép (2 triggers)
@@ -272,7 +273,7 @@ CALL sp_TinhLuong(3, 2025, NULL, 0, 0);
 |                       | `fn_SoNgayNghiKhongLuong` | Ngày nghỉ không lương                 |
 |                       | `fn_HeSoLuongThang`       | Hệ số lương theo ngày công thực tế |
 
-### Triggers (17)
+### Triggers (19)
 
 | Bảng          | Trigger                        | Thời điểm  | Mục đích                             |
 | -------------- | ------------------------------ | ------------- | --------------------------------------- |
@@ -353,7 +354,7 @@ Tier 5 — Audit (ghi bởi Triggers)
 | --------------------- | ------------------------------------------------------------------------ |
 | **DBMS**        | MySQL 8.0+ — InnoDB engine, ACID transactions                           |
 | **Charset**     | `utf8mb4` / `utf8mb4_unicode_ci` — hỗ trợ tiếng Việt đầy đủ |
-| **Thuế TNCN**  | Thông tư 111/2017/TT-BTC — luỹ tiến 7 bậc                          |
+| **Thuế TNCN**  | Thông tư 111/2015/TT-BTC — luỹ tiến 7 bậc                          |
 | **Bảo hiểm**  | BHXH 8% + BHYT 1.5% + BHTN 1% (NLĐ); trần 20× lương tối thiểu     |
 | **Hợp đồng** | Bộ Luật Lao Động 2019 — 4 loại HĐ                                 |
 | **Phép năm**  | Tối thiểu 12 ngày/năm theo BLLĐ 2019                                |

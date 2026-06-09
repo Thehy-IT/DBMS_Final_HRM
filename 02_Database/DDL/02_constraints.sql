@@ -30,9 +30,6 @@ SELECT '[INFO] 02_constraints.sql — bắt đầu áp dụng ràng buộc' AS S
 -- ============================================================
 -- §2  CHECK ĐỊNH DẠNG MÃ (FORMAT VALIDATION)
 -- Đã được thêm trong 01_create_tables.sql bằng CHECK + REGEXP
--- Bổ sung các constraint chưa có:
--- LƯU Ý: MySQL 8.0 không hỗ trợ  cho ALTER TABLE ADD CONSTRAINT
---        → Dùng procedure để kiểm tra trước khi thêm
 -- ============================================================
 
 -- Helper procedure để add constraint an toàn (tránh lỗi nếu đã tồn tại)
@@ -61,8 +58,6 @@ DELIMITER ;
 
 -- ── §2.5  NhanVien.SoDienThoai
 -- Kiểm tra trong MySQL với REGEXP
--- LƯU Ý: CHECK constraints trong MySQL 8.0 KHÔNG được chứa hàm non-deterministic
---        REGEXP trong CHECK là OK vì nó deterministic
 CALL _AddConstraintSafe(
     'NhanVien',
     'CK_NhanVien_SDT_Format',
@@ -89,14 +84,9 @@ CALL _AddConstraintSafe(
 
 -- ============================================================
 -- §3  CHECK NGHIỆP VỤ NHÂN SỰ NÂNG CAO
--- LƯU Ý QUAN TRỌNG: MySQL 8.0 KHÔNG cho phép CURDATE(), NOW(),
---   TIMESTAMPDIFF() trong CHECK constraints vì chúng non-deterministic.
---   Các validate này được chuyển sang TRIGGER để enforcement.
 -- ============================================================
-
 -- ── §3.1  NhanVien: tuổi tối thiểu 18 và tối đa 70
 -- CHUYỂN SANG TRIGGER: trg_NhanVien_CheckTuoi (tạo bên dưới)
--- Lý do: CURDATE() và TIMESTAMPDIFF() là non-deterministic → không dùng trong CHECK
 
 -- ── §3.2  HopDong: Ngày bắt đầu hợp lệ (đã có trong CREATE TABLE)
 
@@ -179,48 +169,8 @@ CALL _AddConstraintSafe(
 -- ============================================================
 
 -- Trigger kiểm tra tuổi NhanVien (18-70) khi INSERT/UPDATE
--- (thay thế CK_NhanVien_TuoiToiDa và CK_NV_NgaySinh vì CURDATE() non-deterministic)
-DROP TRIGGER IF EXISTS trg_NhanVien_BeforeInsert_CheckTuoi;
-DELIMITER $$
-CREATE TRIGGER trg_NhanVien_BeforeInsert_CheckTuoi
-BEFORE INSERT ON NhanVien
-FOR EACH ROW
-BEGIN
-    DECLARE v_Tuoi INT;
-    SET v_Tuoi = TIMESTAMPDIFF(YEAR, NEW.NgaySinh, CURDATE());
-    IF v_Tuoi < 18 THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'NhanVien: Tuổi phải >= 18. Vi phạm quy định lao động.';
-    END IF;
-    IF v_Tuoi > 70 THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'NhanVien: Tuổi không được vượt quá 70.';
-    END IF;
-END$$
-DELIMITER ;
-
-DROP TRIGGER IF EXISTS trg_NhanVien_BeforeUpdate_CheckTuoi;
-DELIMITER $$
-CREATE TRIGGER trg_NhanVien_BeforeUpdate_CheckTuoi
-BEFORE UPDATE ON NhanVien
-FOR EACH ROW
-BEGIN
-    DECLARE v_Tuoi INT;
-    IF NEW.NgaySinh <> OLD.NgaySinh THEN
-        SET v_Tuoi = TIMESTAMPDIFF(YEAR, NEW.NgaySinh, CURDATE());
-        IF v_Tuoi < 18 THEN
-            SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'NhanVien: Tuổi phải >= 18. Vi phạm quy định lao động.';
-        END IF;
-        IF v_Tuoi > 70 THEN
-            SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'NhanVien: Tuổi không được vượt quá 70.';
-        END IF;
-    END IF;
-END$$
-DELIMITER ;
-
-SELECT '[OK] Triggers kiểm tra tuổi NhanVien đã tạo' AS Status;
+-- → Đã chuyển sang: 02_Database/Triggers/trg_NhanVien_CheckTuoi.sql
+-- (Lý do: Tách biệt logic Trigger khỏi DDL để dễ quản lý)
 
 -- Trigger kiểm tra KhauTru.NgayPhatSinh không tương lai
 DROP TRIGGER IF EXISTS trg_KhauTru_BeforeInsert_NgayHopLe;
