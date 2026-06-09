@@ -379,11 +379,11 @@ START TRANSACTION;
 -- LƯU Ý MySQL 8.0.46: VALUES() trong ON DUPLICATE KEY UPDATE bị deprecated từ 8.0.20
 -- Dùng alias row syntax: INSERT ... AS new_row ON DUPLICATE KEY UPDATE col = new_row.col
 INSERT INTO ChamCong (MaNV, NgayCham, TrangThai, GioVao, GioRa, SoGioTangCa, HeSoTangCa, NguoiCapNhat)
+SELECT * FROM (
 SELECT
     nv.MaNV,
     ngay.NgayCham,
     CASE
-        WHEN DAYOFWEEK(ngay.NgayCham) IN (1,7) THEN NULL      -- Cuối tuần: không insert
         WHEN EXISTS(SELECT 1 FROM NgayLe nl WHERE nl.NgayLe = ngay.NgayCham) THEN 'NG'
         -- NV000049: hay vắng mặt (1 ngày/tháng)
         WHEN nv.MaNV = 'NV000049' AND DAY(ngay.NgayCham) = 15 THEN 'KP'
@@ -394,12 +394,10 @@ SELECT
         ELSE 'DL'
     END AS TrangThai,
     CASE
-        WHEN DAYOFWEEK(ngay.NgayCham) IN (1,7) THEN NULL
         WHEN EXISTS(SELECT 1 FROM NgayLe nl WHERE nl.NgayLe = ngay.NgayCham) THEN NULL
         ELSE '08:00:00'
     END AS GioVao,
     CASE
-        WHEN DAYOFWEEK(ngay.NgayCham) IN (1,7) THEN NULL
         WHEN EXISTS(SELECT 1 FROM NgayLe nl WHERE nl.NgayLe = ngay.NgayCham) THEN NULL
         -- Tăng ca cho 1 số NV
         WHEN nv.MaNV IN ('NV000023','NV000025','NV000027') AND DAY(ngay.NgayCham) IN (10,20,30) THEN '19:30:00'
@@ -409,10 +407,7 @@ SELECT
         WHEN nv.MaNV IN ('NV000023','NV000025','NV000027') AND DAY(ngay.NgayCham) IN (10,20,30) THEN 2.0
         ELSE 0
     END AS SoGioTangCa,
-    CASE
-        WHEN nv.MaNV IN ('NV000023','NV000025','NV000027') AND DAY(ngay.NgayCham) IN (10,20,30) THEN 1.50
-        ELSE 1.50
-    END AS HeSoTangCa,
+    1.50 AS HeSoTangCa,
     'SEED_DATA' AS NguoiCapNhat
 FROM (
     SELECT '2025-01-02' AS NgayCham UNION ALL SELECT '2025-01-03' UNION ALL SELECT '2025-01-06'
@@ -439,8 +434,7 @@ FROM (
 ) ngay
 CROSS JOIN NhanVien nv
 WHERE nv.TrangThai IN ('A','P')
-  AND DAYOFWEEK(ngay.NgayCham) NOT IN (1,7)  -- Chỉ insert ngày làm việc
-AS new_row
+) AS new_row
 ON DUPLICATE KEY UPDATE TrangThai = new_row.TrangThai;
 
 COMMIT;

@@ -288,7 +288,7 @@ BEGIN
                 )
                 VALUES (
                     v_cur_MaNV, p_Thang, p_Nam,
-                    v_cur_LuongTheoNgay,
+                    v_cur_LuongCB,
                     v_cur_NgayDiLam + v_cur_NgayNghiCL,
                     v_NgayChuanThang,
                     v_cur_LuongLamThem,

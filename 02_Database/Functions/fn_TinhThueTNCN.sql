@@ -16,9 +16,6 @@
 
 USE HRPayrollDB;
 
--- Đảm bảo có thể tạo function
-SET GLOBAL log_bin_trust_function_creators = 1;
-
 -- ============================================================
 -- HÀM 1: fn_TinhThueTNCN_Scalar
 -- ============================================================
@@ -251,9 +248,7 @@ SELECT '[OK] fn_TinhGiamTruPhuThuoc — tạo thành công' AS Status;
 -- KIỂM THỬ ĐẦY ĐỦ
 -- ============================================================
 
-SELECT '════════════════════════════════════════════════════════' AS Status;
 SELECT '  KIỂM THỬ fn_TinhThueTNCN_Scalar' AS Status;
-SELECT '════════════════════════════════════════════════════════' AS Status;
 
 SELECT
     FORMAT(TNCT, 0)                                AS Thu_Nhap_Tinh_Thue,

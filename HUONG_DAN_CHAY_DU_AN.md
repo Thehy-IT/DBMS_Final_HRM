@@ -113,7 +113,9 @@ DBMS_Final_HRM/
 ║  ──────────────────────────────────────────────────────────────  ║
 ║  ✅ [5a] Triggers/trg_LogHopDong.sql      Audit hợp đồng       ║
 ║  ✅ [5b] Triggers/trg_LogLuong.sql        Audit lương          ║
-║  ✅ [5c] Triggers/trg_KiemTraChamCong.sql Validate chấm công   ║
+║  ✅ [5c] Triggers/trg_LuongCoBan_CheckOneCurrent.sql Check lương duy nhất ║
+║  ✅ [5d] Triggers/trg_KiemTraChamCong.sql Validate chấm công   ║
+║  ✅ [5e] Triggers/trg_NghiPhep_CheckOverlap.sql Check trùng nghỉ phép ║
 ║                                                                  ║
 ║  STORED PROCEDURES (Phụ thuộc Functions)                        ║
 ║  ──────────────────────────────────────────────────────────────  ║
@@ -269,6 +271,10 @@ Chứa các trigger:
 - `trg_BangLuong_BeforeDelete` — Ngăn xóa bảng lương CHỐT
 - `trg_BangLuong_AfterUpdate` — Log chuyển trạng thái
 
+**File:** `02_Database/Triggers/trg_LuongCoBan_CheckOneCurrent.sql`
+
+Chứa trigger đảm bảo nghiệp vụ:
+- `trg_LuongCoBan_CheckOneCurrent` — Đảm bảo mỗi nhân viên chỉ có 1 mức lương đang áp dụng (NgayHetHieuLuc IS NULL).
 **File:** `02_Database/Triggers/trg_KiemTraChamCong.sql`
 
 ```sql
@@ -277,6 +283,11 @@ DELIMITER $$
 
 CREATE TRIGGER trg_LuongCoBan_AfterInsert
 AFTER INSERT ON LuongCoBan
+```
+
+**File:** `02_Database/Triggers/trg_NghiPhep_CheckOverlap.sql`
+- `trg_NghiPhep_CheckOverlap` — Ngăn chặn đơn nghỉ phép trùng lặp (Overlap) của cùng một nhân viên.
+
 FOR EACH ROW
 BEGIN
     -- Dùng NEW.column thay vì INSERTED.column (SQL Server)

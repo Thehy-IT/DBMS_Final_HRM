@@ -1,5 +1,3 @@
--- ============================================================
--- FILE       : 02_constraints.sql
 -- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Bổ sung ràng buộc & index cho MySQL
 --              §1  Unique Index có điều kiện (emulated trong MySQL)
@@ -10,23 +8,11 @@
 --              §6  Kiểm tra & báo cáo tổng thể
 -- DEPENDENCY : Chạy SAU 01_create_tables.sql
 -- DBMS       : MySQL 8.0.46
--- GHI CHÚ   : MySQL 8.0 hỗ trợ CHECK constraints (enforced)
---              NHƯNG: CHECK không cho phép hàm non-deterministic
---              như CURDATE(), NOW(), TIMESTAMPDIFF() → dùng TRIGGER
---              ALTER TABLE ... ADD CONSTRAINT IF NOT EXISTS
---              KHÔNG được hỗ trợ trong MySQL 8.0 → dùng stored proc
---              hoặc kiểm tra trước khi ADD
--- ============================================================
-
 USE HRPayrollDB;
 
 SELECT '[INFO] 02_constraints.sql — bắt đầu áp dụng ràng buộc' AS Status;
 
--- ============================================================
 -- §1  UNIQUE INDEX (thay thế Filtered Unique Index của SQL Server)
--- Ghi chú: MySQL không hỗ trợ partial/filtered index
--- Các business rule sau được enforce qua Trigger
--- ============================================================
 
 -- ── §1.1  BR-05: Mỗi nhân viên chỉ có 1 hợp đồng đang hiệu lực
 -- Được kiểm soát bởi trigger trg_HopDong_CheckOneActive (xem Triggers/)
@@ -45,7 +31,7 @@ SELECT '[INFO] 02_constraints.sql — bắt đầu áp dụng ràng buộc' AS S
 -- §2  CHECK ĐỊNH DẠNG MÃ (FORMAT VALIDATION)
 -- Đã được thêm trong 01_create_tables.sql bằng CHECK + REGEXP
 -- Bổ sung các constraint chưa có:
--- LƯU Ý: MySQL 8.0 không hỗ trợ IF NOT EXISTS cho ALTER TABLE ADD CONSTRAINT
+-- LƯU Ý: MySQL 8.0 không hỗ trợ  cho ALTER TABLE ADD CONSTRAINT
 --        → Dùng procedure để kiểm tra trước khi thêm
 -- ============================================================
 
@@ -271,105 +257,8 @@ DROP PROCEDURE IF EXISTS _AddConstraintSafe;
 
 -- ============================================================
 -- §5  COMPOSITE INDEX BỔ SUNG (HIỆU NĂNG TRUY VẤN)
--- Dùng CREATE INDEX IF NOT EXISTS (hỗ trợ trong MySQL 8.0)
+-- Đã được chuyển sang 03_indexes.sql để tạo an toàn (IF NOT EXISTS)
 -- ============================================================
-
--- ── §5.1  ChamCong: tra cứu theo tháng/năm
--- LƯU Ý: MySQL 8.0 hỗ trợ function-based index
-CREATE INDEX IF NOT EXISTS IX_ChamCong_NV_ThangNam
-    ON ChamCong (MaNV, YEAR(NgayCham), MONTH(NgayCham));
-
--- ── §5.2  HopDong: tìm HĐ hiệu lực của NV nhanh
-CREATE INDEX IF NOT EXISTS IX_HopDong_NV_Active_Include
-    ON HopDong (MaNV, TrangThai);
-
--- ── §5.3  LuongCoBan: lookup lương hiện tại theo NV
-CREATE INDEX IF NOT EXISTS IX_LuongCoBan_NV_Current_Include
-    ON LuongCoBan (MaNV, NgayHetHieuLuc, NgayHieuLuc);
-
--- ── §5.4  BangLuong: tìm nhanh kỳ lương theo trạng thái
-CREATE INDEX IF NOT EXISTS IX_BangLuong_TrangThai_Ky
-    ON BangLuong (TrangThai, Nam, Thang);
-
--- ── §5.5  NghiPhep: tìm đơn đang chờ duyệt
-CREATE INDEX IF NOT EXISTS IX_NghiPhep_Pending
-    ON NghiPhep (TrangThai, NgayTao);
-
--- ── §5.6  NhanVienPhucLoi: tra cứu phúc lợi đang áp dụng
-CREATE INDEX IF NOT EXISTS IX_NVPhucLoi_Active
-    ON NhanVienPhucLoi (MaNV, IsActive);
-
--- ── §5.7  AuditLog_HopDong: range query theo thời gian
-CREATE INDEX IF NOT EXISTS IX_AuditHD_MaNV_Time
-    ON AuditLog_HopDong (MaNV, ThoiGianThayDoi);
-
--- ── §5.8  AuditLog_Luong: range query theo kỳ lương
-CREATE INDEX IF NOT EXISTS IX_AuditLuong_NV_ThangNam
-    ON AuditLog_Luong (MaNV, Nam, Thang);
-
--- ── §5.9  Indexes cho sp_TinhLuong
-CREATE INDEX IF NOT EXISTS IX_NhanVien_TinhLuong_Active
-    ON NhanVien (TrangThai, NgayVaoLam, NgayNghiViec);
-
-CREATE INDEX IF NOT EXISTS IX_LuongCoBan_TinhLuong_Lookup
-    ON LuongCoBan (MaNV, NgayHieuLuc, NgayHetHieuLuc);
-
-CREATE INDEX IF NOT EXISTS IX_ChamCong_TinhLuong_Period
-    ON ChamCong (NgayCham, MaNV, TrangThai);
-
-CREATE INDEX IF NOT EXISTS IX_NVPhucLoi_TinhLuong
-    ON NhanVienPhucLoi (MaNV, IsActive, NgayApDung, NgayKetThuc);
-
-CREATE INDEX IF NOT EXISTS IX_KhauTru_TinhLuong_Ky
-    ON KhauTru (NgayPhatSinh, TrangThai, MaNV);
-
-CREATE INDEX IF NOT EXISTS IX_BangLuong_TinhLuong_Check
-    ON BangLuong (Nam, Thang, MaNV, TrangThai);
-
--- ── §5.10 Indexes cho sp_BaoCaoNhanSu
-CREATE INDEX IF NOT EXISTS IX_NhanVien_BaoCao_PB_CV
-    ON NhanVien (MaPB, TrangThai, MaCV);
-
-CREATE INDEX IF NOT EXISTS IX_HopDong_SapHetHan
-    ON HopDong (TrangThai, NgayKetThuc);
-
-CREATE INDEX IF NOT EXISTS IX_BangLuong_BaoCao_QuyLuong
-    ON BangLuong (Thang, Nam, TrangThai);
-
-CREATE INDEX IF NOT EXISTS IX_NghiPhep_ThongKe_Nam
-    ON NghiPhep (TrangThai, NgayBatDau, MaNV, MaLoaiNghi);
-
-CREATE INDEX IF NOT EXISTS IX_PhongBan_Active_Include
-    ON PhongBan (IsActive, MaPB);
-
-CREATE INDEX IF NOT EXISTS IX_ChucVu_HeSo_CapBac
-    ON ChucVu (IsActive, CapBac);
-
--- ── §5.11 Indexes cho View & Báo cáo
-CREATE INDEX IF NOT EXISTS IX_BangLuong_View_Rank
-    ON BangLuong (Nam, Thang, ThuNhapThucLinh);
-
-CREATE INDEX IF NOT EXISTS IX_ChamCong_View_ThongKe
-    ON ChamCong (MaNV, NgayCham, TrangThai);
-
-CREATE INDEX IF NOT EXISTS IX_ChiTietLuong_BaoCao_Loai
-    ON ChiTietLuong (MaBL, LoaiMuc, TenMuc);
-
-CREATE INDEX IF NOT EXISTS IX_BangLuong_Trend_Analysis
-    ON BangLuong (Nam, Thang, TrangThai);
-
--- ── §5.12 Indexes cho Audit
-CREATE INDEX IF NOT EXISTS IX_AuditHD_Time_Action
-    ON AuditLog_HopDong (ThoiGianThayDoi, LoaiThayDoi);
-
-CREATE INDEX IF NOT EXISTS IX_AuditLuong_NV_History
-    ON AuditLog_Luong (MaNV, ThoiGianThayDoi);
-
-CREATE INDEX IF NOT EXISTS IX_LuongCoBan_History_NV
-    ON LuongCoBan (MaNV, NgayHieuLuc);
-
-CREATE INDEX IF NOT EXISTS IX_KhauTru_Applied
-    ON KhauTru (MaNV, TrangThai, NgayPhatSinh);
 
 
 -- ============================================================

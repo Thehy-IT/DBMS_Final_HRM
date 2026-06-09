@@ -224,7 +224,6 @@ BEGIN
             SELECT 1 FROM HopDong
             WHERE MaNV = NEW.MaNV
               AND TrangThai = 'A'
-              AND MaHD <> NEW.MaHD
         ) THEN
             SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'trg_HopDong_CheckOneActive: Nhân viên đã có hợp đồng đang hiệu lực. Vui lòng đóng HĐ cũ trước.';

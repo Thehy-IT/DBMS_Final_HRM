@@ -291,22 +291,23 @@ BEGIN
     -- Đồng bộ đơn nghỉ đã duyệt (NP) vào ChamCong
     -- LƯU Ý MySQL 8.0.46: VALUES() bị deprecated từ 8.0.20 → dùng alias row syntax
     INSERT INTO ChamCong (MaNV, NgayCham, TrangThai, GhiChu, NguoiCapNhat)
+    SELECT * FROM (
     SELECT DISTINCT
         np.MaNV,
-        ng.NgayLam,
+        ng.NgayLam AS NgayCham,
         CASE lnp.TenLoaiNghi
             WHEN 'Nghỉ ốm'   THEN 'OM'
             ELSE 'NP'
-        END,
-        CONCAT('Đồng bộ từ đơn nghỉ MaNP=', np.MaNP),
-        'SYS_SYNC'
+        END AS TrangThai,
+        CONCAT('Đồng bộ từ đơn nghỉ MaNP=', np.MaNP) AS GhiChu,
+        'SYS_SYNC' AS NguoiCapNhat
     FROM NghiPhep np
     JOIN tmp_NgayTrongThang ng ON ng.NgayLam BETWEEN np.NgayBatDau AND np.NgayKetThuc
     JOIN LoaiNghiPhep lnp ON np.MaLoaiNghi = lnp.MaLoaiNghi
     WHERE np.TrangThai = 'A'
       AND ng.NgayLam BETWEEN v_NgayDauThang AND v_NgayCuoiThang
       AND DAYOFWEEK(ng.NgayLam) NOT IN (1, 7)  -- Loại cuối tuần
-    AS cc_sync
+    ) AS cc_sync
     ON DUPLICATE KEY UPDATE
         TrangThai = cc_sync.TrangThai,
         GhiChu    = cc_sync.GhiChu;

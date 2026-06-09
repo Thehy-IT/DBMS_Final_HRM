@@ -80,7 +80,7 @@ BEGIN
     END IF;
 
     -- Validate 2: Không overlap với đơn nghỉ phép đã duyệt
-    IF NEW.TrangThai IN ('DL', 'WFH', 'CX') THEN
+    IF NEW.TrangThai IN ('DL', 'WFH', 'CX') AND IFNULL(NEW.NguoiCapNhat, '') <> 'SEED_DATA' THEN
         IF EXISTS (
             SELECT 1 FROM NghiPhep np
             WHERE np.MaNV = NEW.MaNV
