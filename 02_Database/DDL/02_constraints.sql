@@ -160,19 +160,6 @@ CALL _AddConstraintSafe(
         OR NgayThanhToan >= DATE(NgayXacNhan)
     )'
 );
-
-
--- ============================================================
--- TRIGGER bổ sung cho các validation không thể dùng CHECK
--- ============================================================
-
--- Trigger kiểm tra tuổi NhanVien (18-70) khi INSERT/UPDATE
--- → Đã chuyển sang: 02_Database/Triggers/trg_NhanVien_CheckTuoi.sql
--- (Lý do: Tách biệt logic Trigger khỏi DDL để dễ quản lý)
-
--- Trigger kiểm tra KhauTru.NgayPhatSinh không tương lai
--- → Đã chuyển sang: 02_Database/Triggers/trg_KhauTru_Validate.sql
-
 -- Dọn dẹp helper procedure
 DROP PROCEDURE IF EXISTS _AddConstraintSafe;
 
@@ -182,20 +169,21 @@ DROP PROCEDURE IF EXISTS _AddConstraintSafe;
 -- Đã được chuyển sang 03_indexes.sql để tạo an toàn (IF NOT EXISTS)
 -- ============================================================
 
-
 -- ============================================================
 -- §6  BÁO CÁO TỔNG HỢP
 -- ============================================================
-
 -- ── 6.1  Tất cả CHECK constraints
 SELECT
-    TABLE_NAME       AS Bảng,
-    CONSTRAINT_NAME  AS TênConstraint,
-    CHECK_CLAUSE     AS ĐịnhNghĩa,
-    'ENABLED'        AS TrạngThái
-FROM information_schema.CHECK_CONSTRAINTS
-WHERE CONSTRAINT_SCHEMA = 'HRPayrollDB'
-ORDER BY TABLE_NAME, CONSTRAINT_NAME;
+    tc.TABLE_NAME       AS Bảng,
+    cc.CONSTRAINT_NAME  AS TênConstraint,
+    cc.CHECK_CLAUSE     AS ĐịnhNghĩa,
+    'ENABLED'           AS TrạngThái
+FROM information_schema.CHECK_CONSTRAINTS cc
+JOIN information_schema.TABLE_CONSTRAINTS tc
+    ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+    AND cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+WHERE cc.CONSTRAINT_SCHEMA = 'HRPayrollDB'
+ORDER BY tc.TABLE_NAME, cc.CONSTRAINT_NAME;
 
 -- ── 6.2  Tất cả Indexes
 SELECT
@@ -221,4 +209,4 @@ WHERE TABLE_SCHEMA = 'HRPayrollDB'
 ORDER BY TABLE_NAME, CONSTRAINT_NAME;
 
 SELECT '[DONE] 02_constraints.sql hoàn tất.' AS Status;
-SELECT 'Sẵn sàng cho bước tiếp: 03_indexes.sql → DML/seed_data.sql → StoredProcedures/' AS NextStep;
+SELECT 'Sẵn sàng cho bước tiếp: 03_indexes.sql' AS NextStep;
