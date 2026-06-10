@@ -22,13 +22,13 @@
 
 ## 1. Yêu Cầu Hệ Thống
 
-| Thành phần | Phiên bản tối thiểu | Ghi chú |
-|---|---|---|
-| **MySQL Server** | 8.0+ | Bắt buộc (hỗ trợ CHECK constraints, Window Functions) |
-| **MySQL Workbench** | 8.0+ | Hoặc DBeaver, HeidiSQL, DataGrip |
-| **Quyền tài khoản** | `ALL PRIVILEGES` hoặc `SUPER` | Cần tạo database, trigger, set biến global |
-| **Character Set** | `utf8mb4` | Hỗ trợ tiếng Việt đầy đủ |
-| **Collation** | `utf8mb4_unicode_ci` | Sắp xếp tiếng Việt chuẩn |
+| Thành phần                 | Phiên bản tối thiểu            | Ghi chú                                                  |
+| ---------------------------- | ---------------------------------- | --------------------------------------------------------- |
+| **MySQL Server**       | 8.0+                               | Bắt buộc (hỗ trợ CHECK constraints, Window Functions) |
+| **MySQL Workbench**    | 8.0+                               | Hoặc DBeaver, HeidiSQL, DataGrip                         |
+| **Quyền tài khoản** | `ALL PRIVILEGES` hoặc `SUPER` | Cần tạo database, trigger, set biến global             |
+| **Character Set**      | `utf8mb4`                        | Hỗ trợ tiếng Việt đầy đủ                          |
+| **Collation**          | `utf8mb4_unicode_ci`             | Sắp xếp tiếng Việt chuẩn                             |
 
 > ⚠️ **Lưu ý:** Dự án **không** tương thích với SQL Server. Toàn bộ cú pháp đã được viết theo chuẩn MySQL 8.0+.
 
@@ -186,6 +186,7 @@ USE HRPayrollDB;
 ```
 
 **Kiểm tra:**
+
 ```sql
 USE HRPayrollDB;
 SHOW TABLES;
@@ -220,11 +221,18 @@ SELECT '[INFO] 02_constraints.sql - bat dau ap dung rang buoc' AS Status;
 **File:** `02_Database/Functions/fn_TinhThueTNCN.sql`
 
 Chứa 3 hàm:
+
 - `fn_TinhThueTNCN_Scalar(p_ThuNhapChiuThue)` — Trả về tiền thuế
 - `fn_XacDinhBacThue(p_ThuNhapChiuThue)` — Trả về số bậc (1–7)
 - `fn_TinhGiamTruPhuThuoc(p_MaNV, p_Thang, p_Nam)` — Tổng giảm trừ phụ thuộc
 
 **File:** `02_Database/Functions/fn_TinhBHXH.sql`
+
+Chứa 3 hàm:
+
+* `fn_TinhLuongDongBH` -
+* `fn_TinhBH_NLD` -
+* `fn_TinhBH_NSDLD` - 
 
 **File:** `02_Database/Functions/fn_SoNgayLamViec.sql`
 
@@ -246,6 +254,7 @@ DELIMITER ;
 ```
 
 **Kiểm tra:**
+
 ```sql
 -- Kiểm tra functions đã tạo
 SELECT ROUTINE_NAME, ROUTINE_TYPE
@@ -267,11 +276,13 @@ Chứa các trigger audit hợp đồng (AFTER INSERT, AFTER UPDATE).
 **File:** `02_Database/Triggers/trg_NhanVien_CheckTuoi.sql`
 
 Chứa trigger đảm bảo nghiệp vụ:
+
 - `trg_NhanVien_CheckTuoi` — Kiểm soát độ tuổi lao động (18 - 70 tuổi) cho nhân viên.
 
 **File:** `02_Database/Triggers/trg_LogLuong.sql`
 
 Chứa các trigger:
+
 - `trg_LuongCoBan_AfterInsert` — Log điều chỉnh lương mới
 - `trg_LuongCoBan_AfterUpdate` — Log từng cột thay đổi
 - `trg_BangLuong_BeforeUpdate` — Ngăn sửa bảng lương CHỐT
@@ -281,8 +292,10 @@ Chứa các trigger:
 **File:** `02_Database/Triggers/trg_LuongCoBan_CheckOneCurrent.sql`
 
 Chứa trigger đảm bảo nghiệp vụ:
-- `trg_LuongCoBan_CheckOneCurrent` — Đảm bảo mỗi nhân viên chỉ có 1 mức lương đang áp dụng (NgayHetHieuLuc IS NULL).
-**File:** `02_Database/Triggers/trg_KiemTraChamCong.sql`
+
+* `trg_LuongCoBan_CheckOneCurrent` — Đảm bảo mỗi nhân viên chỉ có 1 mức lương đang áp dụng (NgayHetHieuLuc IS NULL).
+
+**File:**`02_Database/Triggers/trg_KiemTraChamCong.sql`
 
 ```sql
 -- Cú pháp trigger trong MySQL (dùng NEW/OLD thay INSERTED/DELETED)
@@ -293,10 +306,12 @@ AFTER INSERT ON LuongCoBan
 ```
 
 **File:** `02_Database/Triggers/trg_KhauTru_Validate.sql`
+
 - `trg_KhauTru_BeforeInsert_NgayHopLe` — Chặn ngày phát sinh khấu trừ ở tương lai khi thêm mới.
 - `trg_KhauTru_BeforeUpdate_NgayHopLe` — Chặn ngày phát sinh khấu trừ ở tương lai khi cập nhật.
 
 **File:** `02_Database/Triggers/trg_NghiPhep_CheckOverlap.sql`
+
 - `trg_NghiPhep_CheckOverlap` — Ngăn chặn đơn nghỉ phép trùng lặp (Overlap) của cùng một nhân viên.
 
 FOR EACH ROW
@@ -306,6 +321,7 @@ BEGIN
 END$$
 
 DELIMITER ;
+
 ```
 
 **Kiểm tra:**
@@ -324,6 +340,7 @@ ORDER BY EVENT_OBJECT_TABLE, ACTION_TIMING;
 **File:** `02_Database/StoredProcedures/sp_TinhLuong.sql`
 
 Cú pháp gọi:
+
 ```sql
 -- Tính lương tháng 3/2025 toàn bộ nhân viên
 CALL sp_TinhLuong(3, 2025, NULL, 0, 0);
@@ -341,6 +358,7 @@ CALL sp_TinhLuong(3, 2025, NULL, 0, 1);
 **File:** `02_Database/StoredProcedures/sp_ChamCong.sql`
 
 Chứa các SP:
+
 - `sp_ChamCong_NhapHangNgay` — UPSERT 1 NV 1 ngày
 - `sp_ChamCong_NhapLoat` — Nhập hàng loạt từ bảng tạm
 - `sp_ChamCong_CapNhat` — Sửa trạng thái / giờ giấc
@@ -351,6 +369,7 @@ Chứa các SP:
 **File:** `02_Database/StoredProcedures/sp_TaoBangLuong.sql`
 
 Chứa các SP:
+
 - `sp_TaoBangLuong_ChinhThuc` — Bảng lương tổng hợp chính thức
 - `sp_TaoBangLuong_PhieuLuong` — Phiếu lương chi tiết 1 NV
 - `sp_TaoBangLuong_BHXH` — Danh sách đóng BHXH tháng
@@ -361,6 +380,7 @@ Chứa các SP:
 **File:** `02_Database/StoredProcedures/sp_BaoCaoNhanSu.sql`
 
 Chứa các SP:
+
 - `sp_BaoCaoNhanSu_TongQuan` — Dashboard nhân sự tổng hợp
 - `sp_BaoCaoNhanSu_TheoPhongBan` — Phân tích cơ cấu theo PB/CV
 - `sp_BaoCaoNhanSu_HopDong` — Trạng thái & sắp hết hạn HĐ
@@ -369,6 +389,7 @@ Chứa các SP:
 - `sp_BaoCaoNhanSu_NghiPhepNam` — Quản lý phép năm tồn dư
 
 **Kiểm tra:**
+
 ```sql
 SELECT ROUTINE_NAME, ROUTINE_TYPE
 FROM INFORMATION_SCHEMA.ROUTINES
@@ -385,6 +406,7 @@ ORDER BY ROUTINE_NAME;
 **File:** `02_Database/Views/vw_BangLuong.sql`
 
 Chứa 3 views:
+
 - `vw_BangLuong` — Chi tiết lương đầy đủ từng NV từng kỳ
 - `vw_BangLuong_TongHop` — Tổng hợp quỹ lương theo PB/tháng
 - `vw_ThueTNCN_KyQuyetToan` — Quyết toán thuế TNCN theo NV
@@ -392,6 +414,7 @@ Chứa 3 views:
 **File:** `02_Database/Views/vw_TongHopChamCong.sql`
 
 **Kiểm tra:**
+
 ```sql
 SELECT TABLE_NAME AS ViewName
 FROM INFORMATION_SCHEMA.VIEWS
@@ -420,6 +443,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 ```
 
 **Kiểm tra sau khi nạp:**
+
 ```sql
 SELECT 'PhongBan'   AS Bang, COUNT(*) AS SoLuong FROM PhongBan   UNION ALL
 SELECT 'ChucVu',             COUNT(*)             FROM ChucVu     UNION ALL
@@ -445,6 +469,7 @@ CALL sp_XacNhanBangLuong(1, 2025);
 ```
 
 **Kiểm tra:**
+
 ```sql
 SELECT Thang, Nam, COUNT(*) AS SoNV,
        FORMAT(SUM(LuongNet), 0) AS TongNet
@@ -462,6 +487,7 @@ ORDER BY Thang;
 **File:** `04_Testing/testcase_luong.sql` — 102 test cases
 
 Bao gồm các nhóm test:
+
 - §1 Sanity Check — Dữ liệu nền BangLuong 3 tháng
 - §2 fn_TinhThueTNCN — 7 bậc thuế + edge cases
 - §3 fn_TinhBHXH — NLĐ/NSDLĐ/Thử việc/Trần BH
@@ -483,6 +509,7 @@ Bao gồm các nhóm test:
 **File:** `02_Database/DML/test_queries.sql` — 71 queries tổng thể
 
 Bao gồm:
+
 - §1 Kiểm tra dữ liệu nền (Sanity Check)
 - §2 Kiểm thử Functions
 - §3 Kiểm thử sp_TinhLuong (đầy đủ 3 tháng)
@@ -579,6 +606,7 @@ CALL sp_TaoBangLuong_BHXH(3, 2025);
 **Nguyên nhân:** MySQL không cho phép tạo FUNCTION chứa câu lệnh SQL khi binlog đang bật.
 
 **Giải pháp:**
+
 ```sql
 -- Chạy với quyền SUPER/SYSTEM_VARIABLES_ADMIN
 SET GLOBAL log_bin_trust_function_creators = 1;
@@ -595,6 +623,7 @@ SET GLOBAL log_bin_trust_function_creators = 1;
 **Nguyên nhân:** Function thiếu khai báo `DETERMINISTIC` hoặc `NO SQL` / `READS SQL DATA`.
 
 **Giải pháp:**
+
 ```sql
 -- Đảm bảo function có khai báo:
 CREATE FUNCTION fn_TenHam(...)
@@ -613,6 +642,7 @@ END;
 **Nguyên nhân:** Bảng cha chưa tồn tại, hoặc kiểu dữ liệu không khớp.
 
 **Giải pháp:**
+
 ```sql
 -- Kiểm tra thứ tự tạo bảng trong 01_create_tables.sql
 -- Tạo Tier 0 trước, Tier 1 sau, v.v.
@@ -647,6 +677,7 @@ ORDER BY ROUTINE_NAME;
 **Nguyên nhân:** Dữ liệu cũ vẫn còn, TRUNCATE TABLE không chạy được do FK.
 
 **Giải pháp:**
+
 ```sql
 -- Tắt FK tạm thời, xóa data cũ
 SET FOREIGN_KEY_CHECKS = 0;
@@ -681,6 +712,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 **Nguyên nhân:** Đã xác nhận bảng lương (Confirmed/Paid) rồi thử tính lại.
 
 **Giải pháp:**
+
 ```sql
 -- Tính lại với p_Override = 1 (chỉ ghi đè bản Draft)
 CALL sp_TinhLuong(1, 2025, NULL, 1, 0);
@@ -694,6 +726,7 @@ CALL sp_TinhLuong(1, 2025, NULL, 1, 0);
 **Nguyên nhân:** Chưa chạy `sp_TinhLuong` cho 3 kỳ trước khi test.
 
 **Giải pháp:**
+
 ```sql
 -- Đảm bảo đã tính lương 3 tháng
 CALL sp_TinhLuong(1, 2025, NULL, 0, 0);
@@ -709,6 +742,7 @@ CALL sp_TinhLuong(3, 2025, NULL, 0, 0);
 **Nguyên nhân:** Copy/paste thủ công bị mất context DELIMITER.
 
 **Giải pháp:**
+
 ```
 Trong MySQL Workbench:
 - Đi tới Edit > Preferences > SQL Editor
@@ -769,17 +803,17 @@ SELECT 'ChamCong',           COUNT(*),            IF(COUNT(*) >= 3000,'OK', 'KIE
 SELECT 'BangLuong_2025',     COUNT(*),            IF(COUNT(*) >= 150, 'OK', 'KIEM TRA')            FROM BangLuong WHERE Nam = 2025;
 ```
 
-| Hạng mục | Mong đợi | Câu lệnh kiểm tra |
-|---|---|---|
-| Tables | ≥ 15 | `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='HRPayrollDB' AND TABLE_TYPE='BASE TABLE'` |
-| Views | ≥ 3 | `SELECT COUNT(*) FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA='HRPayrollDB'` |
-| Stored Procedures | ≥ 16 | `SELECT COUNT(*) FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='HRPayrollDB' AND ROUTINE_TYPE='PROCEDURE'` |
-| Functions | ≥ 3 | `SELECT COUNT(*) FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='HRPayrollDB' AND ROUTINE_TYPE='FUNCTION'` |
-| Triggers | ≥ 10 | `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA='HRPayrollDB'` |
-| NhanVien | 50 | `SELECT COUNT(*) FROM NhanVien` |
-| ChamCong | ≥ 3000 | `SELECT COUNT(*) FROM ChamCong` |
-| BangLuong 2025 | ≥ 150 | `SELECT COUNT(*) FROM BangLuong WHERE Nam=2025` |
-| Test PASS | 177/177 | Chạy cả 2 file testcase |
+| Hạng mục        | Mong đợi | Câu lệnh kiểm tra                                                                                                 |
+| ----------------- | ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| Tables            | ≥ 15      | `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='HRPayrollDB' AND TABLE_TYPE='BASE TABLE'`      |
+| Views             | ≥ 3       | `SELECT COUNT(*) FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA='HRPayrollDB'`                                   |
+| Stored Procedures | ≥ 16      | `SELECT COUNT(*) FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='HRPayrollDB' AND ROUTINE_TYPE='PROCEDURE'` |
+| Functions         | ≥ 3       | `SELECT COUNT(*) FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='HRPayrollDB' AND ROUTINE_TYPE='FUNCTION'`  |
+| Triggers          | ≥ 10      | `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA='HRPayrollDB'`                              |
+| NhanVien          | 50         | `SELECT COUNT(*) FROM NhanVien`                                                                                    |
+| ChamCong          | ≥ 3000    | `SELECT COUNT(*) FROM ChamCong`                                                                                    |
+| BangLuong 2025    | ≥ 150     | `SELECT COUNT(*) FROM BangLuong WHERE Nam=2025`                                                                    |
+| Test PASS         | 177/177    | Chạy cả 2 file testcase                                                                                            |
 
 ---
 
@@ -795,26 +829,26 @@ SELECT 'BangLuong_2025',     COUNT(*),            IF(COUNT(*) >= 150, 'OK', 'KIE
 
 > 🔄 **Khác biệt MySQL vs SQL Server** (đã xử lý trong dự án):
 >
-> | SQL Server | MySQL 8.0+ |
-> |---|---|
-> | `EXEC sp_...` | `CALL sp_...()` |
+> | SQL Server                         | MySQL 8.0+                                                     |
+> | ---------------------------------- | -------------------------------------------------------------- |
+> | `EXEC sp_...`                    | `CALL sp_...()`                                              |
 > | `sys.tables`, `sys.procedures` | `INFORMATION_SCHEMA.TABLES`, `INFORMATION_SCHEMA.ROUTINES` |
-> | `INSERTED` / `DELETED` | `NEW` / `OLD` |
-> | `RAISERROR` | `SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '...'` |
-> | `ISNULL()` | `IFNULL()` |
-> | `GETDATE()` | `NOW()` hoặc `CURDATE()` |
-> | `DATEADD(MONTH, n, date)` | `DATE_ADD(date, INTERVAL n MONTH)` |
-> | `DATEDIFF(MONTH, d1, d2)` | `TIMESTAMPDIFF(MONTH, d1, d2)` |
-> | `FORMAT(n, 'N0')` | `FORMAT(n, 0)` |
-> | `TOP n` | `LIMIT n` |
-> | `dbo.TableName` | `TableName` (không dùng prefix schema) |
-> | `GO` | không dùng (chỉ dùng `;`) |
-> | `BEGIN TRANSACTION` | `START TRANSACTION` |
-> | `PRINT 'msg'` | `SELECT 'msg' AS Info` |
-> | `N'chuỗi tiếng Việt'` | `'chuỗi tiếng Việt'` |
-> | `EOMONTH(date)` | `LAST_DAY(date)` |
-> | `CONVERT(NVARCHAR, date, 103)` | `DATE_FORMAT(date, '%d/%m/%Y')` |
-> | `NVARCHAR` | `VARCHAR` với `utf8mb4` |
+> | `INSERTED` / `DELETED`         | `NEW` / `OLD`                                              |
+> | `RAISERROR`                      | `SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '...'`           |
+> | `ISNULL()`                       | `IFNULL()`                                                   |
+> | `GETDATE()`                      | `NOW()` hoặc `CURDATE()`                                  |
+> | `DATEADD(MONTH, n, date)`        | `DATE_ADD(date, INTERVAL n MONTH)`                           |
+> | `DATEDIFF(MONTH, d1, d2)`        | `TIMESTAMPDIFF(MONTH, d1, d2)`                               |
+> | `FORMAT(n, 'N0')`                | `FORMAT(n, 0)`                                               |
+> | `TOP n`                          | `LIMIT n`                                                    |
+> | `dbo.TableName`                  | `TableName` (không dùng prefix schema)                     |
+> | `GO`                             | không dùng (chỉ dùng `;`)                                |
+> | `BEGIN TRANSACTION`              | `START TRANSACTION`                                          |
+> | `PRINT 'msg'`                    | `SELECT 'msg' AS Info`                                       |
+> | `N'chuỗi tiếng Việt'`         | `'chuỗi tiếng Việt'`                                      |
+> | `EOMONTH(date)`                  | `LAST_DAY(date)`                                             |
+> | `CONVERT(NVARCHAR, date, 103)`   | `DATE_FORMAT(date, '%d/%m/%Y')`                              |
+> | `NVARCHAR`                       | `VARCHAR` với `utf8mb4`                                   |
 
 ---
 
