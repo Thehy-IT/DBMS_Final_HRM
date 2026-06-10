@@ -1,5 +1,3 @@
--- ============================================================
---  HRPayrollSystem | 02_Database/DDL/01_create_tables.sql
 --  Hệ thống Quản lý Nhân sự & Tính lương tự động
 --  DBMS  : MySQL 8.0+
 --  Author: HRPayroll Team
@@ -14,8 +12,6 @@
 --    Tier 3 — Phụ thuộc Tier 1 : ChamCong
 --    Tier 4 — Tính toán         : BangLuong → ChiTietLuong, KhauTru
 --    Tier 5 — Audit             : AuditLog_HopDong, AuditLog_Luong
--- ============================================================
-
 -- Tạo database nếu chưa tồn tại
 CREATE DATABASE IF NOT EXISTS HRPayrollDB
     CHARACTER SET utf8mb4
@@ -23,9 +19,7 @@ CREATE DATABASE IF NOT EXISTS HRPayrollDB
 
 USE HRPayrollDB;
 
--- ============================================================
 --  TIER 0 — Danh mục độc lập (lookup / master data)
--- ============================================================
 
 -- ── 1. PhongBan ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS PhongBan (
@@ -121,9 +115,7 @@ CREATE TABLE IF NOT EXISTS NgayLe (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- ============================================================
 --  TIER 1 — NhanVien (bảng trung tâm)
--- ============================================================
 
 CREATE TABLE IF NOT EXISTS NhanVien (
     MaNV            CHAR(8)         NOT NULL,          -- VD: NV000001
@@ -172,9 +164,7 @@ ALTER TABLE PhongBan
         FOREIGN KEY (MaTruongPhong) REFERENCES NhanVien(MaNV);
 
 
--- ============================================================
 --  TIER 2 — Hợp đồng & Lương cơ bản
--- ============================================================
 
 -- ── 7. HopDong ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS HopDong (
@@ -283,9 +273,7 @@ CREATE TABLE IF NOT EXISTS NhanVienPhucLoi (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- ============================================================
 --  TIER 3 — Chấm công
--- ============================================================
 
 -- ── 11. ChamCong ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS ChamCong (
@@ -326,9 +314,7 @@ CREATE INDEX IX_ChamCong_NV_Ngay ON ChamCong (MaNV, NgayCham);
 CREATE INDEX IX_ChamCong_Ngay    ON ChamCong (NgayCham);
 
 
--- ============================================================
 --  TIER 4 — Bảng lương & Chi tiết
--- ============================================================
 
 -- ── 12. BangLuong (header — mỗi NV mỗi tháng 1 dòng) ────────
 CREATE TABLE IF NOT EXISTS BangLuong (
@@ -432,9 +418,7 @@ CREATE TABLE IF NOT EXISTS KhauTru (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- ============================================================
 --  TIER 5 — Audit Log (tự động điền bởi Trigger)
--- ============================================================
 
 -- ── 15. AuditLog_HopDong ─────────────────────────────────────
 CREATE TABLE IF NOT EXISTS AuditLog_HopDong (
@@ -477,9 +461,7 @@ CREATE TABLE IF NOT EXISTS AuditLog_Luong (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- ============================================================
 --  XÁC NHẬN TOÀN BỘ ĐÃ TẠO THÀNH CÔNG
--- ============================================================
 SELECT
     TABLE_NAME      AS TenBang,
     TABLE_ROWS      AS SoBanGhi_UocTinh,
