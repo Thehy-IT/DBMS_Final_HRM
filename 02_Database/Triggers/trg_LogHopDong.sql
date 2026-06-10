@@ -1,5 +1,3 @@
--- ============================================================
--- FILE       : trg_LogHopDong.sql
 -- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Trigger tự động ghi AUDIT LOG mọi thay đổi
 --              trên bảng HopDong (INSERT / UPDATE / DELETE)
@@ -13,11 +11,9 @@
 -- GHI CHÚ   : MySQL không hỗ trợ AFTER INSERT/UPDATE/DELETE trên
 --              cùng bảng trong 1 trigger statement (phải tách)
 --              Không có INSTEAD OF → dùng BEFORE trigger để SIGNAL
--- ============================================================
 
 USE HRPayrollDB;
 
--- ============================================================
 -- TRIGGER 1: trg_HopDong_AfterInsert
 -- ============================================================
 DROP TRIGGER IF EXISTS trg_HopDong_AfterInsert;
@@ -49,17 +45,15 @@ END$$
 
 DELIMITER ;
 
-SELECT '[OK] trg_HopDong_AfterInsert' AS Status;
+SELECT 'trg_HopDong_AfterInsert' AS Status;
 
 
--- ============================================================
 -- TRIGGER 2: trg_HopDong_AfterUpdate
 -- Ghi log chi tiết từng cột bị thay đổi
--- ============================================================
+
 DROP TRIGGER IF EXISTS trg_HopDong_AfterUpdate;
 
 DELIMITER $$
-
 CREATE TRIGGER trg_HopDong_AfterUpdate
 AFTER UPDATE ON HopDong
 FOR EACH ROW
@@ -115,19 +109,14 @@ BEGIN
                 OLD.NguoiKy_NLD, NEW.NguoiKy_NLD);
     END IF;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] trg_HopDong_AfterUpdate' AS Status;
+SELECT 'trg_HopDong_AfterUpdate' AS Status;
 
-
--- ============================================================
 -- TRIGGER 3: trg_HopDong_AfterDelete
--- ============================================================
 DROP TRIGGER IF EXISTS trg_HopDong_AfterDelete;
 
 DELIMITER $$
-
 CREATE TRIGGER trg_HopDong_AfterDelete
 AFTER DELETE ON HopDong
 FOR EACH ROW
@@ -148,20 +137,16 @@ BEGIN
         NULL
     );
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] trg_HopDong_AfterDelete' AS Status;
+SELECT 'trg_HopDong_AfterDelete' AS Status;
 
 
--- ============================================================
 -- TRIGGER 4: trg_HopDong_BeforeUpdate (Guard chống sửa HĐ LOCK)
 -- Thay thế INSTEAD OF trong SQL Server
--- ============================================================
 DROP TRIGGER IF EXISTS trg_HopDong_BeforeUpdate;
 
 DELIMITER $$
-
 CREATE TRIGGER trg_HopDong_BeforeUpdate
 BEFORE UPDATE ON HopDong
 FOR EACH ROW
@@ -178,19 +163,14 @@ BEGIN
         END IF;
     END IF;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] trg_HopDong_BeforeUpdate (Guard)' AS Status;
+SELECT 'trg_HopDong_BeforeUpdate (Guard)' AS Status;
 
-
--- ============================================================
 -- TRIGGER 5: trg_HopDong_BeforeDelete (Guard chống xóa HĐ LOCK)
--- ============================================================
 DROP TRIGGER IF EXISTS trg_HopDong_BeforeDelete;
 
 DELIMITER $$
-
 CREATE TRIGGER trg_HopDong_BeforeDelete
 BEFORE DELETE ON HopDong
 FOR EACH ROW
@@ -200,21 +180,17 @@ BEGIN
         SET MESSAGE_TEXT = 'trg_HopDong_BeforeDelete: Không thể XÓA hợp đồng đã KHÓA (TrangThai=L).';
     END IF;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] trg_HopDong_BeforeDelete (Guard)' AS Status;
+SELECT 'trg_HopDong_BeforeDelete (Guard)' AS Status;
 
 
--- ============================================================
 -- TRIGGER 6: trg_HopDong_CheckOneActive
 -- Đảm bảo mỗi NV chỉ có 1 HĐ đang hiệu lực (Active)
 -- Thay thế Filtered Unique Index của SQL Server
--- ============================================================
 DROP TRIGGER IF EXISTS trg_HopDong_CheckOneActive;
 
 DELIMITER $$
-
 CREATE TRIGGER trg_HopDong_CheckOneActive
 BEFORE INSERT ON HopDong
 FOR EACH ROW
@@ -230,19 +206,13 @@ BEGIN
         END IF;
     END IF;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] trg_HopDong_CheckOneActive' AS Status;
+SELECT 'trg_HopDong_CheckOneActive' AS Status;
 
 
--- ============================================================
 -- KIỂM THỬ TRIGGERS
--- ============================================================
-SELECT '' AS Separator;
-SELECT '════════════════════════════════════════════════════════' AS Status;
 SELECT '  KIỂM THỬ trg_HopDong_*' AS Status;
-SELECT '════════════════════════════════════════════════════════' AS Status;
 
 -- Test: UPDATE lương hợp đồng NV000002
 UPDATE HopDong
@@ -261,4 +231,4 @@ LIMIT 5;
 -- Rollback test change
 UPDATE HopDong SET LuongCoBan = 8500000 WHERE MaHD = 'HD000002';
 
-SELECT '[DONE] trg_LogHopDong.sql — 6 triggers hoàn tất' AS Status;
+SELECT 'trg_LogHopDong.sql — 6 triggers hoàn tất' AS Status;
