@@ -1,5 +1,3 @@
--- ============================================================
--- FILE       : fn_SoNgayLamViec.sql
 -- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Các hàm tính ngày công — nền tảng cho sp_TinhLuong
 -- FUNCTIONS  :
@@ -10,18 +8,12 @@
 --   5. fn_HeSoLuongThang    — Scalar: hệ số lương theo ngày công
 --   6. fn_TinhLuongLamThem  — Scalar: lương tăng ca kỳ tháng
 -- DEPENDENCY : Chạy SAU fn_TinhBHXH.sql, cần seed_data.sql
--- DBMS       : MySQL 8.0+
--- GHI CHÚ   : MySQL không hỗ trợ WHILE loop tốt trong scalar function
---              dùng recursive CTE hoặc bảng số thay thế
--- ============================================================
 
 USE HRPayrollDB;
 
--- ============================================================
 -- HÀM 1: fn_SoNgayChuanThang
 -- Đếm số ngày làm việc tiêu chuẩn trong tháng
 -- (loại cuối tuần + ngày lễ trong bảng NgayLe)
--- ============================================================
 
 DROP FUNCTION IF EXISTS fn_SoNgayChuanThang;
 
@@ -72,13 +64,11 @@ END$$
 
 DELIMITER ;
 
-SELECT '[OK] fn_SoNgayChuanThang — tạo thành công' AS Status;
+SELECT 'fn_SoNgayChuanThang — tạo thành công' AS Status;
 
 
--- ============================================================
 -- HÀM 2: fn_SoNgayChamCong
 -- Đếm số ngày làm việc thực tế từ bảng ChamCong
--- ============================================================
 
 DROP FUNCTION IF EXISTS fn_SoNgayChamCong;
 
@@ -107,13 +97,11 @@ END$$
 
 DELIMITER ;
 
-SELECT '[OK] fn_SoNgayChamCong — tạo thành công' AS Status;
+SELECT 'fn_SoNgayChamCong — tạo thành công' AS Status;
 
 
--- ============================================================
 -- HÀM 3: fn_SoNgayNghiCoLuong
 -- Đếm ngày nghỉ HƯỞNG LƯƠNG trong tháng
--- ============================================================
 
 DROP FUNCTION IF EXISTS fn_SoNgayNghiCoLuong;
 
@@ -142,13 +130,10 @@ END$$
 
 DELIMITER ;
 
-SELECT '[OK] fn_SoNgayNghiCoLuong — tạo thành công' AS Status;
+SELECT 'fn_SoNgayNghiCoLuong — tạo thành công' AS Status;
 
-
--- ============================================================
 -- HÀM 4: fn_SoNgayNghiKhongLuong
 -- Đếm ngày nghỉ KHÔNG hưởng lương trong tháng
--- ============================================================
 
 DROP FUNCTION IF EXISTS fn_SoNgayNghiKhongLuong;
 
@@ -177,13 +162,11 @@ END$$
 
 DELIMITER ;
 
-SELECT '[OK] fn_SoNgayNghiKhongLuong — tạo thành công' AS Status;
+SELECT 'fn_SoNgayNghiKhongLuong — tạo thành công' AS Status;
 
 
--- ============================================================
 -- HÀM 5: fn_HeSoLuongThang
 -- Tính hệ số lương = (NgayDiLam + NgayNghiCoLuong) / NgayChuan
--- ============================================================
 
 DROP FUNCTION IF EXISTS fn_HeSoLuongThang;
 
@@ -218,13 +201,10 @@ END$$
 
 DELIMITER ;
 
-SELECT '[OK] fn_HeSoLuongThang — tạo thành công' AS Status;
+SELECT 'fn_HeSoLuongThang — tạo thành công' AS Status;
 
-
--- ============================================================
 -- HÀM 6: fn_TinhLuongLamThem
 -- Tính lương tăng ca trong tháng
--- ============================================================
 
 DROP FUNCTION IF EXISTS fn_TinhLuongLamThem;
 
@@ -267,17 +247,12 @@ END$$
 
 DELIMITER ;
 
-SELECT '[OK] fn_TinhLuongLamThem — tạo thành công' AS Status;
+SELECT 'fn_TinhLuongLamThem — tạo thành công' AS Status;
 
 
--- ============================================================
 -- KIỂM THỬ ĐẦY ĐỦ
--- ============================================================
 
-SELECT '════════════════════════════════════════════════════════' AS Status;
 SELECT '  KIỂM THỬ CÁC HÀM NGÀY CÔNG' AS Status;
-SELECT '════════════════════════════════════════════════════════' AS Status;
-
 -- Số ngày chuẩn Jan-May 2025
 SELECT '--- Số ngày làm việc chuẩn Jan-May 2025 ---' AS Info;
 SELECT
@@ -292,7 +267,6 @@ FROM (
 ) T;
 
 -- Test thực tế với dữ liệu đã seed (chạy sau seed_data.sql)
-SELECT '' AS Separator;
 SELECT '--- Thống kê ngày công thực tế NV000001 (TGĐ) tháng 1-3/2025 ---' AS Info;
 SELECT
     Ky.Thang,
@@ -308,5 +282,4 @@ FROM (
     SELECT 3, 2025
 ) Ky;
 
-SELECT '' AS Separator;
-SELECT '[DONE] fn_SoNgayLamViec.sql — 6 functions hoàn tất' AS Status;
+SELECT 'fn_SoNgayLamViec.sql — 6 functions hoàn tất' AS Status;
