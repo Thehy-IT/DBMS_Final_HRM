@@ -13,9 +13,7 @@ USE HRPayrollDB;
 
 SELECT '[INFO] 03_indexes.sql — Kiểm tra chiến lược index' AS Status;
 
--- ============================================================
 -- §1  KIỂM TRA INDEX ĐÃ TẠO (thay thế CREATE INDEX trùng lặp)
--- ============================================================
 
 -- Helper procedure: tạo index nếu chưa tồn tại (safe create)
 DROP PROCEDURE IF EXISTS _CreateIndexSafe;
@@ -172,9 +170,7 @@ CALL _CreateIndexSafe('HRPayrollDB', 'NhanVien', 'IX_NhanVien_TinhLuong_Active',
 -- Dọn dẹp
 DROP PROCEDURE IF EXISTS _CreateIndexSafe;
 
--- ============================================================
 -- §5  BÁO CÁO INDEX USAGE (MySQL equivalent of DMV)
--- ============================================================
 
 SELECT
     t.TABLE_NAME                             AS Bang,
@@ -208,4 +204,3 @@ ORDER BY So_Luong DESC;
 
 SELECT '[DONE] 03_indexes.sql hoàn tất.' AS Status;
 SELECT 'Tất cả index được tạo an toàn (IF NOT EXISTS logic via _CreateIndexSafe).' AS Info;
-SELECT 'Bước tiếp theo: DML/seed_data.sql' AS NextStep;
