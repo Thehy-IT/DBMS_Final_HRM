@@ -1,18 +1,13 @@
--- ============================================================
--- FILE       : trg_NghiPhep_CheckOverlap.sql
 -- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Ngăn chặn đơn nghỉ phép trùng lặp (Overlap)
 -- BR-07      : Một nhân viên không thể có 2 đơn nghỉ APPROVED trùng ngày nhau
 -- DBMS       : MySQL 8.0+
--- ============================================================
 
 USE HRPayrollDB;
 
 -- ── TRIGGER 1: trg_NghiPhep_CheckOverlap_Insert (BEFORE INSERT)
 DROP TRIGGER IF EXISTS trg_NghiPhep_CheckOverlap_Insert;
-
 DELIMITER $$
-
 CREATE TRIGGER trg_NghiPhep_CheckOverlap_Insert
 BEFORE INSERT ON NghiPhep
 FOR EACH ROW
@@ -31,14 +26,12 @@ BEGIN
         END IF;
     END IF;
 END$$
-
 DELIMITER ;
 
 -- ── TRIGGER 2: trg_NghiPhep_CheckOverlap_Update (BEFORE UPDATE)
 DROP TRIGGER IF EXISTS trg_NghiPhep_CheckOverlap_Update;
 
 DELIMITER $$
-
 CREATE TRIGGER trg_NghiPhep_CheckOverlap_Update
 BEFORE UPDATE ON NghiPhep
 FOR EACH ROW
@@ -59,15 +52,12 @@ BEGIN
         END IF;
     END IF;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] trg_NghiPhep_CheckOverlap (Insert/Update)' AS Status;
+SELECT 'trg_NghiPhep_CheckOverlap (Insert/Update)' AS Status;
 
 
--- ============================================================
 -- KIỂM THỬ (TEST CASE)
--- ============================================================
 /*
 -- 1. Giả sử NV000001 đã có đơn nghỉ từ 2025-01-01 đến 2025-01-05 (Approved)
 -- Thử chèn đơn mới trùng 1 phần (Lỗi mong đợi)
