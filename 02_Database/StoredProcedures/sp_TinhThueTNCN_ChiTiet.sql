@@ -4,15 +4,12 @@
 
 USE HRPayrollDB;
 
--- ============================================================
 -- PROCEDURE: sp_TinhThueTNCN_ChiTiet
 -- (Thay thế TVF trong SQL Server — MySQL dùng procedure + temp table)
--- ============================================================
 
 DROP PROCEDURE IF EXISTS sp_TinhThueTNCN_ChiTiet;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_TinhThueTNCN_ChiTiet(
     IN p_ThuNhapChiuThue DECIMAL(18,2)
 )
@@ -97,7 +94,6 @@ BEGIN
     SELECT * FROM tmp_ChiTietThue;
     DROP TEMPORARY TABLE IF EXISTS tmp_ChiTietThue;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_TinhThueTNCN_ChiTiet — tạo thành công' AS Status;
+SELECT 'sp_TinhThueTNCN_ChiTiet — tạo thành công' AS Status;

@@ -4,16 +4,13 @@
 
 USE HRPayrollDB;
 
--- ============================================================
 -- PROCEDURE: sp_TinhBHXH_ChiTiet
 -- (Thay thế TVF fn_TinhBHXH_TVF của SQL Server)
 -- Trả về bảng đầy đủ các thành phần BH — NLĐ và NSDLĐ
--- ============================================================
 
 DROP PROCEDURE IF EXISTS sp_TinhBHXH_ChiTiet;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_TinhBHXH_ChiTiet(
     IN p_LuongCoBan  DECIMAL(18,2),
     IN p_MaLoaiHD    TINYINT
@@ -63,7 +60,6 @@ BEGIN
         v_Tong_NSDLD    AS Tong_BH_NSDLD,
         v_Tong_CaHai    AS Tong_BH_Ca_Hai;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_TinhBHXH_ChiTiet — tạo thành công' AS Status;
+SELECT 'sp_TinhBHXH_ChiTiet — tạo thành công' AS Status;
