@@ -1,5 +1,4 @@
--- ============================================================
--- FILE       : vw_TongHopChamCong.sql
+/*
 -- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Views tổng hợp chấm công
 -- VIEWS      :
@@ -9,14 +8,12 @@
 -- DBMS       : MySQL 8.0+
 -- GHI CHÚ   : DATENAME(WEEKDAY) → DAYNAME() trong MySQL
 --              FORMAT(time, 'HH:mm') → TIME_FORMAT(time, '%H:%i')
--- ============================================================
+*/
 
 USE HRPayrollDB;
 
--- ============================================================
 -- VIEW 1: vw_TongHopChamCong
 -- Tổng hợp ngày công từng loại theo NV × Tháng × Năm
--- ============================================================
 DROP VIEW IF EXISTS vw_TongHopChamCong;
 
 CREATE VIEW vw_TongHopChamCong AS
@@ -68,13 +65,11 @@ GROUP BY
     nv.MaNV, nv.HoTen, pb.TenPB, cv.TenCV,
     YEAR(cc.NgayCham), MONTH(cc.NgayCham);
 
-SELECT '[OK] vw_TongHopChamCong' AS Status;
+SELECT 'vw_TongHopChamCong' AS Status;
 
 
--- ============================================================
 -- VIEW 2: vw_ChamCong_ChiTiet
 -- Chi tiết từng ngày — dùng cho NV tự tra cứu
--- ============================================================
 DROP VIEW IF EXISTS vw_ChamCong_ChiTiet;
 
 CREATE VIEW vw_ChamCong_ChiTiet AS
@@ -110,13 +105,11 @@ FROM
     JOIN NhanVien nv ON cc.MaNV = nv.MaNV
     JOIN PhongBan pb ON nv.MaPB = pb.MaPB;
 
-SELECT '[OK] vw_ChamCong_ChiTiet' AS Status;
+SELECT 'vw_ChamCong_ChiTiet' AS Status;
 
 
--- ============================================================
 -- VIEW 3: vw_TyLeChuyenCan
 -- Tỷ lệ chuyên cần theo phòng ban × tháng
--- ============================================================
 DROP VIEW IF EXISTS vw_TyLeChuyenCan;
 
 CREATE VIEW vw_TyLeChuyenCan AS
@@ -141,16 +134,11 @@ FROM
 GROUP BY
     thcc.Nam, thcc.Thang, thcc.PhongBan;
 
-SELECT '[OK] vw_TyLeChuyenCan' AS Status;
+SELECT 'vw_TyLeChuyenCan' AS Status;
 
 
--- ============================================================
 -- KIỂM THỬ VIEWS
--- ============================================================
-SELECT '' AS Separator;
-SELECT '════════════════════════════════════════════════════════' AS Status;
 SELECT '  KIỂM THỬ VIEWS CHẤM CÔNG' AS Status;
-SELECT '════════════════════════════════════════════════════════' AS Status;
 
 -- Tổng hợp chấm công tháng 1/2025 top 5 NV tăng ca nhiều nhất
 SELECT
@@ -173,5 +161,3 @@ SELECT
     SoNV_TyLe_LT_80pct                            AS NV_Kem_Chuyen_Can
 FROM vw_TyLeChuyenCan
 ORDER BY Nam, Thang, PhongBan;
-
-SELECT '[DONE] vw_TongHopChamCong.sql — 3 views hoàn tất' AS Status;
