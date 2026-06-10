@@ -1,28 +1,24 @@
--- ============================================================
--- FILE       : seed_data.sql
--- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
--- MỤC ĐÍCH   : Dữ liệu mẫu thực tế cho toàn bộ hệ thống
--- DBMS       : MySQL 8.0.46
--- GHI CHÚ   : - Loại bỏ N'' prefix (không cần trong MySQL utf8mb4)
---              - GO → không dùng (MySQL dùng ; thay thế)
---              - BEGIN TRANSACTION → START TRANSACTION
---              - IDENTITY_INSERT → không cần (dùng AUTO_INCREMENT)
---              - DATEADD(MONTH,n,date) → DATE_ADD(date, INTERVAL n MONTH)
---              - dbo. prefix → không dùng
---              - SET NOCOUNT ON → không cần
---              - PRINT → SELECT 'message' AS Info
---              - VALUES() trong ON DUPLICATE KEY UPDATE bị deprecated
---                từ MySQL 8.0.20 → dùng alias row syntax thay thế
--- ============================================================
-
+/*
+PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
+MỤC ĐÍCH   : Dữ liệu mẫu thực tế cho toàn bộ hệ thống
+DBMS       : MySQL 8.0.46
+GHI CHÚ   : - Loại bỏ N'' prefix (không cần trong MySQL utf8mb4)
+             - GO → không dùng (MySQL dùng ; thay thế)
+             - BEGIN TRANSACTION → START TRANSACTION
+             - IDENTITY_INSERT → không cần (dùng AUTO_INCREMENT)
+             - DATEADD(MONTH,n,date) → DATE_ADD(date, INTERVAL n MONTH)
+             - dbo. prefix → không dùng
+             - SET NOCOUNT ON → không cần
+             - PRINT → SELECT 'message' AS Info
+             - VALUES() trong ON DUPLICATE KEY UPDATE bị deprecated
+               từ MySQL 8.0.20 → dùng alias row syntax thay thế
+*/
 USE HRPayrollDB;
 
 -- Tắt safe update mode và kiểm tra FK tạm thời
 SET FOREIGN_KEY_CHECKS = 0;
 
--- ============================================================
 -- §1  BẢNG DANH MỤC (LOOKUP)
--- ============================================================
 START TRANSACTION;
 
 -- ── §1.1 PhongBan
@@ -99,7 +95,7 @@ INSERT INTO NgayLe (NgayLe, TenNgayLe) VALUES
   ('2024-09-02', 'Quốc Khánh 2024');
 
 COMMIT;
-SELECT '[OK] §1 LOOKUP TABLES hoàn tất' AS Info;
+SELECT '§1 LOOKUP TABLES hoàn tất' AS Info;
 
 -- ============================================================
 -- §2  NHANVIEN — 50 nhân viên
@@ -174,11 +170,9 @@ INSERT INTO NhanVien (MaNV,HoTen,GioiTinh,NgaySinh,CCCD,DiaChi,Email,SoDienThoai
 ('NV000050','Ngô Thị Minh Nguyệt','F','2000-07-31','038100050123','Đồng Nai','ngthminhnguyt@hrpayroll.vn','0900050123','PB0005','CV0007','2024-11-04','P','0305012345','19001000100050','BIDV','HR_ADMIN');
 
 COMMIT;
-SELECT '[OK] §2 NhanVien — 50 nhân viên' AS Info;
+SELECT '§2 NhanVien — 50 nhân viên' AS Info;
 
--- ============================================================
 -- §3  HOPDONG — 50 hợp đồng lao động
--- ============================================================
 START TRANSACTION;
 
 INSERT INTO HopDong(MaHD,MaNV,MaLoaiHD,NgayBatDau,NgayKetThuc,LuongCoBan,VungLuong,TrangThai,NguoiKy_NLD,NguoiKy_NSDLD,NgayKy,NguoiTao) VALUES
@@ -236,9 +230,7 @@ INSERT INTO HopDong(MaHD,MaNV,MaLoaiHD,NgayBatDau,NgayKetThuc,LuongCoBan,VungLuo
 COMMIT;
 SELECT '[OK] §3 HopDong — 50 hợp đồng' AS Info;
 
--- ============================================================
 -- §4  LUONGCOBAN — mức lương hiệu lực hiện tại
--- ============================================================
 START TRANSACTION;
 
 INSERT INTO LuongCoBan(MaNV,LuongCB,LuongDongBH,NgayHieuLuc,NgayHetHieuLuc,LyDo,NguoiDuyet) VALUES
@@ -296,9 +288,7 @@ INSERT INTO LuongCoBan(MaNV,LuongCB,LuongDongBH,NgayHieuLuc,NgayHetHieuLuc,LyDo,
 COMMIT;
 SELECT '[OK] §4 LuongCoBan — 50 mức lương' AS Info;
 
--- ============================================================
 -- §5  NHANVIENPHUCL0I — gán phúc lợi
--- ============================================================
 START TRANSACTION;
 
 INSERT INTO NhanVienPhucLoi(MaNV,MaFL,NgayApDung,IsActive) VALUES
@@ -367,16 +357,13 @@ INSERT INTO NhanVienPhucLoi(MaNV,MaFL,NgayApDung,IsActive) VALUES
 ('NV000049','FL0001','2023-03-01',1),('NV000049','FL0002','2023-03-01',1);
 
 COMMIT;
-SELECT '[OK] §5 NhanVienPhucLoi hoàn tất' AS Info;
+SELECT '§5 NhanVienPhucLoi hoàn tất' AS Info;
 
--- ============================================================
 -- §6  CHAMCONG — Tháng 1-3/2025 (set-based)
--- ============================================================
 START TRANSACTION;
 
 -- Tạo bảng tạm ngày trong tháng để generate chấm công
 -- Tháng 1/2025 (1-31)
--- LƯU Ý MySQL 8.0.46: VALUES() trong ON DUPLICATE KEY UPDATE bị deprecated từ 8.0.20
 -- Dùng alias row syntax: INSERT ... AS new_row ON DUPLICATE KEY UPDATE col = new_row.col
 INSERT INTO ChamCong (MaNV, NgayCham, TrangThai, GioVao, GioRa, SoGioTangCa, HeSoTangCa, NguoiCapNhat)
 SELECT * FROM (
@@ -440,9 +427,7 @@ ON DUPLICATE KEY UPDATE TrangThai = new_row.TrangThai;
 COMMIT;
 SELECT '[OK] §6 ChamCong — tháng 1-3/2025' AS Info;
 
--- ============================================================
 -- §7  NGHIPHEP — đơn nghỉ phép mẫu
--- ============================================================
 START TRANSACTION;
 
 INSERT INTO NghiPhep(MaNV, MaLoaiNghi, NgayBatDau, NgayKetThuc, LyDo, TrangThai, NguoiDuyet, NgayDuyet) VALUES
@@ -458,9 +443,7 @@ INSERT INTO NghiPhep(MaNV, MaLoaiNghi, NgayBatDau, NgayKetThuc, LyDo, TrangThai,
 COMMIT;
 SELECT '[OK] §7 NghiPhep — đơn mẫu' AS Info;
 
--- ============================================================
 -- §8  KHAUTRU — khấu trừ phát sinh
--- ============================================================
 START TRANSACTION;
 
 INSERT INTO KhauTru(MaNV, LoaiKhauTru, GiaTri, NgayPhatSinh, TrangThai, GhiChu, NguoiDuyet) VALUES
@@ -469,11 +452,9 @@ INSERT INTO KhauTru(MaNV, LoaiKhauTru, GiaTri, NgayPhatSinh, TrangThai, GhiChu, 
 ('NV000014', 'Truy thu thiếu hụt tháng 12', 300000, '2025-01-31', 'P', 'Chênh lệch tính lương tháng 12/2024', 'NV000011');
 
 COMMIT;
-SELECT '[OK] §8 KhauTru — phát sinh mẫu' AS Info;
+SELECT '§8 KhauTru — phát sinh mẫu' AS Info;
 
--- ============================================================
 -- §9  UPDATE TRƯỞNG PHÒNG & KIỂM TRA
--- ============================================================
 START TRANSACTION;
 
 UPDATE PhongBan SET MaTruongPhong = 'NV000001' WHERE MaPB = 'PB0001';
