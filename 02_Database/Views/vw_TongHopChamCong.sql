@@ -49,11 +49,11 @@ SELECT
 
     -- Tỷ lệ chuyên cần (%)
     CASE WHEN fn_SoNgayChuanThang(
-                MONTH(cc.NgayCham), YEAR(cc.NgayCham)) > 0
+                MAX(MONTH(cc.NgayCham)), MAX(YEAR(cc.NgayCham))) > 0
          THEN CAST(
              SUM(CASE WHEN cc.TrangThai IN ('DL','WFH','CX') THEN 1 ELSE 0 END)
              AS DECIMAL(10,4))
-             / fn_SoNgayChuanThang(MONTH(cc.NgayCham), YEAR(cc.NgayCham))
+             / fn_SoNgayChuanThang(MAX(MONTH(cc.NgayCham)), MAX(YEAR(cc.NgayCham)))
          ELSE 0
     END                                     AS TyLeChuyenCan
 FROM
