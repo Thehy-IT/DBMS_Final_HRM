@@ -1,10 +1,8 @@
--- ============================================================
 -- FILE       : trg_LuongCoBan_CheckOneCurrent.sql
 -- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Đảm bảo mỗi nhân viên chỉ có 1 mức lương đang áp dụng
 -- BR-06      : Mỗi nhân viên chỉ có 1 dòng LuongCoBan có NgayHetHieuLuc IS NULL
 -- DBMS       : MySQL 8.0+
--- ============================================================
 
 USE HRPayrollDB;
 
@@ -12,7 +10,6 @@ USE HRPayrollDB;
 DROP TRIGGER IF EXISTS trg_LuongCoBan_CheckOneCurrent;
 
 DELIMITER $$
-
 CREATE TRIGGER trg_LuongCoBan_CheckOneCurrent
 BEFORE INSERT ON LuongCoBan
 FOR EACH ROW
@@ -29,14 +26,11 @@ BEGIN
         END IF;
     END IF;
 END$$
-
 DELIMITER ;
 
 -- ── TRIGGER 2: trg_LuongCoBan_CheckOneCurrent_Update (BEFORE UPDATE)
 DROP TRIGGER IF EXISTS trg_LuongCoBan_CheckOneCurrent_Update;
-
 DELIMITER $$
-
 CREATE TRIGGER trg_LuongCoBan_CheckOneCurrent_Update
 BEFORE UPDATE ON LuongCoBan
 FOR EACH ROW
@@ -54,15 +48,11 @@ BEGIN
         END IF;
     END IF;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] trg_LuongCoBan_CheckOneCurrent (Insert/Update)' AS Status;
+SELECT 'trg_LuongCoBan_CheckOneCurrent (Insert/Update)' AS Status;
 
-
--- ============================================================
 -- KIỂM THỬ (TEST CASE)
--- ============================================================
 /*
 -- 1. Thử chèn thêm lương mới cho NV đã có lương đang áp dụng (Lỗi mong đợi)
 INSERT INTO LuongCoBan (MaNV, LuongCB, LuongDongBH, NgayHieuLuc, NgayHetHieuLuc)
