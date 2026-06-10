@@ -1,11 +1,9 @@
--- ============================================================
 -- FILE       : trg_NhanVien_CheckTuoi.sql
 -- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Kiểm soát độ tuổi lao động (18 - 70 tuổi)
 -- DBMS       : MySQL 8.0+
 -- GHI CHÚ   : Phải dùng Trigger vì CHECK CONSTRAINT trong MySQL
 --              không hỗ trợ hàm CURDATE() (non-deterministic)
--- ============================================================
 
 USE HRPayrollDB;
 
@@ -13,7 +11,6 @@ USE HRPayrollDB;
 DROP TRIGGER IF EXISTS trg_NhanVien_BeforeInsert_CheckTuoi;
 
 DELIMITER $$
-
 CREATE TRIGGER trg_NhanVien_BeforeInsert_CheckTuoi
 BEFORE INSERT ON NhanVien
 FOR EACH ROW
@@ -31,14 +28,12 @@ BEGIN
         SET MESSAGE_TEXT = 'trg_NhanVien_BeforeInsert_CheckTuoi: Nhân viên không được quá 70 tuổi.';
     END IF;
 END$$
-
 DELIMITER ;
 
 -- ── TRIGGER 2: trg_NhanVien_BeforeUpdate_CheckTuoi
 DROP TRIGGER IF EXISTS trg_NhanVien_BeforeUpdate_CheckTuoi;
 
 DELIMITER $$
-
 CREATE TRIGGER trg_NhanVien_BeforeUpdate_CheckTuoi
 BEFORE UPDATE ON NhanVien
 FOR EACH ROW
@@ -59,7 +54,6 @@ BEGIN
         END IF;
     END IF;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] trg_NhanVien_CheckTuoi (Insert/Update)' AS Status;
+SELECT 'trg_NhanVien_CheckTuoi (Insert/Update)' AS Status;
