@@ -9,7 +9,7 @@
    2. Store produres
    3. fuction
    4. Triggers
-6. Bắt buộc phát sinh và cách khắc phục khi demo:
+6. Bắt buộc phát sinh và cách khắc phục khi demo (*dùng delay để thực hiện chèn khi demo để thấy rõ*):
    1. Mất dữ liệu cập nhật (Lost Update)
    2. Đọc dữ liệu rác (Dirty Read)
    3. Không đọc lại được dữ liệu (Non-repeatable Read)
