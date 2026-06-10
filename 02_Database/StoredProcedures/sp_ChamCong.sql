@@ -1,29 +1,26 @@
--- ============================================================
--- FILE       : sp_ChamCong.sql
--- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
--- MỤC ĐÍCH   : Stored Procedures quản lý toàn bộ vòng đời
---              chấm công: nhập liệu, cập nhật, đồng bộ,
---              phê duyệt nghỉ phép và báo cáo
--- PROCEDURES :
---   1. sp_ChamCong_NhapHangNgay   — UPSERT 1 NV 1 ngày
---   2. sp_ChamCong_NhapLoat       — Nhập hàng loạt từ bảng tạm
---   3. sp_ChamCong_CapNhat        — Sửa trạng thái / giờ giấc
---   4. sp_ChamCong_DongBoNghiPhep — Đồng bộ đơn đã duyệt → CC
---   5. sp_NghiPhep_PheDuyet       — Duyệt / từ chối đơn nghỉ
---   6. sp_ChamCong_BaoCaoThang    — Báo cáo tổng hợp kỳ lương
--- DBMS       : MySQL 8.0+
--- ============================================================
+/*
+PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
+MỤC ĐÍCH   : Stored Procedures quản lý toàn bộ vòng đời
+             chấm công: nhập liệu, cập nhật, đồng bộ,
+              phê duyệt nghỉ phép và báo cáo
+ PROCEDURES :
+   1. sp_ChamCong_NhapHangNgay   — UPSERT 1 NV 1 ngày
+   2. sp_ChamCong_NhapLoat       — Nhập hàng loạt từ bảng tạm
+   3. sp_ChamCong_CapNhat        — Sửa trạng thái / giờ giấc
+   4. sp_ChamCong_DongBoNghiPhep — Đồng bộ đơn đã duyệt → CC
+   5. sp_NghiPhep_PheDuyet       — Duyệt / từ chối đơn nghỉ
+   6. sp_ChamCong_BaoCaoThang    — Báo cáo tổng hợp kỳ lương
+ DBMS       : MySQL 8.0+
+*/
+
 
 USE HRPayrollDB;
 
--- ============================================================
 -- SP 1: sp_ChamCong_NhapHangNgay
 -- UPSERT chấm công 1 nhân viên 1 ngày
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_ChamCong_NhapHangNgay;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_ChamCong_NhapHangNgay(
     IN  p_MaNV           VARCHAR(8),
     IN  p_NgayCham        DATE,
@@ -77,7 +74,6 @@ BEGIN
     END IF;
 
     -- UPSERT chấm công
-    -- LƯU Ý MySQL 8.0.46: VALUES() bị deprecated từ 8.0.20
     -- Dùng alias row syntax: INSERT ... AS new_row ON DUPLICATE KEY UPDATE col = new_row.col
     INSERT INTO ChamCong (
         MaNV, NgayCham, GioVao, GioRa,
@@ -110,20 +106,16 @@ BEGIN
     SELECT CONCAT('[OK] Chấm công ', p_MaNV, ' ngày ', p_NgayCham,
                   ' → MaCC=', IFNULL(p_MaCC_Out, 0)) AS KetQua;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_ChamCong_NhapHangNgay' AS Status;
+SELECT 'sp_ChamCong_NhapHangNgay' AS Status;
 
 
--- ============================================================
 -- SP 2: sp_ChamCong_NhapLoat
 -- Nhập hàng loạt từ temporary table
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_ChamCong_NhapLoat;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_ChamCong_NhapLoat(
     IN p_NguoiCapNhat VARCHAR(100)
 )
@@ -158,7 +150,6 @@ BEGIN
        OR NOT EXISTS (SELECT 1 FROM NhanVien WHERE MaNV = ti.MaNV AND TrangThai IN ('A','P','L'));
 
     -- INSERT hàng loạt (chỉ dòng hợp lệ)
-    -- LƯU Ý MySQL 8.0.46: VALUES() bị deprecated từ 8.0.20
     -- Dùng alias row syntax
     INSERT INTO ChamCong (
         MaNV, NgayCham, GioVao, GioRa,
@@ -176,16 +167,14 @@ BEGIN
     WHERE ti.NgayCham <= CURDATE()
       AND ti.TrangThai IN ('DL','WFH','CX','NP','OM','KP','NG')
       AND EXISTS (SELECT 1 FROM NhanVien WHERE MaNV = ti.MaNV AND TrangThai IN ('A','P','L'))
-    AS cc_batch
     ON DUPLICATE KEY UPDATE
-        TrangThai    = cc_batch.TrangThai,
-        GioVao       = cc_batch.GioVao,
-        GioRa        = cc_batch.GioRa,
-        SoGioTangCa  = cc_batch.SoGioTangCa,
-        HeSoTangCa   = cc_batch.HeSoTangCa,
-        GhiChu       = cc_batch.GhiChu,
-        NguoiCapNhat = cc_batch.NguoiCapNhat;
-
+    TrangThai    = new.TrangThai,
+    GioVao       = new.GioVao,
+    GioRa        = new.GioRa,
+    SoGioTangCa  = new.SoGioTangCa,
+    HeSoTangCa   = new.HeSoTangCa,
+    GhiChu       = new.GhiChu,
+    NguoiCapNhat = new.NguoiCapNhat;
     SET v_SoThanhCong = ROW_COUNT();
 
     SELECT
@@ -193,20 +182,16 @@ BEGIN
         v_SoThanhCong   AS ThanhCong,
         v_SoLoi         AS Loi;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_ChamCong_NhapLoat' AS Status;
+SELECT 'Sp_ChamCong_NhapLoat' AS Status;
 
 
--- ============================================================
 -- SP 3: sp_ChamCong_CapNhat
 -- Sửa trạng thái / giờ giấc của bản ghi chấm công
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_ChamCong_CapNhat;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_ChamCong_CapNhat(
     IN p_MaCC         BIGINT,
     IN p_TrangThai    VARCHAR(3),
@@ -251,20 +236,16 @@ BEGIN
 
     SELECT CONCAT('[OK] Đã cập nhật MaCC=', p_MaCC) AS KetQua;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_ChamCong_CapNhat' AS Status;
+SELECT 'sp_ChamCong_CapNhat' AS Status;
 
 
--- ============================================================
 -- SP 4: sp_ChamCong_DongBoNghiPhep
 -- Đồng bộ đơn nghỉ phép đã duyệt → ChamCong
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_ChamCong_DongBoNghiPhep;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_ChamCong_DongBoNghiPhep(
     IN p_Thang TINYINT,
     IN p_Nam   SMALLINT
@@ -318,20 +299,16 @@ BEGIN
     SELECT CONCAT('[OK] Đồng bộ ', v_SoDongBo, ' bản ghi chấm công từ đơn nghỉ phép ',
                   p_Thang, '/', p_Nam) AS KetQua;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_ChamCong_DongBoNghiPhep' AS Status;
+SELECT 'sp_ChamCong_DongBoNghiPhep' AS Status;
 
 
--- ============================================================
 -- SP 5: sp_NghiPhep_PheDuyet
 -- Duyệt hoặc từ chối đơn nghỉ phép
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_NghiPhep_PheDuyet;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_NghiPhep_PheDuyet(
     IN p_MaNP       INT,
     IN p_HanhDong   CHAR(1),     -- A=Approve, R=Reject, C=Cancel
@@ -373,20 +350,16 @@ BEGIN
                                   WHEN 'R' THEN 'TỪ CHỐI'
                                   ELSE 'ĐÃ HỦY' END) AS KetQua;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_NghiPhep_PheDuyet' AS Status;
+SELECT 'sp_NghiPhep_PheDuyet' AS Status;
 
 
--- ============================================================
 -- SP 6: sp_ChamCong_BaoCaoThang
 -- Báo cáo tổng hợp chấm công tháng
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_ChamCong_BaoCaoThang;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_ChamCong_BaoCaoThang(
     IN p_Thang    TINYINT,
     IN p_Nam      SMALLINT,
@@ -441,15 +414,10 @@ BEGIN
     GROUP BY pb.TenPB
     ORDER BY TongVangKP DESC;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_ChamCong_BaoCaoThang' AS Status;
+SELECT 'sp_ChamCong_BaoCaoThang' AS Status;
 
--- ============================================================
 -- KIỂM THỬ
--- ============================================================
 -- CALL sp_ChamCong_NhapHangNgay('NV000001','2025-01-15','DL','08:00','17:30',2.0,1.50,'Tăng ca',NULL,@MaCC);
 -- CALL sp_ChamCong_BaoCaoThang(1, 2025, NULL);
-
-SELECT '[DONE] sp_ChamCong.sql — 6 procedures hoàn tất.' AS Status;

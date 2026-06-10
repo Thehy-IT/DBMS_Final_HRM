@@ -1,30 +1,29 @@
--- ============================================================
--- FILE       : sp_TinhLuong.sql
--- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
--- MỤC ĐÍCH   : Stored Procedure cốt lõi — tính lương tự động
---              toàn bộ nhân viên cho 1 kỳ lương (tháng/năm)
--- CÁCH GỌI:
---   CALL sp_TinhLuong(3, 2025, NULL, 0, 0);  -- Tính T3/2025 tất cả NV
---   CALL sp_TinhLuong(3, 2025, 'NV000001', 0, 0); -- Tính riêng 1 NV
---   CALL sp_TinhLuong(3, 2025, NULL, 1, 0);  -- Tính lại (ghi đè bản nháp)
--- DBMS       : MySQL 8.0.46
--- GHI CHÚ   : - CURSOR syntax khác SQL Server
---              - GOTO không hỗ trợ → dùng ITERATE/LEAVE
---              - RAISERROR → SIGNAL SQLSTATE
---              - DATEFROMPARTS → MAKEDATE / STR_TO_DATE
---              - EOMONTH → LAST_DAY
---              - TOP 1 → LIMIT 1
---              - dbo. prefix không dùng trong MySQL
---              - VALUES() trong ON DUPLICATE KEY UPDATE deprecated từ 8.0.20
---                → dùng alias row syntax thay thế
--- ============================================================
+/*
+PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
+MỤC ĐÍCH   : Stored Procedure cốt lõi — tính lương tự động
+             toàn bộ nhân viên cho 1 kỳ lương (tháng/năm)
+CÁCH GỌI:
+  CALL sp_TinhLuong(3, 2025, NULL, 0, 0);  -- Tính T3/2025 tất cả NV
+  CALL sp_TinhLuong(3, 2025, 'NV000001', 0, 0); -- Tính riêng 1 NV
+  CALL sp_TinhLuong(3, 2025, NULL, 1, 0);  -- Tính lại (ghi đè bản nháp)
+DBMS       : MySQL 8.0.46
+GHI CHÚ   : - CURSOR syntax khác SQL Server
+             - GOTO không hỗ trợ → dùng ITERATE/LEAVE
+             - RAISERROR → SIGNAL SQLSTATE
+             - DATEFROMPARTS → MAKEDATE / STR_TO_DATE
+             - EOMONTH → LAST_DAY
+             - TOP 1 → LIMIT 1
+             - dbo. prefix không dùng trong MySQL
+             - VALUES() trong ON DUPLICATE KEY UPDATE deprecated từ 8.0.20
+               → dùng alias row syntax thay thế
+*/
+
 
 USE HRPayrollDB;
 
 DROP PROCEDURE IF EXISTS sp_TinhLuong;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_TinhLuong(
     IN p_Thang          TINYINT,
     IN p_Nam            SMALLINT,
@@ -92,9 +91,7 @@ BEGIN
 
     DECLARE v_done               INT DEFAULT FALSE;
 
-    -- ══════════════════════════════════════════════════════
     -- BƯỚC A — VALIDATE ĐẦU VÀO
-    -- ══════════════════════════════════════════════════════
     IF p_Thang NOT BETWEEN 1 AND 12 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'sp_TinhLuong: @Thang phải từ 1 đến 12.';
@@ -142,10 +139,7 @@ BEGIN
     SELECT CONCAT('sp_TinhLuong — Kỳ ', p_Thang, '/', p_Nam,
                   ' | NgayChuan: ', v_NgayChuanThang, ' ngày') AS Info;
 
-    -- ══════════════════════════════════════════════════════
     -- CURSOR — DANH SÁCH NHÂN VIÊN CẦN TÍNH LƯƠNG
-    -- ══════════════════════════════════════════════════════
-
     BEGIN
         DECLARE cur_NhanVien CURSOR FOR
             SELECT MaNV, HoTen, TrangThai, SoNguoiPhuThuoc
@@ -277,7 +271,6 @@ BEGIN
                 START TRANSACTION;
 
                 -- INSERT BangLuong (header)
-                -- LƯU Ý MySQL 8.0.46: VALUES() bị deprecated từ 8.0.20
                 -- Dùng alias row syntax: INSERT ... AS new_row ON DUPLICATE KEY UPDATE col = new_row.col
                 INSERT INTO BangLuong (
                     MaNV, Thang, Nam,
@@ -411,15 +404,10 @@ BEGIN
     ORDER BY bl.ThuNhapThucLinh DESC;
 
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_TinhLuong — tạo thành công' AS Status;
-
--- ============================================================
 -- KIỂM THỬ (chạy sau khi có seed_data)
--- ============================================================
 -- CALL sp_TinhLuong(1, 2025, NULL, 0, 1);  -- DryRun tháng 1/2025
 -- CALL sp_TinhLuong(1, 2025, NULL, 0, 0);  -- Tính thật tháng 1/2025
 
-SELECT '[DONE] sp_TinhLuong.sql hoàn tất.' AS Status;
+SELECT 'sp_TinhLuong.sql hoàn tất.' AS Status;
