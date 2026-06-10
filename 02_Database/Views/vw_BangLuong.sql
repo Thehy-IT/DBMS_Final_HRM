@@ -1,24 +1,20 @@
--- ============================================================
--- FILE       : vw_BangLuong.sql
--- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
--- MỤC ĐÍCH   : View tổng hợp bảng lương — nguồn dữ liệu chính
---              cho báo cáo, dashboard, xuất Excel
--- VIEWS      :
---   1. vw_BangLuong          — Chi tiết lương từng NV từng kỳ
---   2. vw_BangLuong_TongHop  — Tổng hợp quỹ lương theo PB/tháng
---   3. vw_ThueTNCN_KyQuyetToan — Quyết toán thuế TNCN theo NV
--- DBMS       : MySQL 8.0+
--- GHI CHÚ   : Loại bỏ JOIN tới bảng ThueTNCN (không tồn tại)
---              Tính ThuNhapChiuThue trực tiếp trong view
---              Thay SYSTEM_USER() bằng CURRENT_USER()
--- ============================================================
-
+/*
+PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
+MỤC ĐÍCH   : View tổng hợp bảng lương — nguồn dữ liệu chính
+             cho báo cáo, dashboard, xuất Excel
+VIEWS      :
+  1. vw_BangLuong          — Chi tiết lương từng NV từng kỳ
+  2. vw_BangLuong_TongHop  — Tổng hợp quỹ lương theo PB/tháng
+  3. vw_ThueTNCN_KyQuyetToan — Quyết toán thuế TNCN theo NV
+DBMS       : MySQL 8.0+
+GHI CHÚ   : Loại bỏ JOIN tới bảng ThueTNCN (không tồn tại)
+             Tính ThuNhapChiuThue trực tiếp trong view
+             Thay SYSTEM_USER() bằng CURRENT_USER()
+*/
 USE HRPayrollDB;
 
--- ============================================================
 -- VIEW 1: vw_BangLuong
 -- Chi tiết lương đầy đủ cho từng nhân viên từng kỳ
--- ============================================================
 DROP VIEW IF EXISTS vw_BangLuong;
 
 CREATE VIEW vw_BangLuong AS
@@ -99,13 +95,11 @@ FROM
     LEFT JOIN HopDong hd  ON nv.MaNV = hd.MaNV AND hd.TrangThai = 'A'
     LEFT JOIN LoaiHopDong lhd ON hd.MaLoaiHD = lhd.MaLoaiHD;
 
-SELECT '[OK] vw_BangLuong' AS Status;
+SELECT 'vw_BangLuong' AS Status;
 
 
--- ============================================================
 -- VIEW 2: vw_BangLuong_TongHop
 -- Tổng hợp quỹ lương theo Phòng Ban & kỳ lương
--- ============================================================
 DROP VIEW IF EXISTS vw_BangLuong_TongHop;
 
 CREATE VIEW vw_BangLuong_TongHop AS
@@ -152,14 +146,12 @@ FROM
 GROUP BY
     bl.Nam, bl.Thang, pb.TenPB;
 
-SELECT '[OK] vw_BangLuong_TongHop' AS Status;
+SELECT 'vw_BangLuong_TongHop' AS Status;
 
 
--- ============================================================
 -- VIEW 3: vw_ThueTNCN_KyQuyetToan
 -- Tổng hợp thuế TNCN theo nhân viên — dùng quyết toán cuối năm
 -- (Tính trực tiếp từ BangLuong thay vì bảng ThueTNCN riêng)
--- ============================================================
 DROP VIEW IF EXISTS vw_ThueTNCN_KyQuyetToan;
 
 CREATE VIEW vw_ThueTNCN_KyQuyetToan AS
@@ -195,16 +187,11 @@ WHERE bl.TrangThai IN ('C', 'P', 'L')
 GROUP BY
     bl.Nam, nv.MaNV, nv.HoTen, nv.MaSoThue, pb.TenPB;
 
-SELECT '[OK] vw_ThueTNCN_KyQuyetToan' AS Status;
+SELECT 'vw_ThueTNCN_KyQuyetToan' AS Status;
 
 
--- ============================================================
 -- KIỂM THỬ VIEWS (sau khi chạy sp_TinhLuong)
--- ============================================================
-SELECT '' AS Separator;
-SELECT '════════════════════════════════════════════════════════' AS Status;
 SELECT '  KIỂM THỬ vw_BangLuong* (cần chạy sp_TinhLuong trước)' AS Status;
-SELECT '════════════════════════════════════════════════════════' AS Status;
 
 -- Top 5 lương cao nhất
 SELECT
@@ -229,5 +216,3 @@ SELECT
     FORMAT(TongChiPhiNhanSu, 0) AS ChiPhiNhanSuDN
 FROM vw_BangLuong_TongHop
 ORDER BY Nam, Thang, TongLuongNet DESC;
-
-SELECT '[DONE] vw_BangLuong.sql — 3 views hoàn tất' AS Status;
