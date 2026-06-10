@@ -1,4 +1,3 @@
--- ============================================================
 -- FILE       : trg_KiemTraChamCong.sql
 -- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Trigger validate chấm công: không trùng ngày,
@@ -11,17 +10,13 @@
 -- GHI CHÚ   : SoGioLam là GENERATED COLUMN (tự tính), không cần
 --              UPDATE trong trigger như SQL Server
 --              Validation không tương lai sử dụng CURDATE()
--- ============================================================
 
 USE HRPayrollDB;
 
--- ============================================================
 -- TRIGGER 1: trg_ChamCong_BeforeInsert
--- ============================================================
 DROP TRIGGER IF EXISTS trg_ChamCong_BeforeInsert;
 
 DELIMITER $$
-
 CREATE TRIGGER trg_ChamCong_BeforeInsert
 BEFORE INSERT ON ChamCong
 FOR EACH ROW
@@ -56,19 +51,14 @@ BEGIN
         END IF;
     END IF;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] trg_ChamCong_BeforeInsert' AS Status;
+SELECT 'trg_ChamCong_BeforeInsert' AS Status;
 
 
--- ============================================================
 -- TRIGGER 2: trg_ChamCong_BeforeUpdate
--- ============================================================
 DROP TRIGGER IF EXISTS trg_ChamCong_BeforeUpdate;
-
 DELIMITER $$
-
 CREATE TRIGGER trg_ChamCong_BeforeUpdate
 BEFORE UPDATE ON ChamCong
 FOR EACH ROW
@@ -95,9 +85,4 @@ BEGIN
     -- Ghi chú: SoGioLam là GENERATED COLUMN (tự động tính từ GioVao/GioRa)
     -- Không cần UPDATE thủ công như SQL Server
 END$$
-
 DELIMITER ;
-
-SELECT '[OK] trg_ChamCong_BeforeUpdate' AS Status;
-
-SELECT '[DONE] trg_KiemTraChamCong.sql — 2 triggers hoàn tất' AS Status;
