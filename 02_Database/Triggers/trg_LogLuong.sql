@@ -1,4 +1,3 @@
--- ============================================================
 -- FILE       : trg_LogLuong.sql
 -- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Trigger audit log bảng LuongCoBan + BangLuong
@@ -11,17 +10,13 @@
 -- DBMS       : MySQL 8.0+
 -- GHI CHÚ   : Không có INSERTED/DELETED virtual table trong MySQL
 --              Dùng NEW và OLD thay thế
--- ============================================================
 
 USE HRPayrollDB;
 
--- ============================================================
 -- TRIGGER 1: trg_LuongCoBan_AfterInsert
--- ============================================================
 DROP TRIGGER IF EXISTS trg_LuongCoBan_AfterInsert;
 
 DELIMITER $$
-
 CREATE TRIGGER trg_LuongCoBan_AfterInsert
 AFTER INSERT ON LuongCoBan
 FOR EACH ROW
@@ -49,19 +44,15 @@ BEGIN
                DATE_FORMAT(NEW.NgayHieuLuc, '%d/%m/%Y'), ')')
     );
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] trg_LuongCoBan_AfterInsert' AS Status;
+SELECT 'trg_LuongCoBan_AfterInsert' AS Status;
 
 
--- ============================================================
 -- TRIGGER 2: trg_LuongCoBan_AfterUpdate
--- ============================================================
 DROP TRIGGER IF EXISTS trg_LuongCoBan_AfterUpdate;
 
 DELIMITER $$
-
 CREATE TRIGGER trg_LuongCoBan_AfterUpdate
 AFTER UPDATE ON LuongCoBan
 FOR EACH ROW
@@ -100,20 +91,16 @@ BEGIN
                 IFNULL(DATE_FORMAT(NEW.NgayHetHieuLuc, '%d/%m/%Y'), 'Còn hiệu lực'));
     END IF;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] trg_LuongCoBan_AfterUpdate' AS Status;
+SELECT 'trg_LuongCoBan_AfterUpdate' AS Status;
 
 
--- ============================================================
 -- TRIGGER 3: trg_BangLuong_BeforeUpdate
 -- Ngăn sửa bảng lương đã xác nhận / thanh toán
--- ============================================================
 DROP TRIGGER IF EXISTS trg_BangLuong_BeforeUpdate;
 
 DELIMITER $$
-
 CREATE TRIGGER trg_BangLuong_BeforeUpdate
 BEFORE UPDATE ON BangLuong
 FOR EACH ROW
@@ -137,10 +124,9 @@ BEGIN
         END IF;
     END IF;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] trg_BangLuong_BeforeUpdate (Guard)' AS Status;
+SELECT 'trg_BangLuong_BeforeUpdate (Guard)' AS Status;
 
 
 -- ============================================================
@@ -150,7 +136,6 @@ SELECT '[OK] trg_BangLuong_BeforeUpdate (Guard)' AS Status;
 DROP TRIGGER IF EXISTS trg_BangLuong_BeforeDelete;
 
 DELIMITER $$
-
 CREATE TRIGGER trg_BangLuong_BeforeDelete
 BEFORE DELETE ON BangLuong
 FOR EACH ROW
@@ -160,20 +145,16 @@ BEGIN
         SET MESSAGE_TEXT = 'trg_BangLuong_BeforeDelete: Không thể XÓA bảng lương đã XÁC NHẬN / THANH TOÁN.';
     END IF;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] trg_BangLuong_BeforeDelete (Guard)' AS Status;
+SELECT 'trg_BangLuong_BeforeDelete (Guard)' AS Status;
 
 
--- ============================================================
 -- TRIGGER 5: trg_BangLuong_AfterUpdate
 -- Log chuyển trạng thái hợp lệ (C→P hoặc P→L)
--- ============================================================
 DROP TRIGGER IF EXISTS trg_BangLuong_AfterUpdate;
 
 DELIMITER $$
-
 CREATE TRIGGER trg_BangLuong_AfterUpdate
 AFTER UPDATE ON BangLuong
 FOR EACH ROW
@@ -195,20 +176,12 @@ BEGIN
         );
     END IF;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] trg_BangLuong_AfterUpdate (Audit)' AS Status;
+SELECT 'trg_BangLuong_AfterUpdate (Audit)' AS Status;
 
 
--- ============================================================
 -- KIỂM THỬ
--- ============================================================
-SELECT '' AS Separator;
-SELECT '════════════════════════════════════════════════════════' AS Status;
-SELECT '  KIỂM THỬ TRIGGERS LUONG' AS Status;
-SELECT '════════════════════════════════════════════════════════' AS Status;
-
 -- Test: Tăng lương NV000003 (chạy sau seed_data.sql)
 -- Bước 1: Đóng mức lương cũ
 UPDATE LuongCoBan
