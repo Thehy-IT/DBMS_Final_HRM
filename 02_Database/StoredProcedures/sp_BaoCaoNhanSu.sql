@@ -1,32 +1,27 @@
--- ============================================================
--- FILE       : sp_BaoCaoNhanSu.sql
--- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
--- MỤC ĐÍCH   : Bộ báo cáo nhân sự toàn diện phục vụ Ban Lãnh Đạo,
---              HR Manager và Kế Toán Trưởng
--- PROCEDURES :
---   1. sp_BaoCaoNhanSu_TongQuan        — Dashboard nhân sự tổng hợp
---   2. sp_BaoCaoNhanSu_TheoPhongBan    — Phân tích cơ cấu theo PB/CV
---   3. sp_BaoCaoNhanSu_HopDong         — Trạng thái & sắp hết hạn HĐ
---   4. sp_BaoCaoNhanSu_BienDong        — Tuyển mới / nghỉ việc theo kỳ
---   5. sp_BaoCaoNhanSu_LuongPhanPhoi   — Phân phối lương & xếp hạng
---   6. sp_BaoCaoNhanSu_NghiPhepNam     — Quản lý phép năm tồn dư
--- DBMS       : MySQL 8.0+
--- GHI CHÚ   : DATEDIFF(YEAR/MONTH) → TIMESTAMPDIFF(YEAR/MONTH)
---              DATEADD → DATE_ADD / DATE_SUB
---              ISNULL → IFNULL
---              FORMAT(n,'N0') → FORMAT(n, 0)
---              CONVERT(NVARCHAR, date, 103) → DATE_FORMAT(date,'%d/%m/%Y')
--- ============================================================
-
+/*
+PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
+MỤC ĐÍCH   : Bộ báo cáo nhân sự toàn diện phục vụ Ban Lãnh Đạo,
+             HR Manager và Kế Toán Trưởng
+PROCEDURES :
+  1. sp_BaoCaoNhanSu_TongQuan        — Dashboard nhân sự tổng hợp
+  2. sp_BaoCaoNhanSu_TheoPhongBan    — Phân tích cơ cấu theo PB/CV
+  3. sp_BaoCaoNhanSu_HopDong         — Trạng thái & sắp hết hạn HĐ
+  4. sp_BaoCaoNhanSu_BienDong        — Tuyển mới / nghỉ việc theo kỳ
+  5. sp_BaoCaoNhanSu_LuongPhanPhoi   — Phân phối lương & xếp hạng
+  6. sp_BaoCaoNhanSu_NghiPhepNam     — Quản lý phép năm tồn dư
+DBMS       : MySQL 8.0+
+GHI CHÚ   : DATEDIFF(YEAR/MONTH) → TIMESTAMPDIFF(YEAR/MONTH)
+             DATEADD → DATE_ADD / DATE_SUB
+             ISNULL → IFNULL
+             FORMAT(n,'N0') → FORMAT(n, 0)
+             CONVERT(NVARCHAR, date, 103) → DATE_FORMAT(date,'%d/%m/%Y')
+*/
 USE HRPayrollDB;
 
--- ============================================================
 -- SP 1: sp_BaoCaoNhanSu_TongQuan
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_BaoCaoNhanSu_TongQuan;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_BaoCaoNhanSu_TongQuan(
     IN p_ThoiDiem DATE
 )
@@ -120,16 +115,13 @@ END$$
 
 DELIMITER ;
 
-SELECT '[OK] sp_BaoCaoNhanSu_TongQuan' AS Status;
+SELECT 'sp_BaoCaoNhanSu_TongQuan' AS Status;
 
 
--- ============================================================
 -- SP 2: sp_BaoCaoNhanSu_TheoPhongBan
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_BaoCaoNhanSu_TheoPhongBan;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_BaoCaoNhanSu_TheoPhongBan(
     IN p_MaPB     VARCHAR(6),   -- NULL = tất cả
     IN p_ThoiDiem DATE
@@ -167,16 +159,13 @@ END$$
 
 DELIMITER ;
 
-SELECT '[OK] sp_BaoCaoNhanSu_TheoPhongBan' AS Status;
+SELECT 'sp_BaoCaoNhanSu_TheoPhongBan' AS Status;
 
 
--- ============================================================
 -- SP 3: sp_BaoCaoNhanSu_HopDong
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_BaoCaoNhanSu_HopDong;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_BaoCaoNhanSu_HopDong(
     IN p_SoNgayCanhBao INT   -- HĐ hết hạn trong N ngày tới
 )
@@ -207,11 +196,11 @@ BEGIN
         DATEDIFF(hd.NgayKetThuc, CURDATE())         AS ConLaiNgay,
         FORMAT(hd.LuongCoBan, 0)                    AS LuongCoBan,
         CASE
-            WHEN DATEDIFF(hd.NgayKetThuc, CURDATE()) < 0   THEN '⛔ Đã hết hạn'
-            WHEN DATEDIFF(hd.NgayKetThuc, CURDATE()) < 7   THEN '🔴 Hết hạn trong 7 ngày'
-            WHEN DATEDIFF(hd.NgayKetThuc, CURDATE()) < 14  THEN '🟠 Hết hạn trong 14 ngày'
-            WHEN DATEDIFF(hd.NgayKetThuc, CURDATE()) < 30  THEN '🟡 Hết hạn trong 30 ngày'
-            ELSE '🟢 Còn hạn'
+            WHEN DATEDIFF(hd.NgayKetThuc, CURDATE()) < 0   THEN 'Đã hết hạn'
+            WHEN DATEDIFF(hd.NgayKetThuc, CURDATE()) < 7   THEN 'Hết hạn trong 7 ngày'
+            WHEN DATEDIFF(hd.NgayKetThuc, CURDATE()) < 14  THEN 'Hết hạn trong 14 ngày'
+            WHEN DATEDIFF(hd.NgayKetThuc, CURDATE()) < 30  THEN 'Hết hạn trong 30 ngày'
+            ELSE 'Còn hạn'
         END                                         AS CanhBao
     FROM HopDong hd
     JOIN NhanVien    nv  ON hd.MaNV = nv.MaNV
@@ -222,19 +211,15 @@ BEGIN
       AND hd.NgayKetThuc <= DATE_ADD(CURDATE(), INTERVAL p_SoNgayCanhBao DAY)
     ORDER BY hd.NgayKetThuc ASC;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_BaoCaoNhanSu_HopDong' AS Status;
+SELECT 'sp_BaoCaoNhanSu_HopDong' AS Status;
 
 
--- ============================================================
 -- SP 4: sp_BaoCaoNhanSu_BienDong
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_BaoCaoNhanSu_BienDong;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_BaoCaoNhanSu_BienDong(
     IN p_TuNgay DATE,
     IN p_DenNgay DATE
@@ -288,19 +273,15 @@ BEGIN
            AND NgayNghiViec BETWEEN p_TuNgay AND p_DenNgay)        AS NghiViec,
         (SELECT COUNT(*) FROM NhanVien WHERE TrangThai IN ('A','P','L')) AS TongHienTai;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_BaoCaoNhanSu_BienDong' AS Status;
+SELECT 'sp_BaoCaoNhanSu_BienDong' AS Status;
 
 
--- ============================================================
 -- SP 5: sp_BaoCaoNhanSu_LuongPhanPhoi
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_BaoCaoNhanSu_LuongPhanPhoi;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_BaoCaoNhanSu_LuongPhanPhoi(
     IN p_Thang TINYINT,
     IN p_Nam   SMALLINT
@@ -360,19 +341,15 @@ BEGIN
     FROM BangLuong bl
     WHERE bl.Thang = p_Thang AND bl.Nam = p_Nam;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_BaoCaoNhanSu_LuongPhanPhoi' AS Status;
+SELECT 'sp_BaoCaoNhanSu_LuongPhanPhoi' AS Status;
 
 
--- ============================================================
 -- SP 6: sp_BaoCaoNhanSu_NghiPhepNam
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_BaoCaoNhanSu_NghiPhepNam;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_BaoCaoNhanSu_NghiPhepNam(
     IN p_Nam      SMALLINT,
     IN p_MaPB     VARCHAR(6)
@@ -424,16 +401,11 @@ BEGIN
     GROUP BY nv.MaNV, nv.HoTen, pb.TenPB
     ORDER BY PhepConLai ASC, pb.TenPB;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_BaoCaoNhanSu_NghiPhepNam' AS Status;
+SELECT 'sp_BaoCaoNhanSu_NghiPhepNam' AS Status;
 
--- ============================================================
 -- KIỂM THỬ
--- ============================================================
 -- CALL sp_BaoCaoNhanSu_TongQuan(NULL);
 -- CALL sp_BaoCaoNhanSu_HopDong(30);
 -- CALL sp_BaoCaoNhanSu_LuongPhanPhoi(1, 2025);
-
-SELECT '[DONE] sp_BaoCaoNhanSu.sql — 6 procedures hoàn tất.' AS Status;
