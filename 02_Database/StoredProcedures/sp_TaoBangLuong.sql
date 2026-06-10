@@ -1,30 +1,26 @@
--- ============================================================
--- FILE       : sp_TaoBangLuong.sql
--- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
--- MỤC ĐÍCH   : Tạo đầy đủ các bảng lương chính thức, phiếu lương
---              và báo cáo pháp lý theo chuẩn doanh nghiệp Việt Nam
--- PROCEDURES :
---   1. sp_TaoBangLuong_ChinhThuc     — Bảng lương tổng hợp đầy đủ
---   2. sp_TaoBangLuong_PhieuLuong    — Phiếu lương chi tiết 1 NV
---   3. sp_TaoBangLuong_BHXH          — Danh sách đóng BHXH tháng
---   4. sp_TaoBangLuong_QuyetToanThue — Dữ liệu quyết toán thuế TNCN
---   5. sp_TaoBangLuong_SoSanh        — So sánh quỹ lương nhiều kỳ
---   6. sp_TaoBangLuong_ChiPhiNhanSu  — Chi phí nhân sự toàn DN
--- DBMS       : MySQL 8.0+
--- THỨ TỰ CHẠY:
---   sp_TinhLuong → sp_XacNhanBangLuong → sp_TaoBangLuong_*
--- ============================================================
+/*
+PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
+MỤC ĐÍCH   : Tạo đầy đủ các bảng lương chính thức, phiếu lương
+             và báo cáo pháp lý theo chuẩn doanh nghiệp Việt Nam
+PROCEDURES :
+  1. sp_TaoBangLuong_ChinhThuc     — Bảng lương tổng hợp đầy đủ
+  2. sp_TaoBangLuong_PhieuLuong    — Phiếu lương chi tiết 1 NV
+  3. sp_TaoBangLuong_BHXH          — Danh sách đóng BHXH tháng
+  4. sp_TaoBangLuong_QuyetToanThue — Dữ liệu quyết toán thuế TNCN
+  5. sp_TaoBangLuong_SoSanh        — So sánh quỹ lương nhiều kỳ
+  6. sp_TaoBangLuong_ChiPhiNhanSu  — Chi phí nhân sự toàn DN
+DBMS       : MySQL 8.0+
+THỨ TỰ CHẠY:
+  sp_TinhLuong → sp_XacNhanBangLuong → sp_TaoBangLuong_
+  */
 
 USE HRPayrollDB;
 
--- ============================================================
 -- SP 1: sp_TaoBangLuong_ChinhThuc
 -- Bảng lương tổng hợp chính thức một kỳ (RS1: Chi tiết, RS2: Tổng hợp PB)
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_TaoBangLuong_ChinhThuc;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_TaoBangLuong_ChinhThuc(
     IN p_Thang    TINYINT,
     IN p_Nam      SMALLINT,
@@ -110,20 +106,16 @@ BEGIN
     GROUP BY pb.TenPB WITH ROLLUP
     ORDER BY pb.TenPB IS NULL, pb.TenPB;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_TaoBangLuong_ChinhThuc' AS Status;
+SELECT 'sp_TaoBangLuong_ChinhThuc' AS Status;
 
 
--- ============================================================
 -- SP 2: sp_TaoBangLuong_PhieuLuong
 -- Phiếu lương chi tiết từng nhân viên
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_TaoBangLuong_PhieuLuong;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_TaoBangLuong_PhieuLuong(
     IN p_MaNV     VARCHAR(8),
     IN p_Thang    TINYINT,
@@ -194,20 +186,16 @@ BEGIN
     WHERE MaBL = v_MaBL
     ORDER BY FIELD(LoaiMuc, '+', '-');
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_TaoBangLuong_PhieuLuong' AS Status;
+SELECT 'sp_TaoBangLuong_PhieuLuong' AS Status;
 
 
--- ============================================================
 -- SP 3: sp_TaoBangLuong_BHXH
 -- Danh sách đóng BHXH/BHYT/BHTN tháng
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_TaoBangLuong_BHXH;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_TaoBangLuong_BHXH(
     IN p_Thang TINYINT,
     IN p_Nam   SMALLINT,
@@ -269,20 +257,16 @@ BEGIN
     GROUP BY pb.TenPB WITH ROLLUP
     ORDER BY pb.TenPB IS NULL, pb.TenPB;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_TaoBangLuong_BHXH' AS Status;
+SELECT 'sp_TaoBangLuong_BHXH' AS Status;
 
 
--- ============================================================
 -- SP 4: sp_TaoBangLuong_QuyetToanThue
 -- Dữ liệu quyết toán thuế TNCN cuối năm
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_TaoBangLuong_QuyetToanThue;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_TaoBangLuong_QuyetToanThue(
     IN p_Nam   SMALLINT,
     IN p_MaNV  VARCHAR(8)   -- NULL = tất cả
@@ -320,20 +304,16 @@ BEGIN
     GROUP BY nv.MaNV, nv.HoTen, nv.MaSoThue, pb.TenPB, nv.SoNguoiPhuThuoc
     ORDER BY SUM(bl.ThueTNCN) DESC;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_TaoBangLuong_QuyetToanThue' AS Status;
+SELECT 'sp_TaoBangLuong_QuyetToanThue' AS Status;
 
 
--- ============================================================
 -- SP 5: sp_TaoBangLuong_SoSanh
 -- So sánh quỹ lương giữa các kỳ
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_TaoBangLuong_SoSanh;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_TaoBangLuong_SoSanh(
     IN p_TuThang  TINYINT,
     IN p_TuNam    SMALLINT,
@@ -362,20 +342,16 @@ BEGIN
     GROUP BY bl.Nam, bl.Thang
     ORDER BY bl.Nam, bl.Thang;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_TaoBangLuong_SoSanh' AS Status;
+SELECT 'sp_TaoBangLuong_SoSanh' AS Status;
 
 
--- ============================================================
 -- SP 6: sp_TaoBangLuong_ChiPhiNhanSu
 -- Chi phí nhân sự toàn bộ doanh nghiệp (bao gồm BH NSDLĐ)
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_TaoBangLuong_ChiPhiNhanSu;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_TaoBangLuong_ChiPhiNhanSu(
     IN p_Thang    TINYINT,
     IN p_Nam      SMALLINT,
@@ -429,19 +405,15 @@ BEGIN
     GROUP BY pb.TenPB WITH ROLLUP
     ORDER BY pb.TenPB IS NULL, pb.TenPB;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_TaoBangLuong_ChiPhiNhanSu' AS Status;
+SELECT 'sp_TaoBangLuong_ChiPhiNhanSu' AS Status;
 
 
--- ============================================================
 -- THÊM: sp_XacNhanBangLuong — Xác nhận bảng lương (D→C)
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_XacNhanBangLuong;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_XacNhanBangLuong(
     IN p_Thang          TINYINT,
     IN p_Nam            SMALLINT,
@@ -475,19 +447,15 @@ BEGIN
 
     SELECT CONCAT('[OK] Đã xác nhận ', v_SoXacNhan, ' bảng lương T', p_Thang, '/', p_Nam) AS KetQua;
 END$$
-
 DELIMITER ;
 
 SELECT '[OK] sp_XacNhanBangLuong' AS Status;
 
 
--- ============================================================
 -- THÊM: sp_ThanhToanLuong — Đánh dấu đã thanh toán (C→P)
--- ============================================================
 DROP PROCEDURE IF EXISTS sp_ThanhToanLuong;
 
 DELIMITER $$
-
 CREATE PROCEDURE sp_ThanhToanLuong(
     IN p_Thang          TINYINT,
     IN p_Nam            SMALLINT,
@@ -509,12 +477,10 @@ BEGIN
 
     SELECT CONCAT('[OK] Đã thanh toán ', v_SoThanhToan, ' bảng lương T', p_Thang, '/', p_Nam) AS KetQua;
 END$$
-
 DELIMITER ;
 
-SELECT '[OK] sp_ThanhToanLuong' AS Status;
+SELECT 'sp_ThanhToanLuong' AS Status;
 
--- ============================================================
 -- KIỂM THỬ (sau khi có dữ liệu)
 -- ============================================================
 -- CALL sp_TinhLuong(1, 2025, NULL, 0, 0);
