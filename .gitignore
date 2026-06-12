@@ -13,6 +13,7 @@ connection.config
 db.config
 database.config
 secrets.*
+*.pem
 
 # -----------------------------------------------------------
 # SQL Server / Database files
@@ -82,14 +83,27 @@ __pycache__/
 .cache/
 *.cache
 
-# Node.js (nếu có frontend)
+# Node.js
 node_modules/
 dist/
 build/
 .npm/
-*.lock
-package-lock.json
-yarn.lock
+*.tsbuildinfo
+next-env.d.ts
+
+# Next.js
+.next/
+out/
+.vercel
+
+# Package managers
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
 # -----------------------------------------------------------
 # Reporting / Export outputs
@@ -110,3 +124,45 @@ yarn.lock
 # Antigravity CLI (AI assistant workspace)
 # -----------------------------------------------------------
 .antigravitycli/
+
+# ============================================================
+# 🚨 SECURITY & CREDENTIALS (CRITICAL)
+# ============================================================
+# Secrets & Credentials
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+*.pkcs12
+*.jks
+*.keystore
+
+# Private npm / yarn / pnpm configs (Might contain auth tokens)
+.npmrc
+.yarnrc
+.npmrc.local
+.yarnrc.yml
+
+# Database files (local)
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+
+# Cloud / CI/CD Credentials
+.aws/
+.gcp/
+credentials.json
+google-auth.json
+
+# Miscellaneous Secrets
+.secret
+.secrets
+*.rsa
+*.dsa
+*.ecdsa
+*.ed25519
+ssh_host_*
+*.config.backup

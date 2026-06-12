@@ -181,6 +181,7 @@ SELECT VERSION();
 ```
 
 **Kiểm tra:**
+
 ```sql
 USE HRPayrollDB;
 SHOW TABLES;
@@ -192,6 +193,7 @@ SHOW TABLES;
 ### 📁 Bước 2 — Ràng Buộc, Index & Hàm Nghiệp Vụ
 
 Chạy lần lượt:
+
 1. `02_Database/DDL/02_constraints.sql` (Check constraints, Foreign Keys)
 2. `02_Database/DDL/03_indexes.sql` (Tăng tốc truy vấn B-Tree/Hash)
 3. Các file trong `02_Database/Functions/` (Tổng 12 hàm)
@@ -210,10 +212,12 @@ Chạy lần lượt:
 ### 📁 Bước 4 — Nạp Dữ Liệu & Tính Lương
 
 **File:** `02_Database/DML/seed_data.sql`
+
 - Nạp 50 nhân viên mẫu, cấu hình phòng ban, chức vụ, phụ cấp.
 - Nạp dữ liệu chấm công thực tế cho tháng 1, 2, 3 năm 2025.
 
 **Tính lương:**
+
 ```sql
 -- Tính lương cho quý 1 năm 2025
 CALL sp_TinhLuong(1, 2025, NULL, 0, 0);
@@ -259,13 +263,16 @@ CALL sp_BaoCaoNhanSu_TongQuan();
 ## 6. Xử Lý Lỗi Thường Gặp
 
 ### ❌ Lỗi: `log_bin_trust_function_creators`
+
 **Giải pháp:** Chạy `SET GLOBAL log_bin_trust_function_creators = 1;`
 
 ### ❌ Lỗi: `ERROR 1418 - DETERMINISTIC, NO SQL`
+
 **Nguyên nhân:** Thiếu khai báo đặc tính hàm trong MySQL.
 **Giải pháp:** Tất cả file trong dự án đã được thêm `DETERMINISTIC`. Đảm bảo chạy đúng file.
 
 ### ❌ Lỗi: Chạy file SQL Server `.sql` trong MySQL
+
 **Hiện tượng:** Lỗi cú pháp tại `GO`, `NVARCHAR`, `IDENTITY`.
 **Giải pháp:** Các file trong `04_Testing/` hiện là bản tham chiếu SQL Server. Hãy sử dụng `02_Database/DML/test_queries.sql` để kiểm thử trực tiếp trên MySQL.
 
@@ -288,25 +295,26 @@ UNION ALL
 SELECT 'Views', COUNT(*), 6 FROM information_schema.VIEWS WHERE TABLE_SCHEMA='HRPayrollDB';
 ```
 
-| Thành phần       | Số lượng | Trạng thái |
-| ---------------- | -------- | ---------- |
-| Bảng (Tables)    | 17       | Hoàn tất   |
-| Hàm (Functions)  | 12       | Hoàn tất   |
-| Thủ tục (Procs)  | 25       | Hoàn tất   |
-| Triggers         | 21       | Hoàn tất   |
-| Views            | 6        | Hoàn tất   |
-| Dữ liệu mẫu      | 50 NV    | Đã nạp     |
-| Test Cases       | 177      | Tham chiếu |
+| Thành phần      | Số lượng | Trạng thái |
+| ----------------- | ----------- | ------------ |
+| Bảng (Tables)    | 17          | Hoàn tất   |
+| Hàm (Functions)  | 12          | Hoàn tất   |
+| Thủ tục (Procs) | 25          | Hoàn tất   |
+| Triggers          | 21          | Hoàn tất   |
+| Views             | 6           | Hoàn tất   |
+| Dữ liệu mẫu    | 50 NV       | Đã nạp    |
+| Test Cases        | 177         | Tham chiếu  |
 
 ---
 
 ## 8. Ghi Chú Quan Trọng
 
 > 🛡️ **Bảo mật:** Không chia sẻ file `connection.config` nếu có chứa thông tin mật khẩu thực tế.
-> 
+>
 > 🔡 **Encoding:** Luôn chọn `utf8mb4` khi import dữ liệu để tránh lỗi font tiếng Việt.
-> 
+>
 > 🚀 **Hiệu năng:** Các `Indexes` trong `03_indexes.sql` giúp tăng tốc tính lương từ ~5s xuống <1s cho 50 NV.
 
 ---
+
 *Cập nhật ngày: 10/06/2026 | HRPayrollSystem Team*
