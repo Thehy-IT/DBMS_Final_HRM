@@ -7,11 +7,18 @@ import { Button } from "@/components/ui/button";
 import { cn, formatDate } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { leaveService } from "@/services/leave.service";
+import { masterDataService } from "@/services/masterData.service";
+import { employeeService } from "@/services/employee.service";
 import { LeaveFormDrawer } from "@/components/leaves/LeaveFormDrawer";
 
 export default function LeaveRequestsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [leaveTypeFilter, setLeaveTypeFilter] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("");
+  const itemsPerPage = 50;
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -28,6 +35,21 @@ export default function LeaveRequestsPage() {
     queryFn: () => leaveService.getLeaves(),
   });
 
+  const { data: leaveTypesData } = useQuery({
+    queryKey: ['leaveTypes'],
+    queryFn: () => masterDataService.getLeaveTypes(),
+  });
+
+  const { data: departmentsData } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => masterDataService.getDepartments(),
+  });
+
+  const { data: employeesData } = useQuery({
+    queryKey: ['employees'],
+    queryFn: () => employeeService.getEmployees(),
+  });
+
   const queryClient = useQueryClient();
 
   const approveMutation = useMutation({
@@ -42,12 +64,45 @@ export default function LeaveRequestsPage() {
 
   const leaves = data?.data || [];
 
+  const uniqueStatuses = Array.from(new Set(leaves.map((l: any) => l.status))).filter(Boolean) as string[];
+  const getStatusLabel = (s: string) => {
+    switch(s) {
+      case 'P': return 'Chờ duyệt';
+      case 'A': return 'Đã duyệt';
+      case 'R': return 'Từ chối';
+      case 'C': return 'Đã hủy';
+      default: return s;
+    }
+  };
+
+  const employees = employeesData?.data || [];
+
   const filteredLeaves = leaves.filter(record => {
-    if (searchTerm && !(record.empName || '').toLowerCase().includes(searchTerm.toLowerCase()) && !record.id.toLowerCase().includes(searchTerm.toLowerCase())) {
+    if (searchTerm && !(record.empName || '').toLowerCase().includes(searchTerm.toLowerCase()) && !((record as any).empId || '').toLowerCase().includes(searchTerm.toLowerCase()) && !record.id.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
+    }
+    if (statusFilter && record.status !== statusFilter) {
+      return false;
+    }
+    if (leaveTypeFilter) {
+      const selectedType = leaveTypesData?.find((t: any) => t.id === leaveTypeFilter || t.name === leaveTypeFilter);
+      if (record.type !== leaveTypeFilter && record.type !== selectedType?.name && record.type !== selectedType?.id) {
+        return false;
+      }
+    }
+    if (departmentFilter) {
+      const selectedDept = departmentsData?.find((d: any) => d.id === departmentFilter || d.name === departmentFilter);
+      // Fallback check if empId is provided in record
+      const emp = employees.find((e: any) => e.MaNV === (record as any).empId || e.HoTen === record.empName);
+      if (!emp || (emp.MaPB !== departmentFilter && emp.MaPB !== selectedDept?.name && emp.MaPB !== selectedDept?.id)) {
+        return false;
+      }
     }
     return true;
   });
+
+  const totalPages = Math.ceil(filteredLeaves.length / itemsPerPage);
+  const paginatedLeaves = filteredLeaves.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="space-y-6">
@@ -76,18 +131,35 @@ export default function LeaveRequestsPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <select className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white">
-            <option value="">Tất cả loại nghỉ</option>
-            <option value="Phép năm">Phép năm</option>
-            <option value="Nghỉ ốm">Nghỉ ốm</option>
-            <option value="Việc riêng">Việc riêng</option>
+          <select 
+            className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white"
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+          >
+            <option value="">Tất cả phòng ban</option>
+            {departmentsData?.map((dept: any) => (
+              <option key={dept.id} value={dept.id}>{dept.name}</option>
+            ))}
           </select>
-          <select className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white">
+          <select 
+            className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white"
+            value={leaveTypeFilter}
+            onChange={(e) => setLeaveTypeFilter(e.target.value)}
+          >
+            <option value="">Tất cả loại nghỉ</option>
+            {leaveTypesData?.map((type: any) => (
+              <option key={type.id} value={type.id}>{type.name}</option>
+            ))}
+          </select>
+          <select 
+            className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
             <option value="">Tất cả trạng thái</option>
-            <option value="P">Chờ duyệt</option>
-            <option value="A">Đã duyệt</option>
-            <option value="R">Từ chối</option>
-            <option value="C">Đã hủy</option>
+            {uniqueStatuses.map(status => (
+              <option key={status} value={status}>{getStatusLabel(status)}</option>
+            ))}
           </select>
         </div>
 
@@ -122,7 +194,7 @@ export default function LeaveRequestsPage() {
                 </tr>
               </thead>
               <tbody className="text-sm">
-                {filteredLeaves.map((record) => (
+                {paginatedLeaves.map((record) => (
                   <tr key={record.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                       <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
@@ -179,6 +251,25 @@ export default function LeaveRequestsPage() {
             </table>
           )}
         </div>
+
+        {!isLoading && !error && filteredLeaves.length > 0 && (
+          <div className="p-4 border-t border-slate-200 flex items-center justify-between text-sm text-slate-500 bg-white">
+            <div>Hiển thị {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredLeaves.length)} của {filteredLeaves.length} đơn nghỉ phép</div>
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+              >Trước</button>
+              <button className="px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium shadow-sm">{currentPage}</button>
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+              >Sau</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

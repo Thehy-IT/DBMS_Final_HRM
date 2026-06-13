@@ -35,9 +35,10 @@ interface EmployeeFormDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   employeeId?: string | null;
+  employee?: any | null;
 }
 
-export function EmployeeFormDrawer({ isOpen, onClose, employeeId }: EmployeeFormDrawerProps) {
+export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: EmployeeFormDrawerProps) {
   const [activeTab, setActiveTab] = useState("general");
   const queryClient = useQueryClient();
 
@@ -66,15 +67,17 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId }: EmployeeForm
   });
 
   useEffect(() => {
-    if (employeeData) {
+    const actualData = employee || ((employeeData as any)?.data || employeeData);
+
+    if (actualData) {
       reset({
-        ...employeeData,
-        NgaySinh: employeeData.NgaySinh ? employeeData.NgaySinh.split('T')[0] : '',
-        NgayVaoLam: employeeData.NgayVaoLam ? employeeData.NgayVaoLam.split('T')[0] : '',
-        Email: employeeData.Email || '',
-        DiaChi: employeeData.DiaChi || '',
-        MaSoThue: employeeData.MaSoThue || '',
-        SoTaiKhoanNH: employeeData.SoTaiKhoanNH || '',
+        ...actualData,
+        NgaySinh: actualData.NgaySinh ? actualData.NgaySinh.split('T')[0] : '',
+        NgayVaoLam: actualData.NgayVaoLam ? actualData.NgayVaoLam.split('T')[0] : '',
+        Email: actualData.Email || '',
+        DiaChi: actualData.DiaChi || '',
+        MaSoThue: actualData.MaSoThue || '',
+        SoTaiKhoanNH: actualData.SoTaiKhoanNH || '',
       });
     } else if (!employeeId && isOpen) {
       reset({

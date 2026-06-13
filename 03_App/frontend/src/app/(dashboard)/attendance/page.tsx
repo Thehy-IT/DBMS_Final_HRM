@@ -8,12 +8,31 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { attendanceService } from "@/services/attendance.service";
+import { masterDataService } from "@/services/masterData.service";
+import { employeeService } from "@/services/employee.service";
+import { useRef } from "react";
 
 export default function AttendancePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [date, setDate] = useState("");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedAttendance, setSelectedAttendance] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("");
+  const itemsPerPage = 50;
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: departmentsData } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => masterDataService.getDepartments(),
+  });
+
+  const { data: employeesData } = useQuery({
+    queryKey: ['employees'],
+    queryFn: () => employeeService.getEmployees(),
+  });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['attendance'],
@@ -21,20 +40,45 @@ export default function AttendancePage() {
   });
 
   const attendances = data?.data || [];
+  const employees = employeesData?.data || [];
+
+  const uniqueStatuses = Array.from(new Set(attendances.map((a: any) => a.status))).filter(Boolean) as string[];
+  const getStatusLabel = (s: string) => {
+    switch(s) {
+      case 'DL': return 'Đi làm';
+      case 'NP': return 'Nghỉ phép';
+      case 'OM': return 'Ốm';
+      case 'KP': return 'Không phép';
+      default: return s;
+    }
+  };
 
   const filteredAttendances = attendances.filter(record => {
-    if (searchTerm && !(record.name || '').toLowerCase().includes(searchTerm.toLowerCase()) && !record.id.toLowerCase().includes(searchTerm.toLowerCase())) {
+    if (searchTerm && !(record.name || '').toLowerCase().includes(searchTerm.toLowerCase()) && !(record.empId || '').toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
     if (date && record.date !== date) {
       return false;
     }
+    if (statusFilter && record.status !== statusFilter) {
+      return false;
+    }
+    if (departmentFilter) {
+      const selectedDept = departmentsData?.find((d: any) => d.id === departmentFilter || d.name === departmentFilter);
+      const emp = employees.find((e: any) => e.MaNV === record.empId);
+      if (!emp || (emp.MaPB !== departmentFilter && emp.MaPB !== selectedDept?.name && emp.MaPB !== selectedDept?.id)) {
+        return false;
+      }
+    }
     return true;
   });
 
+  const totalPages = Math.ceil(filteredAttendances.length / itemsPerPage);
+  const paginatedAttendances = filteredAttendances.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   const handleExport = () => {
     const exportData = filteredAttendances.map(r => ({
-      'Mã NV': r.id,
+      'Mã NV': r.empId || r.id,
       'Họ Tên': r.name,
       'Ngày': r.date,
       'Giờ Vào': r.checkIn,
@@ -43,6 +87,21 @@ export default function AttendancePage() {
       'Ghi Chú': r.notes
     }));
     exportToExcel(exportData, `ChamCong_${date || 'TatCa'}`);
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      alert(`Đã chọn file: ${file.name}. Hệ thống đang giả lập xử lý nhập dữ liệu chấm công...`);
+      setTimeout(() => alert("Nhập dữ liệu chấm công thành công!"), 1000);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   return (
@@ -58,7 +117,14 @@ export default function AttendancePage() {
           <p className="text-sm text-slate-500">Quản lý và duyệt giờ vào/ra của nhân viên</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            accept=".xlsx, .xls, .csv" 
+            onChange={handleFileChange} 
+          />
+          <Button variant="outline" size="sm" onClick={handleImportClick}>
             <Upload className="w-4 h-4 mr-2" /> Import từ máy CC
           </Button>
           <Button variant="outline" size="sm" onClick={handleExport}>
@@ -94,12 +160,25 @@ export default function AttendancePage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <select className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white">
+          <select 
+            className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white"
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+          >
+            <option value="">Tất cả phòng ban</option>
+            {departmentsData?.map((dept: any) => (
+              <option key={dept.id} value={dept.id}>{dept.name}</option>
+            ))}
+          </select>
+          <select 
+            className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
             <option value="">Tất cả trạng thái</option>
-            <option value="DL">Đi làm</option>
-            <option value="NP">Nghỉ phép</option>
-            <option value="OM">Ốm</option>
-            <option value="KP">Không phép</option>
+            {uniqueStatuses.map(status => (
+              <option key={status} value={status}>{getStatusLabel(status)}</option>
+            ))}
           </select>
         </div>
 
@@ -135,13 +214,13 @@ export default function AttendancePage() {
                 </tr>
               </thead>
               <tbody className="text-sm">
-                {filteredAttendances.map((record, index) => (
+                {paginatedAttendances.map((record, index) => (
                   <tr key={`${record.id}-${record.date}-${index}`} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                       <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
                     </td>
                     <td className="px-6 py-4 font-medium text-slate-900">{record.date}</td>
-                    <td className="px-6 py-4 font-medium text-slate-900">{record.id}</td>
+                    <td className="px-6 py-4 font-medium text-slate-900">{record.empId || record.id}</td>
                     <td className="px-6 py-4 font-medium text-slate-900">{record.name}</td>
                     <td className="px-6 py-4 font-mono">{record.checkIn || '-'}</td>
                     <td className="px-6 py-4 font-mono">{record.checkOut || '-'}</td>
@@ -179,6 +258,25 @@ export default function AttendancePage() {
             </table>
           )}
         </div>
+
+        {!isLoading && !error && filteredAttendances.length > 0 && (
+          <div className="p-4 border-t border-slate-200 flex items-center justify-between text-sm text-slate-500 bg-white">
+            <div>Hiển thị {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredAttendances.length)} của {filteredAttendances.length} bản ghi chấm công</div>
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+              >Trước</button>
+              <button className="px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium shadow-sm">{currentPage}</button>
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+              >Sau</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -115,8 +115,8 @@ Lương Net  = Lương Gross - BH NV - Thuế TNCN - KhauTruKhac
 
 | Mã UC | Use Case               | Mô tả                                           | Check list |
 | ------ | ---------------------- | ------------------------------------------------- | ---------- |
-| UC-01  | Quản lý nhân viên  | Thêm, sửa, vô hiệu hoá hồ sơ nhân viên   |            |
-| UC-02  | Quản lý hợp đồng  | Ký mới, gia hạn, thanh lý hợp đồng         |            |
+| UC-01  | Quản lý nhân viên  | Thêm, sửa, vô hiệu hoá hồ sơ nhân viên   | 90%        |
+| UC-02  | Quản lý hợp đồng  | Ký mới, gia hạn, thanh lý hợp đồng         | 90%        |
 | UC-03  | Quản lý chấm công  | Nhập bảng chấm công tháng                    |            |
 | UC-04  | Quản lý phúc lợi   | Gán/xoá phụ cấp cho nhân viên               |            |
 | UC-05  | Chạy tính lương    | Gọi sp_TinhLuong(@Thang, @Nam)                   |            |

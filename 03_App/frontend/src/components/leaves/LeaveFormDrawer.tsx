@@ -42,13 +42,14 @@ export function LeaveFormDrawer({ isOpen, onClose }: LeaveFormDrawerProps) {
       alert("Tạo đơn nghỉ phép thành công!");
     },
     onError: (error: any) => {
-      alert("Lỗi: " + (error.response?.data?.error || error.message));
+      console.error("Lỗi tạo đơn:", error?.response?.data || error);
+      alert("Lỗi: " + (error?.response?.data?.error || error?.response?.data?.message || error.message));
     }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    mutation.mutate({ MaNV, MaLoaiNghi: parseInt(MaLoaiNghi), NgayBatDau, NgayKetThuc, LyDo });
+    mutation.mutate({ MaNV, MaLoaiNghi, NgayBatDau, NgayKetThuc, LyDo });
   };
 
   return (

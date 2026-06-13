@@ -16,6 +16,8 @@ export default function PayrollPage() {
   const [selectedPayslip, setSelectedPayslip] = useState<any>(null);
   const [department, setDepartment] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
   const queryClient = useQueryClient();
 
   const { data: departmentsData } = useQuery({
@@ -63,6 +65,17 @@ export default function PayrollPage() {
 
   const payrolls = data?.data || [];
 
+  const uniqueStatuses = Array.from(new Set(payrolls.map((p: any) => p.status))).filter(Boolean) as string[];
+  const getStatusLabel = (s: string) => {
+    switch(s) {
+      case 'D': return 'Nháp';
+      case 'C': return 'Đã xác nhận';
+      case 'L': return 'Đã chốt';
+      case 'P': return 'Đã thanh toán';
+      default: return s;
+    }
+  };
+
   const filteredPayrolls = payrolls.filter(record => {
     if (searchTerm && !record.name.toLowerCase().includes(searchTerm.toLowerCase()) && !record.empId?.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
@@ -83,6 +96,9 @@ export default function PayrollPage() {
     }
     return true;
   });
+
+  const totalPages = Math.ceil(filteredPayrolls.length / itemsPerPage);
+  const paginatedPayrolls = filteredPayrolls.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleExport = () => {
     const exportData = filteredPayrolls.map(r => ({
@@ -167,10 +183,9 @@ export default function PayrollPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="">Tất cả trạng thái</option>
-            <option value="D">Nháp</option>
-            <option value="C">Đã xác nhận</option>
-            <option value="L">Đã chốt</option>
-            <option value="P">Đã thanh toán</option>
+            {uniqueStatuses.map(status => (
+              <option key={status} value={status}>{getStatusLabel(status)}</option>
+            ))}
           </select>
         </div>
 
@@ -208,7 +223,7 @@ export default function PayrollPage() {
                 </tr>
               </thead>
               <tbody className="text-sm">
-                {filteredPayrolls.map((record) => (
+                {paginatedPayrolls.map((record) => (
                   <tr key={record.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                       <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
@@ -264,6 +279,25 @@ export default function PayrollPage() {
             </table>
           )}
         </div>
+
+        {!isLoading && !error && filteredPayrolls.length > 0 && (
+          <div className="p-4 border-t border-slate-200 flex items-center justify-between text-sm text-slate-500 bg-white">
+            <div>Hiển thị {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredPayrolls.length)} của {filteredPayrolls.length} bảng lương</div>
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+              >Trước</button>
+              <button className="px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium shadow-sm">{currentPage}</button>
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+              >Sau</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

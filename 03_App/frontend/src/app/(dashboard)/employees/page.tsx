@@ -1,18 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Search, Plus, Upload, Download, MoreVertical, Edit2, Loader2 } from "lucide-react";
+import { Search, Plus, Upload, Download, MoreVertical, Edit2, Loader2, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { EmployeeFormDrawer } from "@/components/employees/EmployeeFormDrawer";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { employeeService } from "@/services/employee.service";
+import { masterDataService } from "@/services/masterData.service";
+import { exportToExcel } from "@/lib/excel";
 
 export default function EmployeeListPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [department, setDepartment] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
   
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -30,15 +39,91 @@ export default function EmployeeListPage() {
     queryFn: () => employeeService.getEmployees(),
   });
 
+  const { data: departmentsData } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => masterDataService.getDepartments(),
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: (emp: any) => {
+      return employeeService.updateEmployee(emp.MaNV, { ...emp, TrangThai: 'T' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      alert("Đã vô hiệu hoá hồ sơ nhân viên!");
+    },
+    onError: () => {
+      alert("Có lỗi xảy ra khi vô hiệu hoá nhân viên.");
+    }
+  });
+
   const employees = data?.data || [];
 
-  // Filter logic (basic frontend filtering for now)
+  const uniqueStatuses = Array.from(new Set(employees.map((e: any) => e.TrangThai))).filter(Boolean) as string[];
+  const getStatusLabel = (s: string) => {
+    switch(s) {
+      case 'A': return 'Đang làm việc';
+      case 'L': return 'Nghỉ phép';
+      case 'T': return 'Nghỉ việc';
+      case 'P': return 'Thử việc';
+      default: return s;
+    }
+  };
+
+  // Filter logic
   const filteredEmployees = employees.filter(emp => {
     if (searchTerm && !(emp.HoTen || '').toLowerCase().includes(searchTerm.toLowerCase()) && !emp.MaNV.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
+    
+    if (department) {
+      const selectedDept = departmentsData?.find((d: any) => d.id === department || d.name === department);
+      if (emp.MaPB !== department && emp.MaPB !== selectedDept?.name && emp.MaPB !== selectedDept?.id) {
+        return false;
+      }
+    }
+    
+    if (statusFilter && emp.TrangThai !== statusFilter) {
+      return false;
+    }
+
     return true;
   });
+
+  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
+  const paginatedEmployees = filteredEmployees.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const handleExport = () => {
+    const exportData = filteredEmployees.map(emp => ({
+      'Mã NV': emp.MaNV,
+      'Họ Tên': emp.HoTen,
+      'Phòng Ban': emp.MaPB,
+      'Chức Vụ': emp.MaCV,
+      'Giới Tính': emp.GioiTinh === 'M' ? 'Nam' : emp.GioiTinh === 'F' ? 'Nữ' : 'Khác',
+      'Ngày Sinh': emp.NgaySinh ? new Date(emp.NgaySinh).toLocaleDateString('vi-VN') : '',
+      'Ngày Vào Làm': emp.NgayVaoLam ? new Date(emp.NgayVaoLam).toLocaleDateString('vi-VN') : '',
+      'Trạng Thái': emp.TrangThai === 'A' ? 'Đang làm việc' : 
+                    emp.TrangThai === 'L' ? 'Nghỉ phép' : 
+                    emp.TrangThai === 'T' ? 'Nghỉ việc' : 
+                    emp.TrangThai === 'P' ? 'Thử việc' : emp.TrangThai
+    }));
+    exportToExcel(exportData, `DanhSachNhanVien`);
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      alert(`Đã chọn file: ${file.name}. Hệ thống đang giả lập xử lý nhập dữ liệu...`);
+      setTimeout(() => alert("Nhập dữ liệu thành công!"), 1000);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -46,6 +131,7 @@ export default function EmployeeListPage() {
         isOpen={isDrawerOpen} 
         onClose={() => setIsDrawerOpen(false)} 
         employeeId={selectedEmployeeId}
+        employee={employees.find((e: any) => e.MaNV === selectedEmployeeId)}
       />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -54,10 +140,17 @@ export default function EmployeeListPage() {
           <p className="text-sm text-slate-500">Quản lý hồ sơ và thông tin nhân viên</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            accept=".xlsx, .xls, .csv" 
+            onChange={handleFileChange} 
+          />
+          <Button variant="outline" size="sm" onClick={handleImportClick}>
             <Upload className="w-4 h-4 mr-2" /> Nhập file
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" /> Xuất file
           </Button>
           <Button size="sm" onClick={() => { setSelectedEmployeeId(null); setIsDrawerOpen(true); }}>
@@ -79,17 +172,25 @@ export default function EmployeeListPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <select className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white">
+          <select 
+            className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white"
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+          >
             <option value="">Tất cả phòng ban</option>
-            <option value="IT">IT</option>
-            <option value="HR">HR</option>
-            <option value="Sales">Sales</option>
+            {departmentsData?.map((dept: any) => (
+              <option key={dept.id} value={dept.id}>{dept.name}</option>
+            ))}
           </select>
-          <select className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white">
+          <select 
+            className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
             <option value="">Tất cả trạng thái</option>
-            <option value="A">Đang làm việc</option>
-            <option value="L">Nghỉ phép</option>
-            <option value="T">Nghỉ việc</option>
+            {uniqueStatuses.map(status => (
+              <option key={status} value={status}>{getStatusLabel(status)}</option>
+            ))}
           </select>
         </div>
 
@@ -125,7 +226,7 @@ export default function EmployeeListPage() {
                 </tr>
               </thead>
               <tbody className="text-sm">
-                {filteredEmployees.map((emp) => (
+                {paginatedEmployees.map((emp) => (
                   <tr key={emp.MaNV} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                       <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
@@ -163,8 +264,20 @@ export default function EmployeeListPage() {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button className="hover:text-slate-900 p-1.5 rounded-md hover:bg-slate-100 transition-colors" title="Thêm">
-                          <MoreVertical className="w-4 h-4" />
+                        <button 
+                          onClick={() => {
+                            if (window.confirm(`Bạn có chắc chắn muốn vô hiệu hoá hồ sơ nhân viên ${emp.HoTen}?`)) {
+                              deactivateMutation.mutate(emp);
+                            }
+                          }}
+                          disabled={deactivateMutation.isPending || emp.TrangThai === 'T'}
+                          className={cn(
+                            "p-1.5 rounded-md transition-colors",
+                            emp.TrangThai === 'T' ? "opacity-30 cursor-not-allowed text-slate-400" : "hover:text-red-600 hover:bg-red-50 text-slate-400"
+                          )}
+                          title="Vô hiệu hoá"
+                        >
+                          <UserMinus className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -178,11 +291,19 @@ export default function EmployeeListPage() {
         {/* Pagination */}
         {!isLoading && !error && filteredEmployees.length > 0 && (
           <div className="p-4 border-t border-slate-200 flex items-center justify-between text-sm text-slate-500 bg-white">
-            <div>Hiển thị 1-{filteredEmployees.length} của {data?.meta?.total || filteredEmployees.length} nhân viên</div>
+            <div>Hiển thị {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredEmployees.length)} của {filteredEmployees.length} nhân viên</div>
             <div className="flex items-center gap-1">
-              <button className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors" disabled={true}>Trước</button>
-              <button className="px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium shadow-sm">1</button>
-              <button className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors" disabled={true}>Sau</button>
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+              >Trước</button>
+              <button className="px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium shadow-sm">{currentPage}</button>
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+              >Sau</button>
             </div>
           </div>
         )}

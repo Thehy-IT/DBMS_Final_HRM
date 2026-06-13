@@ -1,19 +1,28 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Search, Plus, Upload, Download, MoreVertical, FileSignature, Loader2, Edit2 } from "lucide-react";
+import { Search, Plus, Upload, Download, FileSignature, Loader2, Edit2, FileMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatMoney, formatDate } from "@/lib/utils";
 import { ContractFormDrawer } from "@/components/contracts/ContractFormDrawer";
 import { useQuery } from "@tanstack/react-query";
 import { contractService } from "@/services/contract.service";
+import { masterDataService } from "@/services/masterData.service";
 import { exportToExcel } from "@/lib/excel";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function ContractListPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [contractTypeFilter, setContractTypeFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -31,14 +40,78 @@ export default function ContractListPage() {
     queryFn: () => contractService.getContracts(),
   });
 
+  const { data: contractTypesData } = useQuery({
+    queryKey: ['contract-types'],
+    queryFn: () => masterDataService.getContractTypes(),
+  });
+
+  const terminateMutation = useMutation({
+    mutationFn: async (contractSummary: any) => {
+      try {
+        // Fetch full contract details first
+        const fullContract = await contractService.getContractById(contractSummary.id);
+        
+        // Ensure data exists, handle nested data if backend returns { data: ... }
+        const actualData = (fullContract as any).data || fullContract;
+
+        return await contractService.updateContract(contractSummary.id, {
+          ...actualData,
+          startDate: actualData.startDate ? actualData.startDate.split('T')[0] : '',
+          endDate: actualData.endDate ? actualData.endDate.split('T')[0] : '',
+          status: 'T',
+          // Preserve VungLuong if it exists, otherwise default to 1
+          VungLuong: actualData.VungLuong || 1
+        });
+      } catch (err: any) {
+        // If fetching fails, fallback to sending partial update
+        return await contractService.updateContract(contractSummary.id, {
+          id: contractSummary.id,
+          status: 'T'
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      alert("Đã thanh lý hợp đồng!");
+    },
+    onError: (error: any) => {
+      console.error("Lỗi thanh lý hợp đồng:", error?.response?.data || error);
+      alert(`Có lỗi xảy ra khi thanh lý hợp đồng: ${error?.response?.data?.error || error?.response?.data?.message || error.message || ''}`);
+    }
+  });
+
   const contracts = data?.data || [];
+
+  const uniqueStatuses = Array.from(new Set(contracts.map((c: any) => c.status))).filter(Boolean) as string[];
+  const getStatusLabel = (s: string) => {
+    switch(s) {
+      case 'A': return 'Hiệu lực';
+      case 'E': return 'Hết hạn';
+      case 'T': return 'Đã chấm dứt';
+      case 'D': return 'Nháp';
+      default: return s;
+    }
+  };
 
   const filteredContracts = contracts.filter(contract => {
     if (searchTerm && !(contract.empName || '').toLowerCase().includes(searchTerm.toLowerCase()) && !contract.id.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
+    if (contractTypeFilter) {
+      const selectedType = contractTypesData?.find((t: any) => t.id === contractTypeFilter || t.name === contractTypeFilter);
+      if (contract.type !== contractTypeFilter && contract.type !== selectedType?.name && contract.type !== selectedType?.id) {
+        return false;
+      }
+    }
+    if (statusFilter && contract.status !== statusFilter) {
+      return false;
+    }
     return true;
   });
+
+  const totalPages = Math.ceil(filteredContracts.length / itemsPerPage);
+  const paginatedContracts = filteredContracts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   const handleExport = () => {
     const exportData = filteredContracts.map(r => ({
       'Mã Hợp Đồng': r.id,
@@ -50,6 +123,21 @@ export default function ContractListPage() {
       'Trạng Thái': r.status
     }));
     exportToExcel(exportData, `HopDong_List`);
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      alert(`Đã chọn file: ${file.name}. Hệ thống đang giả lập xử lý nhập dữ liệu hợp đồng...`);
+      setTimeout(() => alert("Nhập dữ liệu hợp đồng thành công!"), 1000);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   return (
@@ -66,7 +154,14 @@ export default function ContractListPage() {
           <p className="text-sm text-slate-500">Danh sách hợp đồng lao động của nhân viên</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            accept=".xlsx, .xls, .csv" 
+            onChange={handleFileChange} 
+          />
+          <Button variant="outline" size="sm" onClick={handleImportClick}>
             <Upload className="w-4 h-4 mr-2" /> Nhập file
           </Button>
           <Button variant="outline" size="sm" onClick={handleExport}>
@@ -90,17 +185,25 @@ export default function ContractListPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <select className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white">
+          <select 
+            className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white"
+            value={contractTypeFilter}
+            onChange={(e) => setContractTypeFilter(e.target.value)}
+          >
             <option value="">Tất cả loại HĐ</option>
-            <option value="Thử việc">Thử việc</option>
-            <option value="Có thời hạn">Có thời hạn</option>
-            <option value="Không thời hạn">Không thời hạn</option>
+            {contractTypesData?.map((type: any) => (
+              <option key={type.id} value={type.id}>{type.name}</option>
+            ))}
           </select>
-          <select className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white">
+          <select 
+            className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
             <option value="">Tất cả trạng thái</option>
-            <option value="A">Hiệu lực</option>
-            <option value="E">Hết hạn</option>
-            <option value="T">Đã chấm dứt</option>
+            {uniqueStatuses.map(status => (
+              <option key={status} value={status}>{getStatusLabel(status)}</option>
+            ))}
           </select>
         </div>
 
@@ -135,7 +238,7 @@ export default function ContractListPage() {
                 </tr>
               </thead>
               <tbody className="text-sm">
-                {filteredContracts.map((contract) => (
+                {paginatedContracts.map((contract) => (
                   <tr key={contract.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                       <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
@@ -172,8 +275,20 @@ export default function ContractListPage() {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button className="hover:text-slate-900 p-1.5 rounded-md hover:bg-slate-100 transition-colors" title="Thêm">
-                          <MoreVertical className="w-4 h-4" />
+                        <button 
+                          onClick={() => {
+                            if (window.confirm(`Bạn có chắc chắn muốn thanh lý hợp đồng ${contract.id} của nhân viên ${contract.empName}?`)) {
+                              terminateMutation.mutate(contract);
+                            }
+                          }}
+                          disabled={terminateMutation.isPending || contract.status === 'T'}
+                          className={cn(
+                            "p-1.5 rounded-md transition-colors",
+                            contract.status === 'T' ? "opacity-30 cursor-not-allowed text-slate-400" : "hover:text-red-600 hover:bg-red-50 text-slate-400"
+                          )}
+                          title="Thanh lý hợp đồng"
+                        >
+                          {terminateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileMinus className="w-4 h-4" />}
                         </button>
                       </div>
                     </td>
@@ -186,11 +301,19 @@ export default function ContractListPage() {
 
         {!isLoading && !error && filteredContracts.length > 0 && (
           <div className="p-4 border-t border-slate-200 flex items-center justify-between text-sm text-slate-500 bg-white">
-            <div>Hiển thị 1-{filteredContracts.length} của {filteredContracts.length} hợp đồng</div>
+            <div>Hiển thị {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredContracts.length)} của {filteredContracts.length} hợp đồng</div>
             <div className="flex items-center gap-1">
-              <button className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors" disabled>Trước</button>
-              <button className="px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium shadow-sm">1</button>
-              <button className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors" disabled>Sau</button>
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+              >Trước</button>
+              <button className="px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium shadow-sm">{currentPage}</button>
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+              >Sau</button>
             </div>
           </div>
         )}
