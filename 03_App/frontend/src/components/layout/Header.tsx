@@ -19,7 +19,7 @@ export function Header() {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input 
             type="text" 
-            placeholder="Search employees, contracts..." 
+            placeholder="Tìm kiếm nhân viên, hợp đồng..." 
             className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:bg-white transition-all"
           />
         </div>

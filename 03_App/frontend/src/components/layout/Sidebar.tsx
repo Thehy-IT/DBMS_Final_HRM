@@ -17,13 +17,13 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
-  { title: "Employees", href: "/employees", icon: Users, roles: ['ADMIN', 'HR'] },
-  { title: "Contracts", href: "/contracts", icon: FileText, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
-  { title: "Attendance", href: "/attendance", icon: CalendarClock, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
-  { title: "Payroll", href: "/payroll", icon: Calculator, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
-  { title: "Leaves", href: "/leaves", icon: Briefcase, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
-  { title: "Settings", href: "/settings", icon: Settings, roles: ['ADMIN'] },
+  { title: "Tổng quan", href: "/dashboard", icon: LayoutDashboard, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
+  { title: "Nhân sự", href: "/employees", icon: Users, roles: ['ADMIN', 'HR'] },
+  { title: "Hợp đồng", href: "/contracts", icon: FileText, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
+  { title: "Điểm danh", href: "/attendance", icon: CalendarClock, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
+  { title: "Bảng lương", href: "/payroll", icon: Calculator, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
+  { title: "Nghỉ phép", href: "/leaves", icon: Briefcase, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
+  { title: "Cài đặt", href: "/settings", icon: Settings, roles: ['ADMIN'] },
 ];
 
 export function Sidebar() {
@@ -75,10 +75,10 @@ export function Sidebar() {
           className={cn(
             "flex items-center gap-3 w-full px-3 py-2.5 rounded-md text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
           )}
-          title="Logout"
+          title="Đăng xuất"
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
-          {sidebarOpen && <span className="truncate text-sm font-medium">Logout ({user?.username})</span>}
+          {sidebarOpen && <span className="truncate text-sm font-medium">Đăng xuất ({user?.username})</span>}
         </button>
       </div>
     </aside>
