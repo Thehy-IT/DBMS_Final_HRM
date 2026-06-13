@@ -62,7 +62,7 @@ export default function AttendancePage() {
             <Upload className="w-4 h-4 mr-2" /> Import từ máy CC
           </Button>
           <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="w-4 h-4 mr-2" /> Export
+            <Download className="w-4 h-4 mr-2" /> Xuất file
           </Button>
           <Button size="sm" variant="outline">
             <Check className="w-4 h-4 mr-2" /> Duyệt Tất Cả

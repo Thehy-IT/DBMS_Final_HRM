@@ -1,10 +1,12 @@
 "use client";
 
 import { useAppStore } from "@/store/useAppStore";
+import { useAuthStore } from "@/store/useAuthStore";
 import { Menu, Bell, Search } from "lucide-react";
 
 export function Header() {
   const { toggleSidebar } = useAppStore();
+  const { user } = useAuthStore();
 
   return (
     <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 shrink-0 shadow-sm">
@@ -31,10 +33,10 @@ export function Header() {
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
         </button>
         <div className="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded-md border border-transparent hover:border-slate-200 transition-all">
-          <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-medium text-sm shadow-sm">
-            AD
+          <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-medium text-sm shadow-sm uppercase">
+            {user?.username?.charAt(0) || 'U'}
           </div>
-          <span className="text-sm font-medium text-slate-700 hidden sm:block">Admin User</span>
+          <span className="text-sm font-medium text-slate-700 hidden sm:block">{user?.username || 'Người dùng'}</span>
         </div>
       </div>
     </header>

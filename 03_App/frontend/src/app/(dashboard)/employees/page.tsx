@@ -43,10 +43,10 @@ export default function EmployeeListPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm">
-            <Upload className="w-4 h-4 mr-2" /> Import
+            <Upload className="w-4 h-4 mr-2" /> Nhập file
           </Button>
           <Button variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" /> Export
+            <Download className="w-4 h-4 mr-2" /> Xuất file
           </Button>
           <Button size="sm" onClick={() => { setSelectedEmployeeId(null); setIsDrawerOpen(true); }}>
             <Plus className="w-4 h-4 mr-2" /> Thêm Nhân Viên

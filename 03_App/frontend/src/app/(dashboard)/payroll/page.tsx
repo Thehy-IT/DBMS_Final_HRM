@@ -101,7 +101,7 @@ export default function PayrollPage() {
             Thanh toán
           </Button>
           <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="w-4 h-4 mr-2" /> Export
+            <Download className="w-4 h-4 mr-2" /> Xuất file
           </Button>
         </div>
       </div>
