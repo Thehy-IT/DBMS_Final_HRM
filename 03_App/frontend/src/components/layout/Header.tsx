@@ -14,6 +14,7 @@ const routeNames: Record<string, string> = {
   attendance: "Điểm danh",
   payroll: "Bảng lương",
   leaves: "Nghỉ phép",
+  history: "Lịch sử",
   settings: "Cài đặt"
 };
 

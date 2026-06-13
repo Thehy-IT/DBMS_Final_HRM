@@ -13,7 +13,8 @@ import {
   Calculator, 
   FileText, 
   Settings, 
-  LogOut
+  LogOut,
+  History
 } from "lucide-react";
 
 const navItems = [
@@ -23,6 +24,7 @@ const navItems = [
   { title: "Điểm danh", href: "/attendance", icon: CalendarClock, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
   { title: "Bảng lương", href: "/payroll", icon: Calculator, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
   { title: "Nghỉ phép", href: "/leaves", icon: Briefcase, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
+  { title: "Lịch sử", href: "/history", icon: History, roles: ['ADMIN', 'HR'] },
   { title: "Cài đặt", href: "/settings", icon: Settings, roles: ['ADMIN'] },
 ];
 

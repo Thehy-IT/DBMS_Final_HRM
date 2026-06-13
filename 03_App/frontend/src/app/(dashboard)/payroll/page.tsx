@@ -7,11 +7,21 @@ import { cn, formatMoney } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { payrollService } from "@/services/payroll.service";
 import { exportToExcel } from "@/lib/excel";
+import { PayslipModal } from "@/components/payroll/PayslipModal";
+import { masterDataService } from "@/services/masterData.service";
 
 export default function PayrollPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [selectedPayslip, setSelectedPayslip] = useState<any>(null);
+  const [department, setDepartment] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const queryClient = useQueryClient();
+
+  const { data: departmentsData } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => masterDataService.getDepartments(),
+  });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['payroll'],
@@ -61,6 +71,16 @@ export default function PayrollPage() {
     if (month && (record.month !== parseInt(m) || record.year !== parseInt(y))) {
       return false;
     }
+    if (department) {
+      const selectedDept = departmentsData?.find((d: any) => d.id === department || d.name === department);
+      // match by ID or by Name
+      if (record.dept !== department && record.dept !== selectedDept?.name && record.dept !== selectedDept?.id) {
+        return false;
+      }
+    }
+    if (statusFilter && record.status !== statusFilter) {
+      return false;
+    }
     return true;
   });
 
@@ -82,6 +102,11 @@ export default function PayrollPage() {
 
   return (
     <div className="space-y-6">
+      <PayslipModal 
+        isOpen={!!selectedPayslip} 
+        onClose={() => setSelectedPayslip(null)} 
+        data={selectedPayslip} 
+      />
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Tính Lương (Payroll)</h1>
@@ -126,13 +151,21 @@ export default function PayrollPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <select className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white">
+          <select 
+            className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white"
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+          >
             <option value="">Tất cả phòng ban</option>
-            <option value="IT">IT</option>
-            <option value="HR">HR</option>
-            <option value="Sales">Sales</option>
+            {departmentsData?.map((dept: any) => (
+              <option key={dept.id} value={dept.id}>{dept.name}</option>
+            ))}
           </select>
-          <select className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white">
+          <select 
+            className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
             <option value="">Tất cả trạng thái</option>
             <option value="D">Nháp</option>
             <option value="C">Đã xác nhận</option>
@@ -206,10 +239,21 @@ export default function PayrollPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2 text-slate-400">
-                        <button className="hover:text-indigo-600 p-1.5 rounded-md hover:bg-indigo-50 transition-colors" title="Xem chi tiết">
+                        <button 
+                          onClick={() => setSelectedPayslip(record)}
+                          className="hover:text-indigo-600 p-1.5 rounded-md hover:bg-indigo-50 transition-colors" 
+                          title="Xem chi tiết"
+                        >
                           <Printer className="w-4 h-4" />
                         </button>
-                        <button className="hover:text-indigo-600 p-1.5 rounded-md hover:bg-indigo-50 transition-colors" title="Tải PDF">
+                        <button 
+                          onClick={() => {
+                            setSelectedPayslip(record);
+                            setTimeout(() => window.print(), 300);
+                          }}
+                          className="hover:text-indigo-600 p-1.5 rounded-md hover:bg-indigo-50 transition-colors" 
+                          title="Tải PDF"
+                        >
                           <Download className="w-4 h-4" />
                         </button>
                       </div>
