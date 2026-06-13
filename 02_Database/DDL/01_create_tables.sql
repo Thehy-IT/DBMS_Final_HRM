@@ -459,7 +459,20 @@ CREATE TABLE IF NOT EXISTS AuditLog_Luong (
     INDEX IX_AuditLuong_NV  (MaNV),
     INDEX IX_AuditLuong_Ky  (Nam, Thang)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- ── 17. TaiKhoan ───────────────────────────────────────
+CREATE TABLE IF NOT EXISTS TaiKhoan (
+    MaTK            INT             NOT NULL AUTO_INCREMENT,
+    TenDangNhap     VARCHAR(50)     NOT NULL,
+    MatKhau         VARCHAR(255)    NOT NULL,
+    Quyen           ENUM('ADMIN', 'HR', 'DIRECTOR', 'EMPLOYEE') NOT NULL DEFAULT 'EMPLOYEE',
+    MaNV            CHAR(8)         NULL,
+    TrangThai       CHAR(1)         NOT NULL DEFAULT 'A',
+    NgayTao         DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
+    PRIMARY KEY (MaTK),
+    UNIQUE KEY UQ_TaiKhoan_TenDangNhap (TenDangNhap),
+    CONSTRAINT FK_TK_NhanVien FOREIGN KEY (MaNV) REFERENCES NhanVien(MaNV)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --  XÁC NHẬN TOÀN BỘ ĐÃ TẠO THÀNH CÔNG
 SELECT
