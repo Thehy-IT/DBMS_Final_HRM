@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Search, Plus, Upload, Download, MoreVertical, FileSignature, Loader2, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatMoney, formatDate } from "@/lib/utils";
@@ -13,6 +14,17 @@ export default function ContractListPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') {
+      setSelectedContractId(null);
+      setIsDrawerOpen(true);
+      router.replace('/contracts');
+    }
+  }, [searchParams, router]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['contracts'],

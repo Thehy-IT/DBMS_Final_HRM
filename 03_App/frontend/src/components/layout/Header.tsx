@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAppStore } from "@/store/useAppStore";
-import { Menu, Search, Clock, Plus, ChevronRight } from "lucide-react";
+import { Menu, Clock, Plus, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const routeNames: Record<string, string> = {
@@ -30,7 +31,6 @@ export function Header() {
 
   // Generate breadcrumbs
   const pathSegments = pathname.split('/').filter(Boolean);
-  const breadcrumbs = pathSegments.map(segment => routeNames[segment] || segment);
 
   return (
     <header className="h-16 bg-white/70 backdrop-blur-lg border-b border-slate-200/50 flex items-center justify-between px-4 sticky top-0 z-40 transition-all">
@@ -44,37 +44,29 @@ export function Header() {
 
         {/* Breadcrumbs */}
         <div className="hidden lg:flex items-center text-sm font-medium text-slate-500">
-          <span className="hover:text-indigo-600 cursor-pointer transition-colors">Trang chủ</span>
-          {breadcrumbs.map((crumb, index) => (
-            <div key={index} className="flex items-center">
-              <ChevronRight className="w-4 h-4 mx-1 text-slate-400" />
-              <span className={cn(
-                "capitalize",
-                index === breadcrumbs.length - 1 ? "text-slate-900 font-semibold" : "hover:text-indigo-600 cursor-pointer transition-colors"
-              )}>
-                {crumb}
-              </span>
-            </div>
-          ))}
+          <Link href="/dashboard" className="hover:text-indigo-600 transition-colors">Trang chủ</Link>
+          {pathSegments.map((segment, index) => {
+            const href = `/${pathSegments.slice(0, index + 1).join('/')}`;
+            const isLast = index === pathSegments.length - 1;
+            const crumbName = routeNames[segment] || segment;
+
+            return (
+              <div key={index} className="flex items-center">
+                <ChevronRight className="w-4 h-4 mx-1 text-slate-400" />
+                {isLast ? (
+                  <span className="capitalize text-slate-900 font-semibold">{crumbName}</span>
+                ) : (
+                  <Link href={href} className="capitalize hover:text-indigo-600 transition-colors">
+                    {crumbName}
+                  </Link>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
       
-      {/* Centered Search Bar */}
-      <div className="flex-1 flex justify-center max-w-2xl px-4">
-        <div className="relative w-full max-w-md group">
-          <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
-          <input 
-            type="text" 
-            placeholder="Tìm kiếm nhân viên... (Ctrl + K)" 
-            className="w-full pl-11 pr-4 py-2 bg-slate-100/50 border border-transparent rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 focus:bg-white transition-all shadow-sm hover:bg-slate-100"
-          />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-            <kbd className="hidden sm:inline-flex items-center gap-1 rounded border border-slate-200 bg-slate-50 px-1.5 font-mono text-[10px] font-medium text-slate-500">
-              <span className="text-xs">Ctrl</span>K
-            </kbd>
-          </div>
-        </div>
-      </div>
+
 
       <div className="flex items-center gap-3 flex-1 justify-end">
         {/* Real-time Clock */}
@@ -102,15 +94,15 @@ export function Header() {
               <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Thao tác nhanh
               </div>
-              <button className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
+              <Link href="/employees?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
                 Thêm Nhân Viên
-              </button>
-              <button className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
+              </Link>
+              <Link href="/contracts?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
                 Tạo Hợp Đồng
-              </button>
-              <button className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
+              </Link>
+              <Link href="/leaves?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
                 Tạo Đơn Nghỉ Phép
-              </button>
+              </Link>
             </div>
           )}
         </div>

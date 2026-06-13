@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Search, Plus, Check, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatDate } from "@/lib/utils";
@@ -11,6 +12,16 @@ import { LeaveFormDrawer } from "@/components/leaves/LeaveFormDrawer";
 export default function LeaveRequestsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') {
+      setIsDrawerOpen(true);
+      router.replace('/leaves');
+    }
+  }, [searchParams, router]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['leaves'],

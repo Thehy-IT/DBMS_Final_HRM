@@ -35,6 +35,9 @@ export default function DashboardPage() {
 
   // Calculate stats
   const totalEmployees = employees.length;
+  const maleCount = employees.filter((emp: any) => emp.GioiTinh === 'M').length;
+  const femaleCount = employees.filter((emp: any) => emp.GioiTinh === 'F').length;
+  const otherCount = employees.filter((emp: any) => emp.GioiTinh === 'O').length;
   const activeContracts = contracts.filter(c => c.status === 'A').length;
   const expiringContracts = contracts.filter(c => c.status === 'E').length;
   
@@ -44,7 +47,7 @@ export default function DashboardPage() {
   const totalPayroll = payrolls.reduce((acc, curr) => acc + Number(curr.netSalary), 0);
 
   const stats = [
-    { title: "Tổng nhân viên", value: totalEmployees.toString(), change: "Tất cả", changeType: "positive", icon: Users, color: "bg-indigo-100 text-indigo-700" },
+    { title: "Tổng nhân viên", value: totalEmployees.toString(), change: `${maleCount} Nam - ${femaleCount} Nữ${otherCount > 0 ? ` - ${otherCount} Khác` : ''}`, changeType: "neutral", icon: Users, color: "bg-indigo-100 text-indigo-700" },
     { title: "Hợp đồng hiệu lực", value: activeContracts.toString(), change: "Đang làm việc", changeType: "neutral", icon: UserPlus, color: "bg-emerald-100 text-emerald-700" },
     { title: "Hợp đồng sắp/đã hết hạn", value: expiringContracts.toString(), change: "Cần xử lý", changeType: "negative", icon: FileWarning, color: "bg-amber-100 text-amber-700" },
     { title: "Nghỉ phép hôm nay", value: leavesToday.toString(), change: "Đã duyệt", changeType: "neutral", icon: BedDouble, color: "bg-blue-100 text-blue-700" },
