@@ -11,6 +11,7 @@ import { contractService } from "@/services/contract.service";
 import { masterDataService } from "@/services/masterData.service";
 import { exportToExcel } from "@/lib/excel";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export default function ContractListPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -23,6 +24,8 @@ export default function ContractListPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const isHR = user?.role === 'HR' || user?.role === 'ADMIN';
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -154,22 +157,28 @@ export default function ContractListPage() {
           <p className="text-sm text-slate-500">Danh sách hợp đồng lao động của nhân viên</p>
         </div>
         <div className="flex items-center gap-2">
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            className="hidden" 
-            accept=".xlsx, .xls, .csv" 
-            onChange={handleFileChange} 
-          />
-          <Button variant="outline" size="sm" onClick={handleImportClick}>
-            <Upload className="w-4 h-4 mr-2" /> Nhập file
-          </Button>
+          {isHR && (
+            <>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept=".xlsx, .xls, .csv" 
+                onChange={handleFileChange} 
+              />
+              <Button variant="outline" size="sm" onClick={handleImportClick}>
+                <Upload className="w-4 h-4 mr-2" /> Nhập file
+              </Button>
+            </>
+          )}
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" /> Xuất file
           </Button>
-          <Button size="sm" onClick={() => { setSelectedContractId(null); setIsDrawerOpen(true); }}>
-            <Plus className="w-4 h-4 mr-2" /> Thêm Hợp Đồng
-          </Button>
+          {isHR && (
+            <Button size="sm" onClick={() => { setSelectedContractId(null); setIsDrawerOpen(true); }}>
+              <Plus className="w-4 h-4 mr-2" /> Tạo Hợp Đồng
+            </Button>
+          )}
         </div>
       </div>
 
@@ -268,29 +277,33 @@ export default function ContractListPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2 text-slate-400">
-                        <button 
-                          onClick={() => { setSelectedContractId(contract.id); setIsDrawerOpen(true); }}
-                          className="hover:text-indigo-600 p-1.5 rounded-md hover:bg-indigo-50 transition-colors" title="Chỉnh sửa"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            if (window.confirm(`Bạn có chắc chắn muốn thanh lý hợp đồng ${contract.id} của nhân viên ${contract.empName}?`)) {
-                              terminateMutation.mutate(contract);
-                            }
-                          }}
-                          disabled={terminateMutation.isPending || contract.status === 'T'}
-                          className={cn(
-                            "p-1.5 rounded-md transition-colors",
-                            contract.status === 'T' ? "opacity-30 cursor-not-allowed text-slate-400" : "hover:text-red-600 hover:bg-red-50 text-slate-400"
-                          )}
-                          title="Thanh lý hợp đồng"
-                        >
-                          {terminateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileMinus className="w-4 h-4" />}
-                        </button>
-                      </div>
+                      {isHR ? (
+                        <div className="flex items-center justify-end gap-2 text-slate-400">
+                          <button 
+                            onClick={() => { setSelectedContractId(contract.id); setIsDrawerOpen(true); }}
+                            className="hover:text-indigo-600 p-1.5 rounded-md hover:bg-indigo-50 transition-colors" title="Chỉnh sửa"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (window.confirm(`Bạn có chắc chắn muốn thanh lý hợp đồng ${contract.id} của nhân viên ${contract.empName}?`)) {
+                                terminateMutation.mutate(contract);
+                              }
+                            }}
+                            disabled={terminateMutation.isPending || contract.status === 'T'}
+                            className={cn(
+                              "p-1.5 rounded-md transition-colors",
+                              contract.status === 'T' ? "opacity-30 cursor-not-allowed text-slate-400" : "hover:text-red-600 hover:bg-red-50 text-slate-400"
+                            )}
+                            title="Thanh lý hợp đồng"
+                          >
+                            {terminateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileMinus className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-slate-400 italic">Không có H.Động</span>
+                      )}
                     </td>
                   </tr>
                 ))}

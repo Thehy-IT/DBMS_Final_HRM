@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAppStore } from "@/store/useAppStore";
-import { Menu, Clock, Plus, ChevronRight } from "lucide-react";
+import { useAuthStore } from "@/store/useAuthStore";
+import { Menu, Clock, Plus, ChevronRight, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const routeNames: Record<string, string> = {
@@ -23,6 +24,10 @@ export function Header() {
   const pathname = usePathname();
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [showQuickActions, setShowQuickActions] = useState(false);
+  
+  const { user } = useAuthStore();
+  const isEmployee = user?.role === 'EMPLOYEE';
+  const isHR = user?.role === 'HR' || user?.role === 'ADMIN';
 
   useEffect(() => {
     setCurrentTime(new Date());
@@ -95,17 +100,32 @@ export function Header() {
               <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Thao tác nhanh
               </div>
-              <Link href="/employees?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
-                Thêm Nhân Viên
-              </Link>
-              <Link href="/contracts?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
-                Tạo Hợp Đồng
-              </Link>
+              {isHR && (
+                <>
+                  <Link href="/employees?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
+                    Thêm Nhân Viên
+                  </Link>
+                  <Link href="/contracts?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
+                    Tạo Hợp Đồng
+                  </Link>
+                </>
+              )}
               <Link href="/leaves?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
                 Tạo Đơn Nghỉ Phép
               </Link>
             </div>
           )}
+        </div>
+
+        {/* User Profile */}
+        <div className="flex items-center gap-2 ml-2 pl-4 border-l border-slate-200">
+          <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+            <User className="w-4 h-4" />
+          </div>
+          <div className="hidden sm:block text-right">
+            <p className="text-sm font-semibold text-slate-900 leading-none">{user?.username}</p>
+            <p className="text-xs text-slate-500 mt-1">{isEmployee ? 'Nhân viên' : user?.role}</p>
+          </div>
         </div>
       </div>
     </header>

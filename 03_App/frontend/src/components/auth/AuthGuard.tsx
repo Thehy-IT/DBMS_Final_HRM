@@ -19,9 +19,21 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!isHydrated) return;
     if (!token) {
       router.replace("/login");
-    } else {
-      setIsChecking(false);
+      return;
     }
+
+    const restrictedForEmployee = ['/employees', '/contracts', '/history', '/settings'];
+    const userRole = useAuthStore.getState().user?.role;
+    
+    if (userRole === 'EMPLOYEE') {
+      const isRestricted = restrictedForEmployee.some(route => window.location.pathname.startsWith(route));
+      if (isRestricted) {
+        router.replace("/dashboard");
+        return;
+      }
+    }
+
+    setIsChecking(false);
   }, [token, router, isHydrated]);
 
   if (!isHydrated || isChecking) {

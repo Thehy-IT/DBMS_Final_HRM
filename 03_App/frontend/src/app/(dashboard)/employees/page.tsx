@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { employeeService } from "@/services/employee.service";
 import { masterDataService } from "@/services/masterData.service";
 import { exportToExcel } from "@/lib/excel";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export default function EmployeeListPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -25,6 +26,8 @@ export default function EmployeeListPage() {
   
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user } = useAuthStore();
+  const isHR = user?.role === 'HR' || user?.role === 'ADMIN';
 
   useEffect(() => {
     if (searchParams.get('action') === 'new') {
@@ -140,22 +143,28 @@ export default function EmployeeListPage() {
           <p className="text-sm text-slate-500">Quản lý hồ sơ và thông tin nhân viên</p>
         </div>
         <div className="flex items-center gap-2">
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            className="hidden" 
-            accept=".xlsx, .xls, .csv" 
-            onChange={handleFileChange} 
-          />
-          <Button variant="outline" size="sm" onClick={handleImportClick}>
-            <Upload className="w-4 h-4 mr-2" /> Nhập file
-          </Button>
+          {isHR && (
+            <>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept=".xlsx, .xls, .csv" 
+                onChange={handleFileChange} 
+              />
+              <Button variant="outline" size="sm" onClick={handleImportClick}>
+                <Upload className="w-4 h-4 mr-2" /> Nhập file
+              </Button>
+            </>
+          )}
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" /> Xuất file
           </Button>
-          <Button size="sm" onClick={() => { setSelectedEmployeeId(null); setIsDrawerOpen(true); }}>
-            <Plus className="w-4 h-4 mr-2" /> Thêm Nhân Viên
-          </Button>
+          {isHR && (
+            <Button size="sm" onClick={() => { setSelectedEmployeeId(null); setIsDrawerOpen(true); }}>
+              <Plus className="w-4 h-4 mr-2" /> Thêm Nhân Viên
+            </Button>
+          )}
         </div>
       </div>
 
@@ -256,30 +265,34 @@ export default function EmployeeListPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2 text-slate-400">
-                        <button 
-                          onClick={() => { setSelectedEmployeeId(emp.MaNV); setIsDrawerOpen(true); }}
-                          className="hover:text-indigo-600 p-1.5 rounded-md hover:bg-indigo-50 transition-colors" 
-                          title="Chỉnh sửa"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            if (window.confirm(`Bạn có chắc chắn muốn vô hiệu hoá hồ sơ nhân viên ${emp.HoTen}?`)) {
-                              deactivateMutation.mutate(emp);
-                            }
-                          }}
-                          disabled={deactivateMutation.isPending || emp.TrangThai === 'T'}
-                          className={cn(
-                            "p-1.5 rounded-md transition-colors",
-                            emp.TrangThai === 'T' ? "opacity-30 cursor-not-allowed text-slate-400" : "hover:text-red-600 hover:bg-red-50 text-slate-400"
-                          )}
-                          title="Vô hiệu hoá"
-                        >
-                          <UserMinus className="w-4 h-4" />
-                        </button>
-                      </div>
+                      {isHR ? (
+                        <div className="flex items-center justify-end gap-2 text-slate-400">
+                          <button 
+                            onClick={() => { setSelectedEmployeeId(emp.MaNV); setIsDrawerOpen(true); }}
+                            className="hover:text-indigo-600 p-1.5 rounded-md hover:bg-indigo-50 transition-colors" 
+                            title="Chỉnh sửa"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (window.confirm(`Bạn có chắc chắn muốn vô hiệu hoá hồ sơ nhân viên ${emp.HoTen}?`)) {
+                                deactivateMutation.mutate(emp);
+                              }
+                            }}
+                            disabled={deactivateMutation.isPending || emp.TrangThai === 'T'}
+                            className={cn(
+                              "p-1.5 rounded-md transition-colors",
+                              emp.TrangThai === 'T' ? "opacity-30 cursor-not-allowed text-slate-400" : "hover:text-red-600 hover:bg-red-50 text-slate-400"
+                            )}
+                            title="Vô hiệu hoá"
+                          >
+                            <UserMinus className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-slate-400 italic">Không có H.Động</span>
+                      )}
                     </td>
                   </tr>
                 ))}

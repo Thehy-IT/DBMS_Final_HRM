@@ -14,17 +14,19 @@ import {
   FileText, 
   Settings, 
   LogOut,
-  History
+  History,
+  TrendingUp
 } from "lucide-react";
 
 const navItems = [
-  { title: "Tổng quan", href: "/dashboard", icon: LayoutDashboard, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
-  { title: "Nhân sự", href: "/employees", icon: Users, roles: ['ADMIN', 'HR'] },
-  { title: "Hợp đồng", href: "/contracts", icon: FileText, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
-  { title: "Điểm danh", href: "/attendance", icon: CalendarClock, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
-  { title: "Bảng lương", href: "/payroll", icon: Calculator, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
-  { title: "Nghỉ phép", href: "/leaves", icon: Briefcase, roles: ['ADMIN', 'HR', 'EMPLOYEE'] },
-  { title: "Lịch sử", href: "/history", icon: History, roles: ['ADMIN', 'HR'] },
+  { title: "Tổng quan", href: "/dashboard", icon: LayoutDashboard, roles: ['ADMIN', 'HR', 'EMPLOYEE', 'DIRECTOR', 'ACCOUNTANT'] },
+  { title: "Nhân sự", href: "/employees", icon: Users, roles: ['ADMIN', 'HR', 'DIRECTOR', 'ACCOUNTANT'] },
+  { title: "Hợp đồng", href: "/contracts", icon: FileText, roles: ['ADMIN', 'HR', 'DIRECTOR', 'ACCOUNTANT'] },
+  { title: "Điểm danh", href: "/attendance", icon: CalendarClock, roles: ['ADMIN', 'HR', 'EMPLOYEE', 'DIRECTOR', 'ACCOUNTANT'] },
+  { title: "Bảng lương", href: "/payroll", icon: Calculator, roles: ['ADMIN', 'HR', 'EMPLOYEE', 'DIRECTOR', 'ACCOUNTANT'] },
+  { title: "Nghỉ phép", href: "/leaves", icon: Briefcase, roles: ['ADMIN', 'HR', 'EMPLOYEE', 'DIRECTOR', 'ACCOUNTANT'] },
+  { title: "Báo cáo & Phân tích", href: "/reports", icon: TrendingUp, roles: ['ADMIN', 'DIRECTOR', 'ACCOUNTANT'] },
+  { title: "Lịch sử", href: "/history", icon: History, roles: ['ADMIN', 'HR', 'DIRECTOR', 'ACCOUNTANT'] },
   { title: "Cài đặt", href: "/settings", icon: Settings, roles: ['ADMIN'] },
 ];
 
