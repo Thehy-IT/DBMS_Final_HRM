@@ -61,7 +61,7 @@ export default function DashboardPage() {
     { title: "Hợp đồng sắp/đã hết hạn", value: expiringContracts.toString(), change: "Cần xử lý", changeType: "negative", icon: FileWarning, color: "bg-amber-100 text-amber-700" },
     { title: "Nghỉ phép hôm nay", value: leavesToday.toString(), change: "Đã duyệt", changeType: "neutral", icon: BedDouble, color: "bg-blue-100 text-blue-700" },
     { title: "Tổng quỹ lương", value: (totalPayroll / 1000000).toFixed(1) + "M ₫", change: "Theo bảng lương", changeType: "neutral", icon: CircleDollarSign, color: "bg-emerald-100 text-emerald-700" },
-    { title: "Hệ thống trạng thái", value: "Online", change: "Hoạt động tốt", changeType: "positive", icon: Clock, color: "bg-purple-100 text-purple-700" },
+
   ];
 
   // Chart Data Processing
