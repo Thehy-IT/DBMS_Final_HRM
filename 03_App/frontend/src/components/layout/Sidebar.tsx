@@ -15,7 +15,8 @@ import {
   Settings, 
   LogOut,
   History,
-  TrendingUp
+  TrendingUp,
+  Gift
 } from "lucide-react";
 
 const navItems = [
@@ -24,6 +25,7 @@ const navItems = [
   { title: "Hợp đồng", href: "/contracts", icon: FileText, roles: ['ADMIN', 'HR', 'DIRECTOR', 'ACCOUNTANT'] },
   { title: "Điểm danh", href: "/attendance", icon: CalendarClock, roles: ['ADMIN', 'HR', 'EMPLOYEE', 'DIRECTOR', 'ACCOUNTANT'] },
   { title: "Bảng lương", href: "/payroll", icon: Calculator, roles: ['ADMIN', 'HR', 'EMPLOYEE', 'DIRECTOR', 'ACCOUNTANT'] },
+  { title: "Phúc lợi", href: "/benefits", icon: Gift, roles: ['ADMIN', 'HR'] },
   { title: "Nghỉ phép", href: "/leaves", icon: Briefcase, roles: ['ADMIN', 'HR', 'EMPLOYEE', 'DIRECTOR', 'ACCOUNTANT'] },
   { title: "Báo cáo & Phân tích", href: "/reports", icon: TrendingUp, roles: ['ADMIN', 'DIRECTOR', 'ACCOUNTANT'] },
   { title: "Lịch sử", href: "/history", icon: History, roles: ['ADMIN', 'HR', 'DIRECTOR', 'ACCOUNTANT'] },

@@ -16,6 +16,7 @@ const routeNames: Record<string, string> = {
   payroll: "Bảng lương",
   leaves: "Nghỉ phép",
   history: "Lịch sử",
+  benefits: "Phúc lợi",
   settings: "Cài đặt"
 };
 
@@ -113,6 +114,9 @@ export function Header() {
                   </Link>
                   <Link href="/contracts?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
                     Tạo Hợp Đồng
+                  </Link>
+                  <Link href="/benefits?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
+                    Tạo Phúc Lợi
                   </Link>
                 </>
               )}
