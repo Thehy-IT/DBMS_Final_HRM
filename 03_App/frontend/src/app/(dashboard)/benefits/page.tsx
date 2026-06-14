@@ -2,35 +2,27 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Gift, Plus, Search, Filter, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatMoney } from '@/lib/utils';
-import { Benefit, BenefitFormModal } from '@/components/benefits/BenefitFormModal';
+import { masterDataService, MasterData } from '@/services/masterData.service';
+import { BenefitFormModal } from '@/components/benefits/BenefitFormModal';
 import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
-
-// Mock Data based on typical company benefits
-const MOCK_BENEFITS: Benefit[] = [
-  { MaFL: 'FL0001', TenFL: 'Phụ cấp ăn trưa', LoaiGiaTri: 'F', GiaTri: 730000, CoTinhThue: 0, MoTa: 'Phụ cấp ăn trưa hàng tháng theo ngày công', IsActive: 1 },
-  { MaFL: 'FL0002', TenFL: 'Phụ cấp xăng xe', LoaiGiaTri: 'F', GiaTri: 500000, CoTinhThue: 1, MoTa: 'Hỗ trợ chi phí đi lại cho nhân viên', IsActive: 1 },
-  { MaFL: 'FL0003', TenFL: 'Phụ cấp điện thoại', LoaiGiaTri: 'F', GiaTri: 300000, CoTinhThue: 1, MoTa: 'Cấp cho nhân viên sales và quản lý', IsActive: 1 },
-  { MaFL: 'FL0004', TenFL: 'Thưởng hiệu suất', LoaiGiaTri: 'P', GiaTri: 10, CoTinhThue: 1, MoTa: 'Thưởng % dựa trên lương cơ bản', IsActive: 1 },
-  { MaFL: 'FL0005', TenFL: 'Quà sinh nhật', LoaiGiaTri: 'F', GiaTri: 500000, CoTinhThue: 0, MoTa: 'Tặng quà tiền mặt dịp sinh nhật', IsActive: 1 },
-  { MaFL: 'FL0006', TenFL: 'Thưởng Lễ Tết', LoaiGiaTri: 'F', GiaTri: 1000000, CoTinhThue: 1, MoTa: 'Các ngày lễ lớn (30/4, 2/9...)', IsActive: 0 },
-];
 
 export default function BenefitsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
-  const [benefits, setBenefits] = useState<Benefit[]>(MOCK_BENEFITS);
   const [searchTerm, setSearchTerm] = useState('');
   
   // Modal states
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [editingBenefit, setEditingBenefit] = useState<Benefit | null>(null);
-  const [deletingBenefit, setDeletingBenefit] = useState<Benefit | null>(null);
+  const [editingBenefit, setEditingBenefit] = useState<MasterData | null>(null);
+  const [deletingBenefit, setDeletingBenefit] = useState<MasterData | null>(null);
 
   const [filterType, setFilterType] = useState('ALL'); // ALL, F, P
   const [filterStatus, setFilterStatus] = useState('ALL'); // ALL, 1, 0
@@ -42,12 +34,58 @@ export default function BenefitsPage() {
     }
   }, [searchParams, router]);
 
+  // Fetch benefit types
+  const { data: benefitsData, isLoading } = useQuery({
+    queryKey: ['benefit-types'],
+    queryFn: () => masterDataService.getBenefitTypes()
+  });
+
+  const benefits = benefitsData || [];
+
+  // Mutations
+  const createMutation = useMutation({
+    mutationFn: (data: Partial<MasterData>) => masterDataService.createBenefitType(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['benefit-types'] });
+      alert('Tạo loại phúc lợi thành công!');
+      setIsFormOpen(false);
+    },
+    onError: (error: any) => {
+      alert(error.response?.data?.error || 'Có lỗi xảy ra khi tạo loại phúc lợi');
+    }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string, data: Partial<MasterData> }) => masterDataService.updateBenefitType(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['benefit-types'] });
+      alert('Cập nhật loại phúc lợi thành công!');
+      setIsFormOpen(false);
+    },
+    onError: (error: any) => {
+      alert(error.response?.data?.error || 'Có lỗi xảy ra khi cập nhật');
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => masterDataService.deleteBenefitType(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['benefit-types'] });
+      alert('Xóa loại phúc lợi thành công!');
+      setIsDeleteOpen(false);
+      setDeletingBenefit(null);
+    },
+    onError: (error: any) => {
+      alert(error.response?.data?.error || 'Có lỗi xảy ra khi xóa phúc lợi');
+    }
+  });
+
   const filteredBenefits = benefits.filter(b => {
-    const matchesSearch = b.TenFL.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          b.MaFL.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (b.TenFL || b.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (b.MaFL || b.id || '').toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesType = filterType === 'ALL' || b.LoaiGiaTri === filterType;
-    const matchesStatus = filterStatus === 'ALL' || b.IsActive.toString() === filterStatus;
+    const matchesStatus = filterStatus === 'ALL' || String(b.IsActive) === filterStatus;
 
     return matchesSearch && matchesType && matchesStatus;
   });
@@ -57,31 +95,28 @@ export default function BenefitsPage() {
     setIsFormOpen(true);
   };
 
-  const handleEdit = (benefit: Benefit) => {
+  const handleEdit = (benefit: MasterData) => {
     setEditingBenefit(benefit);
     setIsFormOpen(true);
   };
 
-  const handleDeleteClick = (benefit: Benefit) => {
+  const handleDeleteClick = (benefit: MasterData) => {
     setDeletingBenefit(benefit);
     setIsDeleteOpen(true);
   };
 
-  const handleFormSubmit = (benefit: Benefit) => {
+  const handleFormSubmit = (data: Partial<MasterData>) => {
     if (editingBenefit) {
-      setBenefits(prev => prev.map(b => b.MaFL === benefit.MaFL ? benefit : b));
+      updateMutation.mutate({ id: editingBenefit.id, data });
     } else {
-      setBenefits(prev => [benefit, ...prev]);
+      createMutation.mutate(data);
     }
-    setIsFormOpen(false);
   };
 
   const handleConfirmDelete = () => {
     if (deletingBenefit) {
-      setBenefits(prev => prev.filter(b => b.MaFL !== deletingBenefit.MaFL));
+      deleteMutation.mutate(deletingBenefit.id);
     }
-    setIsDeleteOpen(false);
-    setDeletingBenefit(null);
   };
 
   return (
@@ -90,7 +125,7 @@ export default function BenefitsPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Gift className="h-6 w-6 text-indigo-600" />
-            Quản lý phúc lợi
+            Cấu hình Loại phúc lợi
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             Thiết lập và quản lý các loại phụ cấp, phúc lợi cho nhân viên.
@@ -99,7 +134,7 @@ export default function BenefitsPage() {
         <div className="flex items-center gap-3">
           <Button onClick={handleAdd}>
             <Plus className="h-4 w-4 mr-2" />
-            Thêm phúc lợi mới
+            Thêm loại phúc lợi
           </Button>
         </div>
       </div>
@@ -109,7 +144,7 @@ export default function BenefitsPage() {
           <div className="relative flex-1 w-full md:max-w-md">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <Input 
-              placeholder="Tìm kiếm theo mã, tên phúc lợi..." 
+              placeholder="Tìm kiếm theo mã, tên loại phúc lợi..." 
               className="pl-9 bg-white"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -154,14 +189,22 @@ export default function BenefitsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredBenefits.length > 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                    <div className="flex justify-center items-center">
+                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredBenefits.length > 0 ? (
                 filteredBenefits.map((benefit) => (
-                  <tr key={benefit.MaFL} className="hover:bg-slate-50/80 transition-colors group">
+                  <tr key={benefit.id} className="hover:bg-slate-50/80 transition-colors group">
                     <td className="px-6 py-4 font-medium text-indigo-600">
-                      {benefit.MaFL}
+                      {benefit.MaFL || benefit.id}
                     </td>
                     <td className="px-6 py-4">
-                      <p className="font-medium text-slate-900">{benefit.TenFL}</p>
+                      <p className="font-medium text-slate-900">{benefit.TenFL || benefit.name}</p>
                       <p className="text-xs text-slate-500 mt-0.5 max-w-[200px] truncate" title={benefit.MoTa}>
                         {benefit.MoTa}
                       </p>
@@ -179,14 +222,14 @@ export default function BenefitsPage() {
                     </td>
                     <td className="px-6 py-4 font-medium text-slate-700">
                       {benefit.LoaiGiaTri === 'F' 
-                        ? formatMoney(benefit.GiaTri) 
-                        : `${benefit.GiaTri}%`}
+                        ? formatMoney(Number(benefit.GiaTri || 0)) 
+                        : `${Number(benefit.GiaTri || 0).toFixed(2)}%`}
                     </td>
                     <td className="px-6 py-4 text-center">
                       {benefit.CoTinhThue === 1 ? (
-                        <span className="text-rose-600 text-xs font-medium bg-rose-50 px-2 py-1 rounded-full">Có</span>
+                        <span className="text-rose-600 text-xs font-medium bg-rose-50 px-2 py-1 rounded-full border border-rose-100">Có</span>
                       ) : (
-                        <span className="text-emerald-600 text-xs font-medium bg-emerald-50 px-2 py-1 rounded-full">Không</span>
+                        <span className="text-emerald-600 text-xs font-medium bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">Không</span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-center">
@@ -237,8 +280,8 @@ export default function BenefitsPage() {
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleConfirmDelete}
-        title="Xóa phúc lợi"
-        description={`Bạn có chắc chắn muốn xóa phúc lợi "${deletingBenefit?.TenFL}" không? Hành động này không thể hoàn tác.`}
+        title="Xóa loại phúc lợi"
+        description={`Bạn có chắc chắn muốn xóa loại phúc lợi "${deletingBenefit?.TenFL || deletingBenefit?.name}" không? Hành động này sẽ bị từ chối nếu phúc lợi này đang được gắn cho bất kỳ nhân viên nào.`}
       />
     </div>
   );

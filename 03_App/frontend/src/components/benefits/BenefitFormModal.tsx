@@ -2,26 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-
-export interface Benefit {
-  MaFL: string;
-  TenFL: string;
-  LoaiGiaTri: 'F' | 'P';
-  GiaTri: number;
-  CoTinhThue: number;
-  MoTa: string;
-  IsActive: number;
-}
+import { MasterData } from '@/services/masterData.service';
 
 interface BenefitFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (benefit: Benefit) => void;
-  initialData?: Benefit | null;
+  onSubmit: (benefit: Partial<MasterData>) => void;
+  initialData?: MasterData | null;
 }
 
 export function BenefitFormModal({ isOpen, onClose, onSubmit, initialData }: BenefitFormModalProps) {
-  const [formData, setFormData] = useState<Partial<Benefit>>({
+  const [formData, setFormData] = useState<Partial<MasterData>>({
+    MaFL: '',
     TenFL: '',
     LoaiGiaTri: 'F',
     GiaTri: 0,
@@ -32,9 +24,18 @@ export function BenefitFormModal({ isOpen, onClose, onSubmit, initialData }: Ben
 
   useEffect(() => {
     if (initialData) {
-      setFormData(initialData);
+      setFormData({
+        MaFL: initialData.MaFL || initialData.id || '',
+        TenFL: initialData.TenFL || initialData.name || '',
+        LoaiGiaTri: initialData.LoaiGiaTri || 'F',
+        GiaTri: initialData.GiaTri !== undefined ? initialData.GiaTri : 0,
+        CoTinhThue: initialData.CoTinhThue !== undefined ? initialData.CoTinhThue : 0,
+        MoTa: initialData.MoTa || '',
+        IsActive: initialData.IsActive !== undefined ? initialData.IsActive : 1,
+      });
     } else {
       setFormData({
+        MaFL: '',
         TenFL: '',
         LoaiGiaTri: 'F',
         GiaTri: 0,
@@ -51,7 +52,7 @@ export function BenefitFormModal({ isOpen, onClose, onSubmit, initialData }: Ben
     const { name, value, type } = e.target;
     
     let parsedValue: string | number = value;
-    if (type === 'number') {
+    if (type === 'number' || name === 'CoTinhThue' || name === 'IsActive') {
       parsedValue = value === '' ? 0 : Number(value);
     }
 
@@ -60,38 +61,39 @@ export function BenefitFormModal({ isOpen, onClose, onSubmit, initialData }: Ben
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Auto-generate MaFL if new
-    const finalData = {
-      ...formData,
-      MaFL: formData.MaFL || `FL${Math.floor(Math.random() * 9000 + 1000)}`,
-    } as Benefit;
-
-    onSubmit(finalData);
+    onSubmit(formData);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="text-lg font-semibold text-slate-800">
-            {initialData ? 'Chỉnh sửa phúc lợi' : 'Thêm phúc lợi mới'}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
+          <h2 className="text-lg font-bold text-slate-800">
+            {initialData ? 'Chỉnh sửa loại phúc lợi' : 'Thêm loại phúc lợi mới'}
           </h2>
           <button 
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors"
+            className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-200 rounded-full"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {initialData && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Mã phúc lợi</label>
-              <Input value={formData.MaFL || ''} readOnly className="bg-slate-50 text-slate-500 cursor-not-allowed" />
-            </div>
-          )}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">Mã loại phúc lợi <span className="text-red-500">*</span></label>
+            <Input 
+              name="MaFL" 
+              value={formData.MaFL || ''} 
+              onChange={handleChange} 
+              placeholder="VD: FL0001" 
+              readOnly={!!initialData}
+              className={initialData ? "bg-slate-50 text-slate-500 cursor-not-allowed" : ""}
+              required 
+              pattern="^FL[0-9]{4}$"
+              title="Định dạng: FL theo sau bởi 4 chữ số, VD: FL0001"
+            />
+          </div>
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700">Tên phúc lợi <span className="text-red-500">*</span></label>

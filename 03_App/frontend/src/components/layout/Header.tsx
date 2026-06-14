@@ -107,7 +107,7 @@ export function Header() {
               <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Thao tác nhanh
               </div>
-              {isHR && (
+              {user?.role === 'HR' && (
                 <>
                   <Link href="/employees?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
                     Thêm Nhân Viên
@@ -115,14 +115,18 @@ export function Header() {
                   <Link href="/contracts?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
                     Tạo Hợp Đồng
                   </Link>
-                  <Link href="/benefits?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
-                    Tạo Phúc Lợi
-                  </Link>
                 </>
               )}
-              <Link href="/leaves?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
-                Tạo Đơn Nghỉ Phép
-              </Link>
+              {(user?.role === 'HR' || user?.role === 'ADMIN') && (
+                <Link href="/benefits?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
+                  Tạo Phúc Lợi
+                </Link>
+              )}
+              {user?.role !== 'ADMIN' && (
+                <Link href="/leaves?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
+                  Tạo Đơn Nghỉ Phép
+                </Link>
+              )}
             </div>
           )}
         </div>

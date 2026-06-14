@@ -13,7 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
 const employeeSchema = z.object({
-  MaNV: z.string().min(3, "Mã NV tối thiểu 3 ký tự").max(8, "Mã NV tối đa 8 ký tự"),
+  MaNV: z.string().optional(),
   HoTen: z.string().min(2, "Họ tên quá ngắn").max(100, "Họ tên quá dài"),
   GioiTinh: z.enum(["M", "F", "O"]),
   NgaySinh: z.string().min(1, "Vui lòng chọn ngày sinh"),
@@ -24,7 +24,9 @@ const employeeSchema = z.object({
   MaPB: z.string().min(1, "Vui lòng chọn phòng ban"),
   MaCV: z.string().min(1, "Vui lòng chọn chức vụ"),
   NgayVaoLam: z.string().min(1, "Vui lòng chọn ngày vào làm"),
-  MaSoThue: z.string().optional(),
+  MaSoThue: z.string().optional().or(z.literal(''))
+    .refine(val => !val || ((val.length === 10 || val.length === 13) && /^[0-9-]+$/.test(val)), 
+      "MST phải có 10 hoặc 13 ký tự (chỉ gồm số và dấu gạch ngang)"),
   SoTaiKhoanNH: z.string().optional(),
   TrangThai: z.string()
 });
@@ -154,9 +156,8 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
               <div className={cn("space-y-5", activeTab !== "general" && "hidden")}>
                 <div className="grid grid-cols-2 gap-5">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">Mã Nhân Viên <span className="text-red-500">*</span></label>
-                    <Input {...register("MaNV")} placeholder="NV000001" disabled={!!employeeId} className={employeeId ? "bg-slate-100" : ""} error={!!errors.MaNV} />
-                    {errors.MaNV && <p className="text-xs text-red-500">{errors.MaNV.message}</p>}
+                    <label className="text-sm font-medium text-slate-700">Mã Nhân Viên</label>
+                    <Input {...register("MaNV")} placeholder="Tự động tạo (NV000...)" disabled={true} className="bg-slate-100" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-700">Họ và Tên <span className="text-red-500">*</span></label>

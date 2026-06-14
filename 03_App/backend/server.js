@@ -4,6 +4,13 @@ import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { exec } from 'child_process';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -61,7 +68,86 @@ const requireHR = (req, res, next) => {
   next();
 };
 
+const requireAdmin = (req, res, next) => {
+  if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Chỉ ADMIN mới có quyền truy cập' });
+  next();
+};
+
 // CÁC ENDPOINT API CUNG CẤP DỮ LIỆU
+
+// --- 0. Quản lý Tài khoản (Users) ---
+app.get('/v1/users', requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT t.MaTK, t.TenDangNhap, t.Quyen, t.TrangThai, t.NgayTao, t.MaNV, nv.HoTen 
+      FROM TaiKhoan t 
+      LEFT JOIN NhanVien nv ON t.MaNV = nv.MaNV
+      ORDER BY t.NgayTao DESC
+    `);
+    res.json({ data: rows, meta: { total: rows.length } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/v1/users', requireAdmin, async (req, res) => {
+  const { TenDangNhap, MatKhau, Quyen, MaNV, TrangThai } = req.body;
+  try {
+    const hashedPassword = await bcrypt.hash(MatKhau, 10);
+    const [result] = await pool.query(
+      'INSERT INTO TaiKhoan (TenDangNhap, MatKhau, Quyen, MaNV, TrangThai) VALUES (?, ?, ?, ?, ?)',
+      [TenDangNhap, hashedPassword, Quyen, MaNV || null, TrangThai || 'A']
+    );
+    res.status(201).json({ data: { MaTK: result.insertId, TenDangNhap, Quyen, MaNV, TrangThai } });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: 'Tên đăng nhập đã tồn tại' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/v1/users/:id', requireAdmin, async (req, res) => {
+  const { Quyen, MaNV, TrangThai, MatKhau } = req.body;
+  try {
+    let query = 'UPDATE TaiKhoan SET Quyen=?, MaNV=?, TrangThai=? WHERE MaTK=?';
+    let params = [Quyen, MaNV || null, TrangThai, req.params.id];
+    
+    if (MatKhau) {
+      const hashedPassword = await bcrypt.hash(MatKhau, 10);
+      query = 'UPDATE TaiKhoan SET Quyen=?, MaNV=?, TrangThai=?, MatKhau=? WHERE MaTK=?';
+      params = [Quyen, MaNV || null, TrangThai, hashedPassword, req.params.id];
+    }
+    
+    await pool.query(query, params);
+    res.json({ message: 'Cập nhật thành công' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/v1/users/:id', requireAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM TaiKhoan WHERE MaTK=?', [req.params.id]);
+    res.json({ message: 'Xóa thành công' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- 0.1 Vai trò (Roles) ---
+app.get('/v1/roles/stats', requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT Quyen AS role, COUNT(*) AS count
+      FROM TaiKhoan
+      GROUP BY Quyen
+    `);
+    res.json({ data: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // 1. Lấy danh sách nhân viên
 app.get('/v1/employees', async (req, res) => {
@@ -247,28 +333,237 @@ app.put('/v1/leaves/:id/approve', requireHR, async (req, res) => {
 // --- MASTER DATA API ---
 app.get('/v1/departments', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT MaPB as id, TenPB as name FROM PhongBan');
+    const [rows] = await pool.query(`
+      SELECT 
+        MaPB as id, 
+        TenPB as name, 
+        pb.* 
+      FROM PhongBan pb
+    `);
     res.json({ data: rows });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/v1/departments', requireAdmin, async (req, res) => {
+  const { MaPB, TenPB, DiaDiem, DienThoai, Email, MaTruongPhong, NgayThanhLap, GhiChu, IsActive } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO PhongBan (MaPB, TenPB, DiaDiem, DienThoai, Email, MaTruongPhong, NgayThanhLap, GhiChu, IsActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [MaPB, TenPB, DiaDiem || null, DienThoai || null, Email || null, MaTruongPhong || null, NgayThanhLap || null, GhiChu || null, IsActive !== undefined ? IsActive : 1]
+    );
+    res.status(201).json({ message: 'Tạo phòng ban thành công' });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: 'Mã phòng ban hoặc Tên phòng ban đã tồn tại' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/v1/departments/:id', requireAdmin, async (req, res) => {
+  const { TenPB, DiaDiem, DienThoai, Email, MaTruongPhong, NgayThanhLap, GhiChu, IsActive } = req.body;
+  try {
+    await pool.query(
+      'UPDATE PhongBan SET TenPB=?, DiaDiem=?, DienThoai=?, Email=?, MaTruongPhong=?, NgayThanhLap=?, GhiChu=?, IsActive=? WHERE MaPB=?',
+      [TenPB, DiaDiem || null, DienThoai || null, Email || null, MaTruongPhong || null, NgayThanhLap || null, GhiChu || null, IsActive !== undefined ? IsActive : 1, req.params.id]
+    );
+    res.json({ message: 'Cập nhật phòng ban thành công' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/v1/departments/:id', requireAdmin, async (req, res) => {
+  try {
+    // Check if there are employees in this department
+    const [emps] = await pool.query('SELECT 1 FROM NhanVien WHERE MaPB = ? LIMIT 1', [req.params.id]);
+    if (emps.length > 0) {
+      return res.status(400).json({ error: 'Không thể xóa phòng ban đang có nhân viên' });
+    }
+    
+    await pool.query('DELETE FROM PhongBan WHERE MaPB=?', [req.params.id]);
+    res.json({ message: 'Xóa thành công' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
 app.get('/v1/positions', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT MaCV as id, TenCV as name FROM ChucVu');
+    const [rows] = await pool.query(`
+      SELECT 
+        MaCV as id, 
+        TenCV as name, 
+        cv.* 
+      FROM ChucVu cv
+    `);
     res.json({ data: rows });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
+app.post('/v1/positions', requireAdmin, async (req, res) => {
+  const { MaCV, TenCV, HeSoLuong, MoTa, CapBac, IsActive } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO ChucVu (MaCV, TenCV, HeSoLuong, MoTa, CapBac, IsActive) VALUES (?, ?, ?, ?, ?, ?)',
+      [MaCV, TenCV, HeSoLuong || 1.00, MoTa || null, CapBac || 1, IsActive !== undefined ? IsActive : 1]
+    );
+    res.status(201).json({ message: 'Tạo chức vụ thành công' });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: 'Mã chức vụ hoặc Tên chức vụ đã tồn tại' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/v1/positions/:id', requireAdmin, async (req, res) => {
+  const { TenCV, HeSoLuong, MoTa, CapBac, IsActive } = req.body;
+  try {
+    await pool.query(
+      'UPDATE ChucVu SET TenCV=?, HeSoLuong=?, MoTa=?, CapBac=?, IsActive=? WHERE MaCV=?',
+      [TenCV, HeSoLuong || 1.00, MoTa || null, CapBac || 1, IsActive !== undefined ? IsActive : 1, req.params.id]
+    );
+    res.json({ message: 'Cập nhật chức vụ thành công' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/v1/positions/:id', requireAdmin, async (req, res) => {
+  try {
+    // Check if there are employees with this position
+    const [emps] = await pool.query('SELECT 1 FROM NhanVien WHERE MaCV = ? LIMIT 1', [req.params.id]);
+    if (emps.length > 0) {
+      return res.status(400).json({ error: 'Không thể xóa chức vụ đang có nhân viên đảm nhận' });
+    }
+    
+    await pool.query('DELETE FROM ChucVu WHERE MaCV=?', [req.params.id]);
+    res.json({ message: 'Xóa thành công' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/v1/contract-types', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT MaLoaiHD as id, TenLoaiHD as name FROM LoaiHopDong');
+    const [rows] = await pool.query(`
+      SELECT 
+        MaLoaiHD as id, 
+        TenLoaiHD as name, 
+        hd.* 
+      FROM LoaiHopDong hd
+    `);
     res.json({ data: rows });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/v1/contract-types', requireAdmin, async (req, res) => {
+  const { TenLoaiHD, ThoiHanToiDa, TiLeBHXH, MoTa } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO LoaiHopDong (TenLoaiHD, ThoiHanToiDa, TiLeBHXH, MoTa) VALUES (?, ?, ?, ?)',
+      [TenLoaiHD, ThoiHanToiDa || null, TiLeBHXH !== undefined ? TiLeBHXH : 8.00, MoTa || null]
+    );
+    res.status(201).json({ message: 'Tạo loại hợp đồng thành công' });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: 'Tên loại hợp đồng đã tồn tại' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/v1/contract-types/:id', requireAdmin, async (req, res) => {
+  const { TenLoaiHD, ThoiHanToiDa, TiLeBHXH, MoTa } = req.body;
+  try {
+    await pool.query(
+      'UPDATE LoaiHopDong SET TenLoaiHD=?, ThoiHanToiDa=?, TiLeBHXH=?, MoTa=? WHERE MaLoaiHD=?',
+      [TenLoaiHD, ThoiHanToiDa || null, TiLeBHXH !== undefined ? TiLeBHXH : 8.00, MoTa || null, req.params.id]
+    );
+    res.json({ message: 'Cập nhật loại hợp đồng thành công' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/v1/contract-types/:id', requireAdmin, async (req, res) => {
+  try {
+    // Check if there are contracts with this type
+    const [contracts] = await pool.query('SELECT 1 FROM HopDongLaoDong WHERE MaLoaiHD = ? LIMIT 1', [req.params.id]);
+    if (contracts.length > 0) {
+      return res.status(400).json({ error: 'Không thể xóa loại hợp đồng đang được sử dụng cho nhân viên' });
+    }
+    
+    await pool.query('DELETE FROM LoaiHopDong WHERE MaLoaiHD=?', [req.params.id]);
+    res.json({ message: 'Xóa thành công' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/v1/benefit-types', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        MaFL as id, 
+        TenFL as name, 
+        fl.* 
+      FROM LoaiPhucLoi fl
+    `);
+    res.json({ data: rows });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/v1/benefit-types', requireAdmin, async (req, res) => {
+  const { MaFL, TenFL, LoaiGiaTri, GiaTri, CoTinhThue, MoTa, IsActive } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO LoaiPhucLoi (MaFL, TenFL, LoaiGiaTri, GiaTri, CoTinhThue, MoTa, IsActive) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [MaFL, TenFL, LoaiGiaTri || 'F', GiaTri || 0, CoTinhThue !== undefined ? CoTinhThue : 0, MoTa || null, IsActive !== undefined ? IsActive : 1]
+    );
+    res.status(201).json({ message: 'Tạo loại phúc lợi thành công' });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: 'Mã hoặc tên loại phúc lợi đã tồn tại' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/v1/benefit-types/:id', requireAdmin, async (req, res) => {
+  const { TenFL, LoaiGiaTri, GiaTri, CoTinhThue, MoTa, IsActive } = req.body;
+  try {
+    await pool.query(
+      'UPDATE LoaiPhucLoi SET TenFL=?, LoaiGiaTri=?, GiaTri=?, CoTinhThue=?, MoTa=?, IsActive=? WHERE MaFL=?',
+      [TenFL, LoaiGiaTri || 'F', GiaTri || 0, CoTinhThue !== undefined ? CoTinhThue : 0, MoTa || null, IsActive !== undefined ? IsActive : 1, req.params.id]
+    );
+    res.json({ message: 'Cập nhật loại phúc lợi thành công' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/v1/benefit-types/:id', requireAdmin, async (req, res) => {
+  try {
+    // Check if there are employees linked to this benefit
+    const [empBenefits] = await pool.query('SELECT 1 FROM NhanVien_PhucLoi WHERE MaFL = ? LIMIT 1', [req.params.id]);
+    if (empBenefits.length > 0) {
+      return res.status(400).json({ error: 'Không thể xóa phúc lợi đang được áp dụng cho nhân viên' });
+    }
+    
+    await pool.query('DELETE FROM LoaiPhucLoi WHERE MaFL=?', [req.params.id]);
+    res.json({ message: 'Xóa thành công' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -342,14 +637,27 @@ app.get('/v1/employees/:id', async (req, res) => {
 });
 
 app.post('/v1/employees', requireHR, async (req, res) => {
-  const { MaNV, HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi, MaPB, MaCV, NgayVaoLam, MaSoThue, SoTaiKhoanNH, TrangThai } = req.body;
+  const { HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi, MaPB, MaCV, NgayVaoLam, MaSoThue, SoTaiKhoanNH, TrangThai } = req.body;
   try {
+    // Auto-generate MaNV
+    const [rows] = await pool.query('SELECT MaNV FROM NhanVien ORDER BY MaNV DESC LIMIT 1');
+    let MaNV = 'NV000001';
+    if (rows.length > 0) {
+      const lastMaNV = rows[0].MaNV;
+      const numPart = parseInt(lastMaNV.substring(2), 10);
+      const nextNum = numPart + 1;
+      MaNV = `NV${nextNum.toString().padStart(6, '0')}`;
+    }
+
+    const sanitizedMaSoThue = MaSoThue ? MaSoThue.trim() : null;
+    const finalMaSoThue = sanitizedMaSoThue === '' ? null : sanitizedMaSoThue;
+
     const query = `
       INSERT INTO NhanVien 
       (MaNV, HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi, MaPB, MaCV, NgayVaoLam, MaSoThue, SoTaiKhoanNH, TrangThai)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    await pool.query(query, [MaNV, HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi || null, MaPB, MaCV, NgayVaoLam, MaSoThue || null, SoTaiKhoanNH || null, TrangThai || 'A']);
+    await pool.query(query, [MaNV, HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi || null, MaPB, MaCV, NgayVaoLam, finalMaSoThue, SoTaiKhoanNH || null, TrangThai || 'A']);
     res.status(201).json({ message: 'Created successfully', data: { MaNV } });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -359,15 +667,178 @@ app.post('/v1/employees', requireHR, async (req, res) => {
 app.put('/v1/employees/:id', requireHR, async (req, res) => {
   const { HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi, MaPB, MaCV, NgayVaoLam, MaSoThue, SoTaiKhoanNH, TrangThai } = req.body;
   try {
+    const sanitizedMaSoThue = MaSoThue ? MaSoThue.trim() : null;
+    const finalMaSoThue = sanitizedMaSoThue === '' ? null : sanitizedMaSoThue;
+
     const query = `
       UPDATE NhanVien 
       SET HoTen=?, GioiTinh=?, NgaySinh=?, CCCD=?, SoDienThoai=?, Email=?, DiaChi=?, MaPB=?, MaCV=?, NgayVaoLam=?, MaSoThue=?, SoTaiKhoanNH=?, TrangThai=?
       WHERE MaNV=?
     `;
-    await pool.query(query, [HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi || null, MaPB, MaCV, NgayVaoLam, MaSoThue || null, SoTaiKhoanNH || null, TrangThai || 'A', req.params.id]);
+    await pool.query(query, [HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi || null, MaPB, MaCV, NgayVaoLam, finalMaSoThue, SoTaiKhoanNH || null, TrangThai || 'A', req.params.id]);
     res.json({ message: 'Updated successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// System Logs (Audit)
+app.get('/v1/system-logs', requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        MaLog as id,
+        'Hợp đồng' as module,
+        MaNV as empId,
+        LoaiThayDoi as actionType,
+        TenCot as columnName,
+        GiaTriCu as oldValue,
+        GiaTriMoi as newValue,
+        NguoiThayDoi as changedBy,
+        ThoiGianThayDoi as changedAt,
+        HostName as hostName
+      FROM AuditLog_HopDong
+      UNION ALL
+      SELECT 
+        MaLog as id,
+        'Bảng Lương' as module,
+        MaNV as empId,
+        LoaiThayDoi as actionType,
+        TenCot as columnName,
+        GiaTriCu as oldValue,
+        GiaTriMoi as newValue,
+        NguoiThayDoi as changedBy,
+        ThoiGianThayDoi as changedAt,
+        HostName as hostName
+      FROM AuditLog_Luong
+      ORDER BY changedAt DESC
+      LIMIT 1000
+    `);
+    res.json({ data: rows });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- BACKUP API ---
+
+const BACKUP_DIR = path.join(__dirname, 'backups');
+if (!fs.existsSync(BACKUP_DIR)) {
+  fs.mkdirSync(BACKUP_DIR);
+}
+
+app.get('/v1/backups', requireAdmin, (req, res) => {
+  try {
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter(f => f.endsWith('.sql'))
+      .map(f => {
+        const stats = fs.statSync(path.join(BACKUP_DIR, f));
+        return {
+          id: f,
+          fileName: f,
+          createdAt: stats.birthtime,
+          sizeBytes: stats.size,
+          status: 'COMPLETED'
+        };
+      })
+      .sort((a, b) => b.createdAt - a.createdAt);
+    res.json({ data: files });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/v1/backups', requireAdmin, (req, res) => {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const fileName = `HRPayrollDB_backup_${timestamp}.sql`;
+  const filePath = path.join(BACKUP_DIR, fileName);
+  
+  const dbUser = process.env.DB_USER || 'root';
+  const dbPass = process.env.DB_PASSWORD || '';
+  const dbName = process.env.DB_NAME || 'HRPayrollDB';
+  const dbHost = process.env.DB_HOST || 'localhost';
+
+  // Chú ý: Cần có mysqldump trong biến môi trường PATH
+  const cmd = `mysqldump -h ${dbHost} -u ${dbUser} ${dbPass ? `-p${dbPass}` : ''} --routines --events ${dbName} > "${filePath}"`;
+  
+  exec(cmd, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Backup error: ${error.message}`);
+      return res.status(500).json({ error: 'Không thể tạo bản sao lưu. Hãy chắc chắn mysqldump đã được cài đặt.' });
+    }
+    
+    const stats = fs.statSync(filePath);
+    res.status(201).json({ 
+      message: 'Tạo bản sao lưu thành công',
+      data: {
+        id: fileName,
+        fileName,
+        createdAt: stats.birthtime,
+        sizeBytes: stats.size,
+        status: 'COMPLETED'
+      }
+    });
+  });
+});
+
+app.delete('/v1/backups/:id', requireAdmin, (req, res) => {
+  try {
+    const filePath = path.join(BACKUP_DIR, req.params.id);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      res.json({ message: 'Đã xóa bản sao lưu' });
+    } else {
+      res.status(404).json({ error: 'Không tìm thấy file sao lưu' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/v1/backups/download/:id', (req, res) => {
+  const filePath = path.join(BACKUP_DIR, req.params.id);
+  if (fs.existsSync(filePath)) {
+    res.download(filePath);
+  } else {
+    res.status(404).send('File not found');
+  }
+});
+
+app.get('/v1/system/settings', requireAdmin, async (req, res) => {
+  try {
+    const [dbSize] = await pool.query(`
+      SELECT table_schema "DB_Name",
+      ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) "DB_Size_MB" 
+      FROM information_schema.tables 
+      WHERE table_schema = 'HRPayrollDB'
+      GROUP BY table_schema;
+    `);
+
+    const [userCount] = await pool.query('SELECT COUNT(*) as count FROM TaiKhoan');
+    const [empCount] = await pool.query('SELECT COUNT(*) as count FROM NhanVien');
+
+    res.json({
+      data: {
+        system: {
+          nodeVersion: process.version,
+          platform: process.platform,
+          memoryUsage: process.memoryUsage().heapUsed,
+          uptime: process.uptime()
+        },
+        database: {
+          name: process.env.DB_NAME || 'HRPayrollDB',
+          host: process.env.DB_HOST || 'localhost',
+          sizeMB: dbSize.length > 0 ? dbSize[0].DB_Size_MB : 0,
+          status: 'Connected'
+        },
+        stats: {
+          totalUsers: userCount[0].count,
+          totalEmployees: empCount[0].count
+        }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
