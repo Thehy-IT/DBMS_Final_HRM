@@ -25,9 +25,13 @@ const employeeSchema = z.object({
   MaCV: z.string().min(1, "Vui lòng chọn chức vụ"),
   NgayVaoLam: z.string().min(1, "Vui lòng chọn ngày vào làm"),
   MaSoThue: z.string().optional().or(z.literal(''))
-    .refine(val => !val || ((val.length === 10 || val.length === 13) && /^[0-9-]+$/.test(val)), 
-      "MST phải có 10 hoặc 13 ký tự (chỉ gồm số và dấu gạch ngang)"),
+    .refine(val => !val || ((val.length === 10 || val.length === 13 || val.length === 14) && /^[0-9-]+$/.test(val)), 
+      "MST phải có 10, 13 hoặc 14 ký tự (chỉ gồm số và dấu gạch ngang)"),
   SoTaiKhoanNH: z.string().optional(),
+  TenNganHang: z.string().optional(),
+  SoNguoiPhuThuoc: z.coerce.number().min(0, "Không được nhỏ hơn 0").default(0),
+  GhiChu: z.string().optional(),
+  NgayNghiViec: z.string().optional().or(z.literal('')),
   TrangThai: z.string()
 });
 
@@ -58,7 +62,8 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
     resolver: zodResolver(employeeSchema),
     defaultValues: {
       MaNV: '', HoTen: '', GioiTinh: 'M', NgaySinh: '', CCCD: '', SoDienThoai: '', Email: '',
-      DiaChi: '', MaPB: '', MaCV: '', NgayVaoLam: '', MaSoThue: '', SoTaiKhoanNH: '', TrangThai: 'A'
+      DiaChi: '', MaPB: '', MaCV: '', NgayVaoLam: '', MaSoThue: '', SoTaiKhoanNH: '',
+      TenNganHang: '', SoNguoiPhuThuoc: 0, GhiChu: '', NgayNghiViec: '', TrangThai: 'A'
     }
   });
 
@@ -80,11 +85,16 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
         DiaChi: actualData.DiaChi || '',
         MaSoThue: actualData.MaSoThue || '',
         SoTaiKhoanNH: actualData.SoTaiKhoanNH || '',
+        TenNganHang: actualData.TenNganHang || '',
+        SoNguoiPhuThuoc: actualData.SoNguoiPhuThuoc || 0,
+        GhiChu: actualData.GhiChu || '',
+        NgayNghiViec: actualData.NgayNghiViec ? actualData.NgayNghiViec.split('T')[0] : '',
       });
     } else if (!employeeId && isOpen) {
       reset({
         MaNV: '', HoTen: '', GioiTinh: 'M', NgaySinh: '', CCCD: '', SoDienThoai: '', Email: '',
-        DiaChi: '', MaPB: '', MaCV: '', NgayVaoLam: '', MaSoThue: '', SoTaiKhoanNH: '', TrangThai: 'A'
+        DiaChi: '', MaPB: '', MaCV: '', NgayVaoLam: '', MaSoThue: '', SoTaiKhoanNH: '',
+        TenNganHang: '', SoNguoiPhuThuoc: 0, GhiChu: '', NgayNghiViec: '', TrangThai: 'A'
       });
     }
   }, [employeeData, employeeId, isOpen, reset]);
@@ -181,6 +191,11 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
                     <Input type="date" {...register("NgaySinh")} error={!!errors.NgaySinh} />
                     {errors.NgaySinh && <p className="text-xs text-red-500">{errors.NgaySinh.message}</p>}
                   </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Số Người Phụ Thuộc</label>
+                    <Input type="number" {...register("SoNguoiPhuThuoc")} placeholder="0" error={!!errors.SoNguoiPhuThuoc} />
+                    {errors.SoNguoiPhuThuoc && <p className="text-xs text-red-500">{errors.SoNguoiPhuThuoc.message}</p>}
+                  </div>
                 </div>
                 
                 <div className="space-y-1.5">
@@ -223,11 +238,16 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
                 <div className="grid grid-cols-2 gap-5">
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-700">Mã Số Thuế (TNCN)</label>
-                    <Input {...register("MaSoThue")} placeholder="Nhập MST..." />
+                    <Input {...register("MaSoThue")} placeholder="Nhập MST..." error={!!errors.MaSoThue} />
+                    {errors.MaSoThue && <p className="text-xs text-red-500">{errors.MaSoThue.message}</p>}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-700">Số Tài Khoản Ngân Hàng</label>
                     <Input {...register("SoTaiKhoanNH")} placeholder="VD: 1903..." />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Tên Ngân Hàng</label>
+                    <Input {...register("TenNganHang")} placeholder="VD: Techcombank, Vietcombank..." />
                   </div>
                 </div>
               </div>
@@ -255,10 +275,20 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
                     {errors.MaCV && <p className="text-xs text-red-500">{errors.MaCV.message}</p>}
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Ngày Vào Làm <span className="text-red-500">*</span></label>
+                    <Input type="date" {...register("NgayVaoLam")} error={!!errors.NgayVaoLam} />
+                    {errors.NgayVaoLam && <p className="text-xs text-red-500">{errors.NgayVaoLam.message}</p>}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Ngày Nghỉ Việc</label>
+                    <Input type="date" {...register("NgayNghiViec")} />
+                  </div>
+                </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Ngày Vào Làm <span className="text-red-500">*</span></label>
-                  <Input type="date" {...register("NgayVaoLam")} error={!!errors.NgayVaoLam} />
-                  {errors.NgayVaoLam && <p className="text-xs text-red-500">{errors.NgayVaoLam.message}</p>}
+                  <label className="text-sm font-medium text-slate-700">Ghi Chú</label>
+                  <textarea {...register("GhiChu")} className="w-full flex min-h-[80px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:cursor-not-allowed disabled:opacity-50" placeholder="Ghi chú thêm về nhân viên này..." />
                 </div>
               </div>
             </form>

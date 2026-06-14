@@ -637,7 +637,7 @@ app.get('/v1/employees/:id', async (req, res) => {
 });
 
 app.post('/v1/employees', requireHR, async (req, res) => {
-  const { HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi, MaPB, MaCV, NgayVaoLam, MaSoThue, SoTaiKhoanNH, TrangThai } = req.body;
+  const { HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi, MaPB, MaCV, NgayVaoLam, NgayNghiViec, MaSoThue, SoTaiKhoanNH, TenNganHang, SoNguoiPhuThuoc, GhiChu, TrangThai } = req.body;
   try {
     // Auto-generate MaNV
     const [rows] = await pool.query('SELECT MaNV FROM NhanVien ORDER BY MaNV DESC LIMIT 1');
@@ -654,10 +654,10 @@ app.post('/v1/employees', requireHR, async (req, res) => {
 
     const query = `
       INSERT INTO NhanVien 
-      (MaNV, HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi, MaPB, MaCV, NgayVaoLam, MaSoThue, SoTaiKhoanNH, TrangThai)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (MaNV, HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi, MaPB, MaCV, NgayVaoLam, NgayNghiViec, MaSoThue, SoTaiKhoanNH, TenNganHang, SoNguoiPhuThuoc, GhiChu, TrangThai)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    await pool.query(query, [MaNV, HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi || null, MaPB, MaCV, NgayVaoLam, finalMaSoThue, SoTaiKhoanNH || null, TrangThai || 'A']);
+    await pool.query(query, [MaNV, HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi || null, MaPB, MaCV, NgayVaoLam, NgayNghiViec || null, finalMaSoThue, SoTaiKhoanNH || null, TenNganHang || null, SoNguoiPhuThuoc || 0, GhiChu || null, TrangThai || 'A']);
     res.status(201).json({ message: 'Created successfully', data: { MaNV } });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -665,17 +665,17 @@ app.post('/v1/employees', requireHR, async (req, res) => {
 });
 
 app.put('/v1/employees/:id', requireHR, async (req, res) => {
-  const { HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi, MaPB, MaCV, NgayVaoLam, MaSoThue, SoTaiKhoanNH, TrangThai } = req.body;
+  const { HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi, MaPB, MaCV, NgayVaoLam, NgayNghiViec, MaSoThue, SoTaiKhoanNH, TenNganHang, SoNguoiPhuThuoc, GhiChu, TrangThai } = req.body;
   try {
     const sanitizedMaSoThue = MaSoThue ? MaSoThue.trim() : null;
     const finalMaSoThue = sanitizedMaSoThue === '' ? null : sanitizedMaSoThue;
 
     const query = `
       UPDATE NhanVien 
-      SET HoTen=?, GioiTinh=?, NgaySinh=?, CCCD=?, SoDienThoai=?, Email=?, DiaChi=?, MaPB=?, MaCV=?, NgayVaoLam=?, MaSoThue=?, SoTaiKhoanNH=?, TrangThai=?
+      SET HoTen=?, GioiTinh=?, NgaySinh=?, CCCD=?, SoDienThoai=?, Email=?, DiaChi=?, MaPB=?, MaCV=?, NgayVaoLam=?, NgayNghiViec=?, MaSoThue=?, SoTaiKhoanNH=?, TenNganHang=?, SoNguoiPhuThuoc=?, GhiChu=?, TrangThai=?
       WHERE MaNV=?
     `;
-    await pool.query(query, [HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi || null, MaPB, MaCV, NgayVaoLam, finalMaSoThue, SoTaiKhoanNH || null, TrangThai || 'A', req.params.id]);
+    await pool.query(query, [HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi || null, MaPB, MaCV, NgayVaoLam, NgayNghiViec || null, finalMaSoThue, SoTaiKhoanNH || null, TenNganHang || null, SoNguoiPhuThuoc || 0, GhiChu || null, TrangThai || 'A', req.params.id]);
     res.json({ message: 'Updated successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });

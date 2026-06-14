@@ -12,6 +12,10 @@ export interface Employee {
   NgayVaoLam: string;
   MaSoThue?: string;
   SoTaiKhoanNH?: string;
+  TenNganHang?: string;
+  SoNguoiPhuThuoc?: number;
+  GhiChu?: string;
+  NgayNghiViec?: string;
   TrangThai?: string;
 }
 
