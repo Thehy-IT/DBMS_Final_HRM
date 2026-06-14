@@ -27,14 +27,14 @@ export default function HistoryPage() {
   const payrolls = payrollData?.data || [];
 
   const filteredContracts = contracts.filter(c => {
-    if (searchTerm && !(c.empName || '').toLowerCase().includes(searchTerm.toLowerCase()) && !(c.empId || '').toLowerCase().includes(searchTerm.toLowerCase()) && !c.id.toLowerCase().includes(searchTerm.toLowerCase())) {
+    if (searchTerm && !(c.empName || '').toLowerCase().includes(searchTerm.toLowerCase()) && !(c.empId || '').toLowerCase().includes(searchTerm.toLowerCase()) && !String(c.id).toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
     return true;
   });
 
   const filteredPayrolls = payrolls.filter(p => {
-    if (searchTerm && !(p.empName || '').toLowerCase().includes(searchTerm.toLowerCase()) && !(p.empId || '').toLowerCase().includes(searchTerm.toLowerCase()) && !p.id.toLowerCase().includes(searchTerm.toLowerCase())) {
+    if (searchTerm && !(p.empName || '').toLowerCase().includes(searchTerm.toLowerCase()) && !(p.empId || '').toLowerCase().includes(searchTerm.toLowerCase()) && !String(p.id).toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
     return true;

@@ -27,7 +27,7 @@ const navItems = [
   { title: "Bảng lương", href: "/payroll", icon: Calculator, roles: ['ADMIN', 'HR', 'EMPLOYEE', 'DIRECTOR', 'ACCOUNTANT'] },
   { title: "Phúc lợi", href: "/benefits", icon: Gift, roles: ['ADMIN', 'HR'] },
   { title: "Nghỉ phép", href: "/leaves", icon: Briefcase, roles: ['ADMIN', 'HR', 'EMPLOYEE', 'DIRECTOR', 'ACCOUNTANT'] },
-  { title: "Báo cáo & Phân tích", href: "/reports", icon: TrendingUp, roles: ['ADMIN', 'DIRECTOR', 'ACCOUNTANT'] },
+  { title: "Báo cáo & Phân tích", href: "/reports", icon: TrendingUp, roles: ['ADMIN', 'HR', 'DIRECTOR', 'ACCOUNTANT'] },
   { title: "Lịch sử", href: "/history", icon: History, roles: ['ADMIN', 'HR', 'DIRECTOR', 'ACCOUNTANT'] },
   { title: "Cài đặt", href: "/settings", icon: Settings, roles: ['ADMIN'] },
 ];
