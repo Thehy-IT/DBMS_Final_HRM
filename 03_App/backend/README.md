@@ -1,21 +1,78 @@
-# ⚙️ Phân hệ Backend (API Server)
+# Phân hệ Backend (API Server) — HRM System
 
-Thư mục này được sử dụng để phát triển máy chủ API cung cấp dữ liệu cho ứng dụng Frontend.
+Máy chủ API được xây dựng bằng Node.js và Express, chịu trách nhiệm xử lý các nghiệp vụ và tương tác trực tiếp với cơ sở dữ liệu MySQL.
 
-## 📌 Hướng dẫn
-1. Bạn có thể khởi tạo một dự án mới tại đây bằng công nghệ yêu thích của bạn:
-   - **Node.js (Express/NestJS)**
-   - **C# (.NET Core Web API)**
-   - **Java (Spring Boot)**
-   - **Python (Django/FastAPI)**
+---
 
-2. Code của bạn phải đảm bảo có thể đọc/ghi dữ liệu vào Database `DBMS_Final_HRM` đã được thiết kế ở các phase trước.
-3. Các API Endpoints phải được thiết kế giống như trong file tài liệu [11_API_Specification.md](../docs/11_API_Specification.md) để đảm bảo tương thích 100% với Frontend.
+## Yêu Cầu Cài Đặt
 
-## 🚀 Khởi tạo nhanh (Nếu dùng Node.js)
-Nếu bạn chọn Node.js, bạn có thể mở Terminal tại thư mục này và gõ:
-```bash
-npm init -y
-npm install express cors dotenv
+- Node.js (phiên bản 18.x trở lên)
+- MySQL Server 8.0+
+- Quản lý gói: npm
+
+---
+
+## Cấu Trúc Mã Nguồn
+
 ```
-Sau đó tạo file `index.js` để bắt đầu code máy chủ.
+backend/
+├── src/
+│   ├── config/       # Cấu hình kết nối Database (mysql2)
+│   ├── controllers/  # Xử lý logic nghiệp vụ cho từng thực thể
+│   ├── middlewares/  # Các bộ lọc (Auth, Error handling)
+│   └── routes/       # Định nghĩa các đầu cuối API (Endpoints)
+├── .env.example      # File mẫu cấu hình môi trường
+├── server.js         # File khởi tạo và chạy máy chủ
+└── package.json      # Danh sách dependencies và scripts
+```
+
+---
+
+## Hướng Dẫn Cài Đặt
+
+### 1. Cài đặt thư viện
+Tại thư mục `03_App/backend`, chạy lệnh:
+```bash
+npm install
+```
+
+### 2. Cấu hình môi trường
+- Sao chép file `.env.example` thành file `.env`.
+- Cập nhật các thông tin kết nối Database của bạn:
+```env
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_password
+DB_NAME=HRPayrollDB
+PORT=8080
+JWT_SECRET=your_jwt_secret
+```
+
+---
+
+## Khởi Chạy Server
+
+### Chế độ phát triển (Auto-reload)
+```bash
+npm run dev
+```
+
+### Chế độ production
+```bash
+npm start
+```
+
+Mặc định, server sẽ chạy tại: `http://localhost:8080`
+
+---
+
+## Các Công Nghệ Sử Dụng
+
+- **Express.js**: Framework chính cho Web API.
+- **MySQL2**: Thư viện kết nối và thực thi SQL.
+- **JWT (JSON Web Token)**: Xác thực và phân quyền người dùng.
+- **Bcryptjs**: Mã hóa mật khẩu bảo mật.
+- **CORS**: Cho phép ứng dụng Frontend truy cập tài nguyên.
+
+---
+*Cập nhật ngày: 15/06/2026 | HRM Development Team*
