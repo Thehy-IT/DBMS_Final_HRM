@@ -50,7 +50,14 @@ export default function EmployeeListPage() {
 
   const deactivateMutation = useMutation({
     mutationFn: (emp: any) => {
-      return employeeService.updateEmployee(emp.MaNV, { ...emp, TrangThai: 'T' });
+      const formattedEmp = {
+        ...emp,
+        NgaySinh: emp.NgaySinh ? emp.NgaySinh.split('T')[0] : null,
+        NgayVaoLam: emp.NgayVaoLam ? emp.NgayVaoLam.split('T')[0] : null,
+        NgayNghiViec: new Date().toISOString().split('T')[0],
+        TrangThai: 'T'
+      };
+      return employeeService.updateEmployee(emp.MaNV, formattedEmp);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
@@ -250,9 +257,10 @@ export default function EmployeeListPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="">Tất cả trạng thái</option>
-            {uniqueStatuses.map(status => (
-              <option key={status} value={status}>{getStatusLabel(status)}</option>
-            ))}
+            <option value="A">Đang làm việc</option>
+            <option value="P">Thử việc</option>
+            <option value="L">Nghỉ phép</option>
+            <option value="T">Nghỉ việc</option>
           </select>
         </div>
 
@@ -304,6 +312,7 @@ export default function EmployeeListPage() {
                       <span className={cn(
                         "px-2.5 py-1 rounded-full text-xs font-medium border",
                         emp.TrangThai === 'A' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                        emp.TrangThai === 'P' ? "bg-blue-50 text-blue-700 border-blue-200" :
                         emp.TrangThai === 'L' ? "bg-amber-50 text-amber-700 border-amber-200" :
                         emp.TrangThai === 'T' ? "bg-red-50 text-red-700 border-red-200" :
                         "bg-slate-100 text-slate-700 border-slate-200"

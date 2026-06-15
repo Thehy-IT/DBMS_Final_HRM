@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { contractService, Contract } from "@/services/contract.service";
 import { masterDataService } from "@/services/masterData.service";
@@ -51,6 +52,7 @@ export function ContractFormDrawer({ isOpen, onClose, contractId }: ContractForm
   });
 
   useEffect(() => {
+    setErrors({});
     if (contractData) {
       setFormData({
         ...contractData,
@@ -73,6 +75,8 @@ export function ContractFormDrawer({ isOpen, onClose, contractId }: ContractForm
     }
   }, [contractData, contractId, isOpen]);
 
+  const [errors, setErrors] = useState<any>({});
+
   const mutation = useMutation({
     mutationFn: (data: Partial<Contract> & { VungLuong?: number }) => {
       return contractId 
@@ -81,18 +85,47 @@ export function ContractFormDrawer({ isOpen, onClose, contractId }: ContractForm
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      alert(contractId ? "Cập nhật hợp đồng thành công!" : "Lưu hợp đồng thành công!");
       onClose();
+    },
+    onError: (error: any) => {
+      alert(`Lỗi: ${error?.response?.data?.error || error.message}`);
     }
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    // Xoá lỗi khi người dùng thay đổi dữ liệu
+    if (errors[name]) {
+      setErrors((prev: any) => ({ ...prev, [name]: undefined }));
+    }
   };
 
   const handleSubmit = () => {
+    // Validation
+    const newErrors: any = {};
+    if (!formData.id) newErrors.id = 'Vui lòng nhập mã hợp đồng';
+    else if (!/^HD[0-9]{8}$/.test(formData.id)) newErrors.id = 'Định dạng phải là HD + 8 số (VD: HD00000001)';
+    
+    if (!formData.empId) newErrors.empId = 'Vui lòng chọn nhân viên';
+    if (!formData.typeId) newErrors.typeId = 'Vui lòng chọn loại hợp đồng';
+    if (!formData.startDate) newErrors.startDate = 'Vui lòng chọn ngày bắt đầu';
+    if (!formData.salary || Number(formData.salary) <= 0) newErrors.salary = 'Lương cơ bản phải lớn hơn 0';
+    
+    if (formData.startDate && formData.endDate && new Date(formData.endDate) <= new Date(formData.startDate)) {
+      newErrors.endDate = 'Ngày kết thúc phải lớn hơn ngày bắt đầu';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setErrors({});
     mutation.mutate({
       ...formData,
+      salary: Number(formData.salary),
       VungLuong: parseInt(vungLuong)
     });
   };
@@ -121,43 +154,49 @@ export function ContractFormDrawer({ isOpen, onClose, contractId }: ContractForm
             <div className="space-y-5">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-slate-700">Mã Hợp Đồng <span className="text-red-500">*</span></label>
-                <Input name="id" value={formData.id} onChange={handleChange} placeholder="HD00000001" disabled={!!contractId} className={contractId ? "bg-slate-100" : ""} />
+                <Input name="id" value={formData.id} onChange={handleChange} placeholder="HD00000001" disabled={!!contractId} className={cn(contractId ? "bg-slate-100" : "", errors.id ? "border-red-500" : "")} />
+                {errors.id && <p className="text-xs text-red-500">{errors.id}</p>}
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-slate-700">Nhân Viên <span className="text-red-500">*</span></label>
-                <select name="empId" value={formData.empId} onChange={handleChange} className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600">
+                <select name="empId" value={formData.empId} onChange={handleChange} className={cn("flex h-10 w-full rounded-md border bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2", errors.empId ? "border-red-500 focus-visible:ring-red-500" : "border-slate-300 focus-visible:ring-indigo-600")}>
                   <option value="">-- Chọn nhân viên --</option>
                   {employees.map((emp: any) => (
                     <option key={emp.MaNV} value={emp.MaNV}>{emp.MaNV} - {emp.HoTen}</option>
                   ))}
                 </select>
+                {errors.empId && <p className="text-xs text-red-500">{errors.empId}</p>}
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-slate-700">Loại Hợp Đồng <span className="text-red-500">*</span></label>
-                <select name="typeId" value={formData.typeId} onChange={handleChange} className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600">
+                <select name="typeId" value={formData.typeId} onChange={handleChange} className={cn("flex h-10 w-full rounded-md border bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2", errors.typeId ? "border-red-500 focus-visible:ring-red-500" : "border-slate-300 focus-visible:ring-indigo-600")}>
                   <option value="">-- Chọn loại hợp đồng --</option>
                   {contractTypes.map((type: any) => (
                     <option key={type.id} value={type.id}>{type.name}</option>
                   ))}
                 </select>
+                {errors.typeId && <p className="text-xs text-red-500">{errors.typeId}</p>}
               </div>
 
               <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Ngày Bắt Đầu <span className="text-red-500">*</span></label>
-                  <Input type="date" name="startDate" value={formData.startDate} onChange={handleChange} />
+                  <Input type="date" name="startDate" value={formData.startDate} onChange={handleChange} className={errors.startDate ? "border-red-500" : ""} />
+                  {errors.startDate && <p className="text-xs text-red-500">{errors.startDate}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Ngày Kết Thúc</label>
-                  <Input type="date" name="endDate" value={formData.endDate || ''} onChange={handleChange} />
+                  <Input type="date" name="endDate" value={formData.endDate || ''} onChange={handleChange} className={errors.endDate ? "border-red-500" : ""} />
+                  {errors.endDate && <p className="text-xs text-red-500">{errors.endDate}</p>}
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-slate-700">Lương Cơ Bản (VNĐ) <span className="text-red-500">*</span></label>
-                <Input type="number" name="salary" value={formData.salary} onChange={handleChange} placeholder="Ví dụ: 10000000" />
+                <Input type="number" name="salary" value={formData.salary} onChange={handleChange} placeholder="Ví dụ: 10000000" className={errors.salary ? "border-red-500" : ""} />
+                {errors.salary && <p className="text-xs text-red-500">{errors.salary}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -167,6 +206,16 @@ export function ContractFormDrawer({ isOpen, onClose, contractId }: ContractForm
                   <option value="2">Vùng 2</option>
                   <option value="3">Vùng 3</option>
                   <option value="4">Vùng 4</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Trạng Thái <span className="text-red-500">*</span></label>
+                <select name="status" value={formData.status} onChange={handleChange} className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600">
+                  <option value="A">Hiệu lực (A)</option>
+                  <option value="E">Hết hạn (E)</option>
+                  <option value="T">Đã chấm dứt (T)</option>
+                  <option value="D">Nháp (D)</option>
                 </select>
               </div>
             </div>

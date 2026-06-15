@@ -201,9 +201,10 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Trạng Thái</label>
                   <select {...register("TrangThai")} className={cn("w-full flex h-10 rounded-md border bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50", errors.TrangThai ? "border-red-500 focus-visible:ring-red-500" : "border-slate-200 focus-visible:ring-indigo-600")}>
-                    <option value="A">Đang làm việc</option>
-                    <option value="I">Nghỉ việc</option>
-                    <option value="S">Đình chỉ</option>
+                    <option value="A">Đang làm việc (A)</option>
+                    <option value="P">Thử việc (P)</option>
+                    <option value="L">Nghỉ phép (L)</option>
+                    <option value="T">Nghỉ việc (T)</option>
                   </select>
                   {errors.TrangThai && <p className="text-xs text-red-500">{errors.TrangThai.message}</p>}
                 </div>

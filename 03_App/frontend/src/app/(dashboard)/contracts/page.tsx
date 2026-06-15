@@ -210,9 +210,10 @@ export default function ContractListPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="">Tất cả trạng thái</option>
-            {uniqueStatuses.map(status => (
-              <option key={status} value={status}>{getStatusLabel(status)}</option>
-            ))}
+            <option value="A">Hiệu lực</option>
+            <option value="E">Hết hạn</option>
+            <option value="T">Đã chấm dứt</option>
+            <option value="D">Nháp</option>
           </select>
         </div>
 
@@ -271,7 +272,8 @@ export default function ContractListPage() {
                         "px-2.5 py-1 rounded-full text-xs font-medium border",
                         contract.status === 'A' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
                         contract.status === 'E' ? "bg-amber-50 text-amber-700 border-amber-200" :
-                        "bg-red-50 text-red-700 border-red-200"
+                        contract.status === 'T' ? "bg-red-50 text-red-700 border-red-200" :
+                        "bg-slate-100 text-slate-700 border-slate-200"
                       )}>
                         {contract.status === 'A' ? "Hiệu lực" : contract.status === 'E' ? "Hết hạn" : contract.status === 'T' ? "Đã chấm dứt" : "Nháp"}
                       </span>
