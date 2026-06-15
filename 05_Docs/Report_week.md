@@ -29,39 +29,90 @@ Hệ thống phục vụ các tác nhân (actors) chính sau:
 
 ## 4. Giao tác (Transactions)
 
-Tất cả các hành động liên quan đến việc cập nhật nhiều bảng cùng lúc đều được đặt trong các `TRANSACTION`.
-*Đặc tả cụ thể trong dự án:* SP `sp_TinhLuong` chứa một Transaction bao bọc 8 bước xử lý: Xác thực -> Lấy danh sách NV -> Tính ngày công -> Tính Gross -> Tính Bảo hiểm -> Tính Thuế -> Ghi Chi tiết lương -> Chốt. Nếu có bất kỳ lỗi toán học hay vi phạm khóa ngoại nào ở bước 6, toàn bộ dữ liệu của bước 1-5 sẽ được `ROLLBACK` để bảo vệ hệ thống khỏi tình trạng "nửa vời".
+Hệ thống HRPayrollSystem áp dụng nghiêm ngặt các nguyên tắc quản lý giao tác (Transaction Management) để đảm bảo tính toàn vẹn (ACID) của dữ liệu. Tất cả các hành động liên quan đến việc cập nhật nhiều bảng hoặc dữ liệu nhạy cảm cùng lúc đều được đặt trong các khối `TRANSACTION` (hiển ngôn hoặc ẩn ngôn thông qua Stored Procedures và Triggers).
+
+Dưới đây là danh sách đầy đủ các giao tác cốt lõi trong hệ thống:
+
+### 4.1. Giao tác Tính Lương Tự Động (`sp_TinhLuong`)
+Đây là giao tác quan trọng nhất của dự án. SP chứa một khối `START TRANSACTION ... COMMIT` bao bọc 8 bước xử lý liên tục cho từng nhân viên:
+1. Lấy thông tin nhân viên & hợp đồng.
+2. Tính số ngày công thực tế (dựa vào hàm `fn_SoNgayChuanThang`).
+3. Tính các khoản phụ cấp và lương làm thêm.
+4. Tính Lương Gross.
+5. Trích lập Bảo hiểm (BHXH, BHYT, BHTN theo tỷ lệ % quy định).
+6. Tính Thuế TNCN lũy tiến 7 bậc.
+7. Xử lý các khoản khấu trừ phát sinh.
+8. Ghi dữ liệu vào CSDL (`BangLuong`, `ChiTietLuong` và cập nhật `KhauTru`).
+
+**Đảm bảo ACID:** Nếu có bất kỳ lỗi vi phạm ràng buộc (foreign key, toán học) nào xảy ra ở bất kỳ bước nào, toàn bộ chuỗi cập nhật cho nhân viên đó sẽ được `ROLLBACK` để hệ thống không rơi vào trạng thái mất đồng bộ (VD: có header BangLuong nhưng mất ChiTietLuong).
+
+### 4.2. Giao tác Quản Lý Chấm Công và Nghỉ Phép
+- **`sp_ChamCong_NhapHangNgay` & `sp_ChamCong_NhapLoat`:** Đảm bảo quá trình cập nhật trạng thái đi làm, giờ vào/ra, tăng ca hoạt động nhất quán thông qua cơ chế `INSERT ... ON DUPLICATE KEY UPDATE`.
+- **`sp_ChamCong_DongBoNghiPhep`:** Giao tác đọc các đơn nghỉ phép đã duyệt từ bảng `NghiPhep` và cập nhật đồng loạt trạng thái vào bảng `ChamCong`.
+
+### 4.3. Giao tác Quản Lý Bảng Lương
+- **`sp_TaoBangLuong_ChinhThuc` & các thủ tục con:** Thực hiện xử lý hàng loạt các khoản mục liên quan đến bảng lương theo từng chu kỳ.
+- **`sp_XacNhanBangLuong` / `sp_ThanhToanLuong`:** Giao tác chuyển đổi trạng thái của bảng lương (từ Nháp -> Chốt -> Đã thanh toán), đồng thời kích hoạt các cơ chế khóa dữ liệu, chặn mọi hành vi thay đổi trái phép (qua Trigger).
+
+### 4.4. Giao tác Lưu Vết (Audit Log qua Triggers)
+Mọi thay đổi dữ liệu nhạy cảm đều được hệ thống tự động đưa vào giao tác ẩn của CSDL (khi DML thực thi):
+- **Lịch sử hợp đồng:** Khi có thao tác Insert/Update trên bảng `HopDong`, các trigger tự động ghi lại snapshot dữ liệu vào bảng Log (như `trg_LogHopDong`).
+- **Toàn vẹn lương cơ bản:** Khi thêm mới mức lương, các Trigger (như `trg_LuongCoBan_CheckOneCurrent`) đảm bảo cùng lúc cập nhật trạng thái các mức lương cũ về vô hiệu hóa trước khi kích hoạt mức lương mới, tạo thành một giao tác trọn vẹn.
 
 ## 5. Các đối tượng cơ sở dữ liệu (Database Objects)
 
 ### 5.1. Views (6 đối tượng)
 
 Được sử dụng để che giấu độ phức tạp của các câu lệnh JOIN và bảo mật các dữ liệu nhạy cảm.
+- **Lương & Tiền lương:**
+  - `vw_BangLuong`: Chi tiết lương đầy đủ của từng nhân viên từng kỳ.
+  - `vw_BangLuong_TongHop`: Tổng hợp quỹ lương theo Phòng Ban / Tháng.
+  - `vw_ThueTNCN_KyQuyetToan`: Tổng hợp dữ liệu (tổng thu nhập chịu thuế, tổng các khoản giảm trừ) phục vụ cho quyết toán thuế cuối năm.
+- **Chấm công & Chuyên cần:**
+  - `vw_TongHopChamCong`: Thống kê tổng số ngày đi làm, nghỉ phép, nghỉ không phép,...
+  - `vw_ChamCong_ChiTiet`: Truy xuất chi tiết log chấm công hàng ngày của từng nhân viên.
+  - `vw_TyLeChuyenCan`: View đánh giá và theo dõi tỷ lệ chuyên cần theo phòng ban hoặc toàn công ty.
 
-- `vw_BangLuong`: Chi tiết lương đầy đủ của từng nhân viên từng kỳ.
-- `vw_BangLuong_TongHop`: Tổng hợp quỹ lương theo Phòng Ban / Tháng.
-- `vw_ThueTNCN_KyQuyetToan`: View đặc tả số liệu tổng thu nhập chịu thuế, tổng các khoản giảm trừ để quyết toán cuối năm.
-- `vw_TongHopChamCong` & `vw_ChamCong_ChiTiet`: Tổng hợp số ngày đi làm, nghỉ phép, WFH và tỷ lệ chuyên cần.
+### 5.2. Stored Procedures (23 đối tượng)
 
-### 5.2. Stored Procedures (21 đối tượng)
+Chia làm 4 nhóm chức năng chính bảo phủ toàn bộ quy trình nghiệp vụ:
 
-Chia làm 4 nhóm chức năng chính (Lương, Bảng lương, Chấm công, Báo cáo).
-
-- **Nổi bật:** `sp_TinhLuong` (quy trình cốt lõi tự động tính lương toàn công ty), `sp_ChamCong_DongBoNghiPhep` (đồng bộ đơn từ duyệt vào bảng chấm công), `sp_BaoCaoNhanSu_BienDong` (phân tích biến động nhân sự tuyển mới/nghỉ việc).
+- **Nhóm 1 - Chấm công (`sp_ChamCong.sql`):** 
+  - `sp_ChamCong_NhapHangNgay`, `sp_ChamCong_NhapLoat`, `sp_ChamCong_CapNhat`, `sp_ChamCong_DongBoNghiPhep`, `sp_NghiPhep_PheDuyet`, `sp_ChamCong_BaoCaoThang`.
+- **Nhóm 2 - Tính lương (`sp_TinhLuong.sql`, `sp_TinhBHXH_ChiTiet.sql`, `sp_TinhThueTNCN_ChiTiet.sql`):** 
+  - `sp_TinhLuong`: Thủ tục cốt lõi thực hiện luồng quy trình chạy lương tổng.
+  - `sp_TinhBHXH_ChiTiet`, `sp_TinhThueTNCN_ChiTiet`: Xử lý tính toán và đổ ra chi tiết về bảo hiểm và thuế.
+- **Nhóm 3 - Quản lý bảng lương (`sp_TaoBangLuong.sql`):** 
+  - `sp_TaoBangLuong_ChinhThuc`, `sp_TaoBangLuong_PhieuLuong`, `sp_TaoBangLuong_BHXH`, `sp_TaoBangLuong_QuyetToanThue`, `sp_TaoBangLuong_SoSanh`, `sp_TaoBangLuong_ChiPhiNhanSu`, `sp_XacNhanBangLuong`, `sp_ThanhToanLuong`.
+- **Nhóm 4 - Báo cáo & Thống kê (`sp_BaoCaoNhanSu.sql`):**
+  - `sp_BaoCaoNhanSu_TongQuan`, `sp_BaoCaoNhanSu_TheoPhongBan`, `sp_BaoCaoNhanSu_HopDong`, `sp_BaoCaoNhanSu_BienDong`, `sp_BaoCaoNhanSu_LuongPhanPhoi`, `sp_BaoCaoNhanSu_NghiPhepNam`.
 
 ### 5.3. Functions (12 đối tượng)
 
-Gói gọn các công thức tài chính và nhân sự thành các hàm Scalar Functions.
+Gói gọn các công thức tài chính và nhân sự thành các hàm (Scalar Functions) giúp tái sử dụng:
 
-- **Nổi bật:** `fn_TinhThueTNCN_Scalar` (chạy logic IF-ELSE tính lũy tiến 7 bậc), `fn_SoNgayChuanThang` (loại trừ ngày nghỉ theo tháng/năm), `fn_TinhBH_NSDLD` (tính chi phí doanh nghiệp phải chịu).
+- **Logic Ngày làm việc (`fn_SoNgayLamViec.sql`):** 
+  - `fn_SoNgayChuanThang`, `fn_SoNgayChamCong`, `fn_SoNgayNghiCoLuong`, `fn_SoNgayNghiKhongLuong`, `fn_HeSoLuongThang`, `fn_TinhLuongLamThem`.
+- **Logic Thuế TNCN (`fn_TinhThueTNCN.sql`):**
+  - `fn_TinhThueTNCN_Scalar` (tính thuế lũy tiến 7 bậc), `fn_XacDinhBacThue`, `fn_TinhGiamTruPhuThuoc`.
+- **Logic Bảo hiểm (`fn_TinhBHXH.sql`):**
+  - `fn_TinhLuongDongBH`, `fn_TinhBH_NLD` (tính chi phí Người lao động), `fn_TinhBH_NSDLD` (tính chi phí Người sử dụng lao động).
 
 ### 5.4. Triggers (21 đối tượng)
 
-Bảo vệ dữ liệu ở tầng thấp nhất.
+Bảo vệ dữ liệu, kiểm soát tính hợp lệ và tự động lưu vết (Audit Logging) ở tầng thấp nhất:
 
-- **Audit Logs:** `trg_HopDong_AfterInsert/Update` (Lưu lịch sử mọi thay đổi hợp đồng).
-- **Business Validations:** `trg_ChamCong_BeforeInsert` (Chặn chấm công ngày tương lai), `trg_NghiPhep_CheckOverlap_Insert` (Chặn trùng ngày nghỉ).
-- **Enforcements:** `trg_BangLuong_BeforeUpdate/Delete` (Không cho phép bất kì ai can thiệp vào dữ liệu bảng lương khi TrangThai đã được CHỐT).
+- **Kiểm soát Nhân viên & Hợp đồng:**
+  - `trg_NhanVien_BeforeInsert_CheckTuoi`, `trg_NhanVien_BeforeUpdate_CheckTuoi` (Chặn nhân viên chưa đủ tuổi).
+  - Lịch sử hợp đồng: `trg_HopDong_AfterInsert`, `trg_HopDong_AfterUpdate`, `trg_HopDong_AfterDelete`, `trg_HopDong_BeforeUpdate`, `trg_HopDong_BeforeDelete`, `trg_HopDong_CheckOneActive` (Đảm bảo 1 NV chỉ có 1 hợp đồng active).
+- **Kiểm soát Lương & Khấu trừ:**
+  - Lịch sử Lương cơ bản: `trg_LuongCoBan_AfterInsert`, `trg_LuongCoBan_AfterUpdate`.
+  - Toàn vẹn thông tin lương: `trg_LuongCoBan_CheckOneCurrent`, `trg_LuongCoBan_CheckOneCurrent_Update`.
+  - Khóa Bảng lương khi đã chốt: `trg_BangLuong_BeforeUpdate`, `trg_BangLuong_BeforeDelete`, `trg_BangLuong_AfterUpdate`.
+  - Hợp lệ khấu trừ: `trg_KhauTru_BeforeInsert_NgayHopLe`, `trg_KhauTru_BeforeUpdate_NgayHopLe`.
+- **Kiểm soát Chấm công & Nghỉ phép:**
+  - Hợp lệ chấm công: `trg_ChamCong_BeforeInsert`, `trg_ChamCong_BeforeUpdate` (Chặn chấm công ngày tương lai).
+  - Trùng lịch nghỉ phép: `trg_NghiPhep_CheckOverlap_Insert`, `trg_NghiPhep_CheckOverlap_Update`.
 
 ---
 
