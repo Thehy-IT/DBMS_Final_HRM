@@ -598,13 +598,25 @@ app.get('/v1/contracts/:id', async (req, res) => {
 app.post('/v1/contracts', requireHR, async (req, res) => {
   const { id, empId, typeId, startDate, endDate, salary, status, VungLuong } = req.body;
   try {
+    let MaHD = id;
+    if (!MaHD) {
+      const [rows] = await pool.query('SELECT MaHD FROM HopDong ORDER BY MaHD DESC LIMIT 1');
+      MaHD = 'HD00000001';
+      if (rows.length > 0) {
+        const lastMaHD = rows[0].MaHD;
+        const numPart = parseInt(lastMaHD.substring(2), 10);
+        const nextNum = numPart + 1;
+        MaHD = `HD${nextNum.toString().padStart(8, '0')}`;
+      }
+    }
+
     const query = `
       INSERT INTO HopDong 
       (MaHD, MaNV, MaLoaiHD, NgayBatDau, NgayKetThuc, LuongCoBan, VungLuong, TrangThai)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    await pool.query(query, [id, empId, typeId, startDate, endDate || null, salary, VungLuong || 1, status || 'A']);
-    res.status(201).json({ message: 'Created successfully' });
+    await pool.query(query, [MaHD, empId, typeId, startDate, endDate || null, salary, VungLuong || 1, status || 'A']);
+    res.status(201).json({ message: 'Created successfully', data: { id: MaHD } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

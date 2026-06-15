@@ -105,8 +105,7 @@ export function ContractFormDrawer({ isOpen, onClose, contractId }: ContractForm
   const handleSubmit = () => {
     // Validation
     const newErrors: any = {};
-    if (!formData.id) newErrors.id = 'Vui lòng nhập mã hợp đồng';
-    else if (!/^HD[0-9]{8}$/.test(formData.id)) newErrors.id = 'Định dạng phải là HD + 8 số (VD: HD00000001)';
+    if (formData.id && !/^HD[0-9]{8}$/.test(formData.id)) newErrors.id = 'Định dạng phải là HD + 8 số (VD: HD00000001)';
     
     if (!formData.empId) newErrors.empId = 'Vui lòng chọn nhân viên';
     if (!formData.typeId) newErrors.typeId = 'Vui lòng chọn loại hợp đồng';
@@ -153,8 +152,8 @@ export function ContractFormDrawer({ isOpen, onClose, contractId }: ContractForm
           ) : (
             <div className="space-y-5">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700">Mã Hợp Đồng <span className="text-red-500">*</span></label>
-                <Input name="id" value={formData.id} onChange={handleChange} placeholder="HD00000001" disabled={!!contractId} className={cn(contractId ? "bg-slate-100" : "", errors.id ? "border-red-500" : "")} />
+                <label className="text-sm font-medium text-slate-700">Mã Hợp Đồng</label>
+                <Input name="id" value={formData.id} onChange={handleChange} placeholder="Tự động tạo (HD00...)" disabled={true} className="bg-slate-100" />
                 {errors.id && <p className="text-xs text-red-500">{errors.id}</p>}
               </div>
 
