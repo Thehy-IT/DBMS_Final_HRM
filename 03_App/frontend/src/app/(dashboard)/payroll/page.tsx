@@ -130,7 +130,10 @@ export default function PayrollPage() {
   };
 
   if (isEmployee) {
-    const myPayrolls = filteredPayrolls.sort((a, b) => b.month.localeCompare(a.month));
+    const myPayrolls = filteredPayrolls.sort((a: any, b: any) => {
+      if (a.year !== b.year) return (b.year || 0) - (a.year || 0);
+      return (b.month || 0) - (a.month || 0);
+    });
     const latestPayroll = myPayrolls.length > 0 ? myPayrolls[0] : null;
     const totalYearIncome = myPayrolls.reduce((acc, curr) => acc + curr.netSalary, 0);
 

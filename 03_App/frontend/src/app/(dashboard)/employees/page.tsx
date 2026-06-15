@@ -247,10 +247,7 @@ export default function EmployeeListPage() {
                       <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
                     </td>
                     <td className="px-6 py-4 font-medium text-indigo-600 cursor-pointer hover:underline">{emp.MaNV}</td>
-                    <td className="px-6 py-4 font-medium text-slate-900 flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-medium uppercase">
-                        {emp.HoTen.charAt(0)}
-                      </div>
+                    <td className="px-6 py-4 font-medium text-slate-900">
                       {emp.HoTen}
                     </td>
                     <td className="px-6 py-4">{deptMap[emp.MaPB] || emp.MaPB || '-'}</td>

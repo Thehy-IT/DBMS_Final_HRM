@@ -44,8 +44,8 @@ export default function ReportsPage() {
 
   const isLoading = payrollLoading;
   const payrolls = payrollData?.data || [];
-  const departments = deptData?.data || [];
-  const employees = empData?.data || [];
+  const departments = Array.isArray(deptData) ? deptData : (deptData as any)?.data || [];
+  const employees = Array.isArray(empData) ? empData : (empData as any)?.data || [];
 
   // Get unique months from payrolls
   const availableMonths = Array.from(new Set(payrolls.map(p => p.month))).sort().reverse();
@@ -67,8 +67,9 @@ export default function ReportsPage() {
   // --- UC-12: Báo cáo thuế TNCN ---
   // Giả định: Khoản khấu trừ (deduction) bao gồm Thuế TNCN (chiếm 60%) và BHXH (chiếm 40%).
   const taxByMonth = payrolls.reduce((acc: any, curr) => {
-    if (!acc[curr.month]) acc[curr.month] = 0;
-    acc[curr.month] += ((curr.deduction || 0) * 0.6); // 60% of deduction assumed as PIT
+    const m = curr.month || 'Unknown';
+    if (!acc[m]) acc[m] = 0;
+    acc[m] += ((curr.deduction || 0) * 0.6); // 60% of deduction assumed as PIT
     return acc;
   }, {});
 
@@ -106,18 +107,19 @@ export default function ReportsPage() {
 
   // --- UC-14: Phân tích biến động lương ---
   const trendByMonth = payrolls.reduce((acc: any, curr) => {
-    if (!acc[curr.month]) acc[curr.month] = { month: curr.month, basic: 0, allowance: 0, overtime: 0, total: 0 };
+    const m = curr.month || 'Unknown';
+    if (!acc[m]) acc[m] = { month: m, basic: 0, allowance: 0, overtime: 0, total: 0 };
     const b = curr.basicSalary || 0;
     const a = curr.allowance || 0;
     const o = (curr.otHours || 0) * 100000;
-    acc[curr.month].basic += b;
-    acc[curr.month].allowance += a;
-    acc[curr.month].overtime += o;
-    acc[curr.month].total += (b + a + o);
+    acc[m].basic += b;
+    acc[m].allowance += a;
+    acc[m].overtime += o;
+    acc[m].total += (b + a + o);
     return acc;
   }, {});
 
-  const trendData = Object.values(trendByMonth).sort((a: any, b: any) => a.month.localeCompare(b.month));
+  const trendData = Object.values(trendByMonth).sort((a: any, b: any) => (a.month || '').localeCompare(b.month || ''));
 
   // Handle Exports
   const handleExport = () => {

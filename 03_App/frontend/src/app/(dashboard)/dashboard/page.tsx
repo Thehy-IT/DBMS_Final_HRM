@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { 
   Users, 
   UserPlus, 
@@ -26,6 +27,7 @@ import {
 import { formatMoney } from "@/lib/utils";
 
 export default function DashboardPage() {
+  const [warningPage, setWarningPage] = useState(1);
   const { data: empData, isLoading: empLoading } = useQuery({ queryKey: ['employees'], queryFn: () => employeeService.getEmployees() });
   const { data: contractData, isLoading: contractLoading } = useQuery({ queryKey: ['contracts'], queryFn: () => contractService.getContracts() });
   const { data: leaveData, isLoading: leaveLoading } = useQuery({ queryKey: ['leaves'], queryFn: () => leaveService.getLeaves() });
@@ -81,7 +83,8 @@ export default function DashboardPage() {
   });
   const pieData = Object.keys(departmentCount).map(key => ({
     name: key,
-    value: departmentCount[key]
+    value: departmentCount[key],
+    percent: totalEmployees > 0 ? departmentCount[key] / totalEmployees : 0
   }));
   const PIE_COLORS = ['#6366f1', '#10b981', '#f43f5e', '#f59e0b', '#8b5cf6', '#0ea5e9', '#ec4899', '#14b8a6'];
 
@@ -108,7 +111,10 @@ export default function DashboardPage() {
   if (isEmployee) {
     const myLeaves = leaves.filter(l => (l as any).empId === user?.empId || l.empName === user?.username || l.empName === user?.empId);
     const myAttendances = attendances.filter(a => a.empId === user?.empId);
-    const myPayrolls = payrolls.filter(p => p.empId === user?.empId).sort((a, b) => b.month.localeCompare(a.month));
+    const myPayrolls = payrolls.filter((p: any) => p.empId === user?.empId).sort((a: any, b: any) => {
+      if (a.year !== b.year) return (b.year || 0) - (a.year || 0);
+      return (b.month || 0) - (a.month || 0);
+    });
     const myContract = contracts.find(c => c.empId === user?.empId && c.status !== 'T');
     
     const approvedLeaves = myLeaves.filter(l => l.status === 'A').reduce((acc, curr) => acc + curr.days, 0);
@@ -242,6 +248,10 @@ export default function DashboardPage() {
     );
   }
 
+  const expiringContractsList = contracts.filter(c => c.status === 'E');
+  const totalWarningPages = Math.ceil(expiringContractsList.length / 10);
+  const paginatedExpiringContracts = expiringContractsList.slice((warningPage - 1) * 10, warningPage * 10);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -272,73 +282,153 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Phân bổ nhân sự theo phòng ban</h3>
-          <div className="h-72 w-full">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+        {/* Phân bổ nhân sự Card */}
+        <div className="relative overflow-hidden bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-500 p-7 group flex flex-col">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -z-10 opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
+          
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <div className="w-1.5 h-6 bg-indigo-500 rounded-full"></div>
+                Phân bổ nhân sự
+              </h3>
+              <p className="text-sm text-slate-500 mt-1 ml-3.5">Tỷ lệ nhân sự theo phòng ban</p>
+            </div>
+            <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+              <Users className="w-5 h-5" />
+            </div>
+          </div>
+          
+          <div style={{ width: '100%', height: 320 }} className="relative mt-4">
             {pieData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={pieData}
                     cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
+                    cy="45%"
+                    innerRadius={70}
+                    outerRadius={105}
+                    paddingAngle={4}
                     dataKey="value"
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                    labelLine={true}
+                    stroke="none"
+                    cornerRadius={6}
                   >
                     {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} stroke="rgba(255,255,255,0.5)" strokeWidth={2} />
+                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)', padding: '10px 14px' }}
-                    itemStyle={{ color: '#334155', fontWeight: 500 }}
-                    formatter={(value: any) => [value, 'Nhân sự']} 
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-[0_20px_25px_-5px_rgb(0,0,0,0.1),0_8px_10px_-6px_rgb(0,0,0,0.1)] border border-slate-100">
+                            <p className="text-sm font-semibold text-slate-500 mb-1">{data.name}</p>
+                            <p className="text-lg font-bold text-slate-900">{data.value} Nhân sự</p>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                              <p className="text-sm font-medium text-indigo-600">Chiếm {((data.percent || 0) * 100).toFixed(1)}% tổng số</p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Legend 
+                    layout="horizontal" 
+                    verticalAlign="bottom" 
+                    align="center"
+                    iconType="circle"
+                    wrapperStyle={{ fontSize: '13px', fontWeight: 500, paddingTop: '10px' }}
                   />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-slate-400">Không có dữ liệu nhân sự</div>
+              <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-3 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                <Users className="w-10 h-10 text-slate-300" />
+                <span className="font-medium">Chưa có dữ liệu nhân sự</span>
+              </div>
+            )}
+            
+            {/* Center Label for Donut Chart */}
+            {pieData.length > 0 && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ top: '-10%' }}>
+                <span className="text-4xl font-black text-slate-800 tracking-tight">{pieData.reduce((acc, curr) => acc + curr.value, 0)}</span>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-1">Tổng NS</span>
+              </div>
             )}
           </div>
         </div>
         
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Chi phí lương theo phòng ban</h3>
-          <div className="h-72 w-full">
+        {/* Chi phí lương Card */}
+        <div className="relative overflow-hidden bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-500 p-7 group flex flex-col">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -z-10 opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
+          
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <div className="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
+                Chi phí lương
+              </h3>
+              <p className="text-sm text-slate-500 mt-1 ml-3.5">Quỹ lương phân bổ theo phòng ban</p>
+            </div>
+            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
+              <CircleDollarSign className="w-5 h-5" />
+            </div>
+          </div>
+          
+          <div style={{ width: '100%', height: 320 }} className="relative mt-4">
             {barData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={barData}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
+                  <defs>
+                    <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.9}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.3}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fill: '#64748b', fontSize: 13, fontWeight: 500}} 
+                    dy={10}
+                  />
                   <YAxis 
                     axisLine={false} 
                     tickLine={false} 
-                    tick={{fill: '#64748b'}}
+                    tick={{fill: '#94a3b8', fontSize: 12, fontWeight: 500}}
                     tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
+                    dx={-10}
+                    width={45}
                   />
                   <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)', padding: '10px 14px' }}
-                    itemStyle={{ color: '#334155', fontWeight: 500 }}
-                    formatter={(value: any) => [`${(value || 0).toLocaleString('vi-VN')} ₫`, 'Chi phí']}
-                    cursor={{fill: '#f8fafc'}}
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)', padding: '12px 20px', backgroundColor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(8px)' }}
+                    itemStyle={{ color: '#1e293b', fontWeight: 600, fontSize: '15px' }}
+                    labelStyle={{ color: '#64748b', marginBottom: '4px', fontSize: '13px', fontWeight: 500 }}
+                    formatter={(value: any) => [`${(value || 0).toLocaleString('vi-VN')} ₫`, 'Ngân sách']}
+                    cursor={{fill: '#f8fafc', radius: 8}}
                   />
-                  <Bar dataKey="amount" radius={[6, 6, 0, 0]} barSize={48}>
-                    {barData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                    ))}
-                  </Bar>
+                  <Bar 
+                    dataKey="amount" 
+                    radius={[6, 6, 6, 6]} 
+                    barSize={40}
+                    fill="url(#colorAmount)"
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-slate-400">Không có dữ liệu chi phí lương</div>
+              <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-3 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                <CircleDollarSign className="w-10 h-10 text-slate-300" />
+                <span className="font-medium">Chưa có dữ liệu quỹ lương</span>
+              </div>
             )}
           </div>
         </div>
@@ -356,29 +446,43 @@ export default function DashboardPage() {
                 <th className="px-6 py-3 font-medium">Họ Tên</th>
                 <th className="px-6 py-3 font-medium">Loại HĐ</th>
                 <th className="px-6 py-3 font-medium">Ngày Hết Hạn</th>
-                <th className="px-6 py-3 font-medium text-right">Hành động</th>
               </tr>
             </thead>
             <tbody className="text-sm">
-              {contracts.filter(c => c.status === 'E').map(contract => (
+              {paginatedExpiringContracts.map(contract => (
                 <tr key={contract.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4 font-medium text-slate-900">{contract.id}</td>
                   <td className="px-6 py-4">{contract.empName}</td>
                   <td className="px-6 py-4"><span className="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">{contract.type}</span></td>
                   <td className="px-6 py-4 text-amber-600 font-medium">{contract.endDate || 'N/A'}</td>
-                  <td className="px-6 py-4 text-right">
-                    <button className="text-indigo-600 hover:text-indigo-800 font-medium">Gia hạn</button>
-                  </td>
                 </tr>
               ))}
-              {contracts.filter(c => c.status === 'E').length === 0 && (
+              {expiringContractsList.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-slate-500">Không có hợp đồng nào sắp hết hạn.</td>
+                  <td colSpan={4} className="px-6 py-4 text-center text-slate-500">Không có hợp đồng nào sắp hết hạn.</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+        {expiringContractsList.length > 10 && (
+          <div className="p-4 border-t border-slate-200 flex items-center justify-between text-sm text-slate-500 bg-white">
+            <div>Hiển thị {(warningPage - 1) * 10 + 1}-{Math.min(warningPage * 10, expiringContractsList.length)} của {expiringContractsList.length} hợp đồng</div>
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => setWarningPage(p => Math.max(1, p - 1))}
+                disabled={warningPage === 1}
+                className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+              >Trước</button>
+              <button className="px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium shadow-sm">{warningPage}</button>
+              <button 
+                onClick={() => setWarningPage(p => Math.min(totalWarningPages, p + 1))}
+                disabled={warningPage === totalWarningPages || totalWarningPages === 0}
+                className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+              >Sau</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

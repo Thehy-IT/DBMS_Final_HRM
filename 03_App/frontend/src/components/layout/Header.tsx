@@ -95,7 +95,7 @@ export function Header() {
           <button 
             onClick={() => setShowQuickActions(!showQuickActions)}
             onBlur={() => setTimeout(() => setShowQuickActions(false), 200)}
-            className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full text-sm font-medium transition-all shadow-sm shadow-indigo-600/20"
+            className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-full text-sm font-medium transition-all shadow-sm shadow-indigo-600/20"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:block">Tạo mới</span>

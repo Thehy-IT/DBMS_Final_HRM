@@ -117,15 +117,24 @@ export function Sidebar() {
                         <Link
                           href={item.href}
                           className={cn(
-                            "flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors",
+                            "relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 group",
                             isActive 
-                              ? "bg-indigo-600 text-white" 
-                              : "hover:bg-slate-800 hover:text-white"
+                              ? "bg-indigo-500/15 text-indigo-400 font-semibold" 
+                              : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-100"
                           )}
-                          title={sidebarOpen ? undefined : item.title}
                         >
-                          <item.icon className="w-5 h-5 flex-shrink-0" />
+                          {isActive && (
+                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-indigo-500 rounded-r-full shadow-[0_0_8px_rgba(99,102,241,0.6)]" />
+                          )}
+                          <item.icon className={cn("w-5 h-5 flex-shrink-0 transition-transform duration-300 group-hover:scale-110 group-active:scale-95", isActive && "text-indigo-400")} />
                           {sidebarOpen && <span className="truncate">{item.title}</span>}
+                          
+                          {/* Modern Floating Tooltip for Collapsed State */}
+                          {!sidebarOpen && (
+                            <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-slate-800 text-white text-xs font-semibold rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 translate-x-[-10px] group-hover:translate-x-0 whitespace-nowrap z-50 pointer-events-none shadow-xl border border-slate-700">
+                              {item.title}
+                            </div>
+                          )}
                         </Link>
                       </li>
                     );

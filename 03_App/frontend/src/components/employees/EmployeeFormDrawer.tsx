@@ -59,7 +59,7 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
   const { data: positions = [] } = useQuery({ queryKey: ['positions'], queryFn: masterDataService.getPositions, enabled: isOpen });
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<EmployeeFormValues>({
-    resolver: zodResolver(employeeSchema),
+    resolver: zodResolver(employeeSchema) as any,
     defaultValues: {
       MaNV: '', HoTen: '', GioiTinh: 'M', NgaySinh: '', CCCD: '', SoDienThoai: '', Email: '',
       DiaChi: '', MaPB: '', MaCV: '', NgayVaoLam: '', MaSoThue: '', SoTaiKhoanNH: '',
@@ -162,7 +162,7 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
           {isLoadingEmployee ? (
             <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin text-indigo-600 w-8 h-8" /></div>
           ) : (
-            <form id="employee-form" onSubmit={handleSubmit(onSubmit)}>
+            <form id="employee-form" onSubmit={handleSubmit(onSubmit as any)}>
               <div className={cn("space-y-5", activeTab !== "general" && "hidden")}>
                 <div className="grid grid-cols-2 gap-5">
                   <div className="space-y-1.5">
