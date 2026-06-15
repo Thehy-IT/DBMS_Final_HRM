@@ -23,10 +23,17 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
 
     const restrictedForEmployee = ['/employees', '/contracts', '/history', '/settings'];
+    const restrictedForAdmin = ['/benefits'];
     const userRole = useAuthStore.getState().user?.role;
     
     if (userRole === 'EMPLOYEE') {
       const isRestricted = restrictedForEmployee.some(route => window.location.pathname.startsWith(route));
+      if (isRestricted) {
+        router.replace("/dashboard");
+        return;
+      }
+    } else if (userRole === 'ADMIN') {
+      const isRestricted = restrictedForAdmin.some(route => window.location.pathname.startsWith(route));
       if (isRestricted) {
         router.replace("/dashboard");
         return;

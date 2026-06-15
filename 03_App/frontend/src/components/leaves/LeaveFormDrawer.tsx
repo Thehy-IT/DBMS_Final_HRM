@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { leaveService } from "@/services/leave.service";
 import { masterDataService } from "@/services/masterData.service";
+import { useAuthStore } from "@/store/useAuthStore";
 
 interface LeaveFormDrawerProps {
   isOpen: boolean;
@@ -19,6 +20,24 @@ export function LeaveFormDrawer({ isOpen, onClose }: LeaveFormDrawerProps) {
   const [LyDo, setLyDo] = useState("");
 
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const isEmployee = user?.role === 'EMPLOYEE';
+
+  useEffect(() => {
+    if (isOpen) {
+      if (isEmployee && user?.empId) {
+        setMaNV(user.empId);
+      }
+    } else {
+      if (!isEmployee) {
+        setMaNV("");
+      }
+      setMaLoaiNghi("");
+      setNgayBatDau("");
+      setNgayKetThuc("");
+      setLyDo("");
+    }
+  }, [isOpen, isEmployee, user]);
 
   const { data: leaveTypesData } = useQuery({
     queryKey: ['leaveTypes'],
@@ -34,7 +53,7 @@ export function LeaveFormDrawer({ isOpen, onClose }: LeaveFormDrawerProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leaves'] });
       onClose();
-      setMaNV("");
+      if (!isEmployee) setMaNV("");
       setMaLoaiNghi("");
       setNgayBatDau("");
       setNgayKetThuc("");
@@ -78,7 +97,8 @@ export function LeaveFormDrawer({ isOpen, onClose }: LeaveFormDrawerProps) {
               <input 
                 type="text" required 
                 value={MaNV} onChange={e => setMaNV(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                disabled={isEmployee}
+                className={cn("w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-600", isEmployee ? "bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed" : "border-slate-300 bg-white")}
                 placeholder="VD: NV0001"
               />
             </div>

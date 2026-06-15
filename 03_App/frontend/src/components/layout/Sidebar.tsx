@@ -62,7 +62,7 @@ const navGroups = [
       { title: "Phòng ban", href: "/departments", icon: Building2, roles: ['ADMIN'] },
       { title: "Chức vụ", href: "/positions", icon: Briefcase, roles: ['ADMIN'] },
       { title: "Loại hợp đồng", href: "/contract-types", icon: FileSignature, roles: ['ADMIN'] },
-      { title: "Loại phúc lợi", href: "/benefits", icon: Gift, roles: ['ADMIN', 'HR'] },
+      { title: "Loại phúc lợi", href: "/benefits", icon: Gift, roles: ['HR'] },
       { title: "Công thức lương", href: "/payroll-formulas", icon: Calculator, roles: ['ADMIN'] },
     ]
   },

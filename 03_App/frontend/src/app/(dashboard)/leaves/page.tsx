@@ -88,8 +88,15 @@ export default function LeaveRequestsPage() {
       if (!isOwnRecord) return false;
     }
 
-    if (searchTerm && !(record.empName || '').toLowerCase().includes(searchTerm.toLowerCase()) && !((record as any).empId || '').toLowerCase().includes(searchTerm.toLowerCase()) && !record.id.toLowerCase().includes(searchTerm.toLowerCase())) {
-      return false;
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const matchName = (record.empName || '').toLowerCase().includes(term);
+      const matchEmpId = ((record as any).empId || '').toLowerCase().includes(term);
+      const matchId = String(record.id).toLowerCase().includes(term);
+      
+      if (!matchName && !matchEmpId && !matchId) {
+        return false;
+      }
     }
     if (statusFilter && record.status !== statusFilter) {
       return false;
@@ -193,9 +200,10 @@ export default function LeaveRequestsPage() {
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="">Tất cả trạng thái</option>
-              {uniqueStatuses.map(status => (
-                <option key={status} value={status}>{getStatusLabel(status)}</option>
-              ))}
+              <option value="P">Chờ duyệt</option>
+              <option value="A">Đã duyệt</option>
+              <option value="R">Từ chối</option>
+              <option value="C">Đã hủy</option>
             </select>
           </div>
 
@@ -244,6 +252,7 @@ export default function LeaveRequestsPage() {
                           record.status === 'A' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
                           record.status === 'P' ? "bg-amber-50 text-amber-700 border-amber-200" :
                           record.status === 'R' ? "bg-red-50 text-red-700 border-red-200" :
+                          record.status === 'C' ? "bg-slate-100 text-slate-600 border-slate-300" :
                           "bg-slate-50 text-slate-700 border-slate-200"
                         )}>
                           {record.status === 'A' ? <Check className="w-3 h-3" /> : 
@@ -335,9 +344,10 @@ export default function LeaveRequestsPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="">Tất cả trạng thái</option>
-            {uniqueStatuses.map(status => (
-              <option key={status} value={status}>{getStatusLabel(status)}</option>
-            ))}
+            <option value="P">Chờ duyệt</option>
+            <option value="A">Đã duyệt</option>
+            <option value="R">Từ chối</option>
+            <option value="C">Đã hủy</option>
           </select>
         </div>
 
@@ -394,7 +404,9 @@ export default function LeaveRequestsPage() {
                         "px-2.5 py-1 rounded-full text-xs font-medium border",
                         record.status === 'P' ? "bg-amber-50 text-amber-700 border-amber-200" :
                         record.status === 'A' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                        "bg-red-50 text-red-700 border-red-200"
+                        record.status === 'R' ? "bg-red-50 text-red-700 border-red-200" :
+                        record.status === 'C' ? "bg-slate-100 text-slate-600 border-slate-300" :
+                        "bg-slate-50 text-slate-700 border-slate-200"
                       )}>
                         {record.status === 'P' ? "Chờ duyệt" : 
                          record.status === 'A' ? "Đã duyệt" : 

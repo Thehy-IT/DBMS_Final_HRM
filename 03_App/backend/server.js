@@ -288,8 +288,8 @@ app.put('/v1/payroll/pay', requireHR, async (req, res) => {
 
 // 5. Lấy danh sách đơn xin nghỉ phép
 app.get('/v1/leaves', async (req, res) => {
-  try {
-    let query = 'SELECT np.MaNP as id, nv.HoTen as empName, lnp.TenLoaiNghi as type, DATE_FORMAT(np.NgayBatDau, "%Y-%m-%d") as startDate, DATE_FORMAT(np.NgayKetThuc, "%Y-%m-%d") as endDate, np.SoNgayNghi as days, np.LyDo as reason, np.TrangThai as status FROM NghiPhep np JOIN NhanVien nv ON np.MaNV = nv.MaNV JOIN LoaiNghiPhep lnp ON np.MaLoaiNghi = lnp.MaLoaiNghi';
+    try {
+      let query = 'SELECT np.MaNP as id, nv.MaNV as empId, nv.HoTen as empName, lnp.TenLoaiNghi as type, DATE_FORMAT(np.NgayBatDau, "%Y-%m-%d") as startDate, DATE_FORMAT(np.NgayKetThuc, "%Y-%m-%d") as endDate, np.SoNgayNghi as days, np.LyDo as reason, np.TrangThai as status FROM NghiPhep np JOIN NhanVien nv ON np.MaNV = nv.MaNV JOIN LoaiNghiPhep lnp ON np.MaLoaiNghi = lnp.MaLoaiNghi';
     let params = [];
     if (req.user.role === 'EMPLOYEE') {
       query += ' WHERE np.MaNV = ?';
