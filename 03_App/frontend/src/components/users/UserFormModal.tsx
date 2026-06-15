@@ -101,7 +101,7 @@ export function UserFormModal({ isOpen, onClose, onSubmit, initialData, employee
               >
                 <option value="EMPLOYEE">Nhân viên (EMPLOYEE)</option>
                 <option value="HR">Nhân sự (HR)</option>
-                <option value="ACCOUNTANT">Kế toán (ACCOUNTANT)</option>
+
                 <option value="DIRECTOR">Giám đốc (DIRECTOR)</option>
                 <option value="ADMIN">Quản trị viên (ADMIN)</option>
               </select>

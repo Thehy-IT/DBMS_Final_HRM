@@ -392,7 +392,7 @@ export default function DashboardPage() {
                     dataKey="name" 
                     axisLine={false} 
                     tickLine={false} 
-                    tick={{fill: '#64748b', fontSize: 13, fontWeight: 500}} 
+                    tick={false} 
                     dy={10}
                   />
                   <YAxis 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Search, Plus, Upload, Download, MoreVertical, Edit2, Loader2, UserMinus } from "lucide-react";
+import { Search, Plus, Upload, Download, MoreVertical, Edit2, Loader2, UserMinus, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { EmployeeFormDrawer } from "@/components/employees/EmployeeFormDrawer";
@@ -19,6 +19,7 @@ export default function EmployeeListPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isInstructionOpen, setIsInstructionOpen] = useState(false);
   const itemsPerPage = 50;
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -143,6 +144,49 @@ export default function EmployeeListPage() {
         employee={employees.find((e: any) => e.MaNV === selectedEmployeeId)}
       />
 
+      {/* Import/Export Instructions Modal */}
+      {isInstructionOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-indigo-600" />
+                Hướng dẫn Nhập/Xuất Dữ liệu Nhân sự
+              </h2>
+              <button onClick={() => setIsInstructionOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[70vh] space-y-6 text-sm text-slate-600">
+              <div>
+                <h3 className="font-bold text-slate-800 text-base mb-2">1. Hướng dẫn Xuất file (Export)</h3>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Sử dụng các bộ lọc (Tìm kiếm, Phòng ban, Trạng thái) để lọc danh sách nhân viên cần xuất.</li>
+                  <li>Nhấn nút <strong>"Xuất file"</strong> ở góc phải trên cùng.</li>
+                  <li>Hệ thống sẽ tự động tạo và tải xuống file Excel (.xlsx) chứa danh sách nhân viên theo định dạng chuẩn.</li>
+                </ul>
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-800 text-base mb-2">2. Hướng dẫn Nhập file (Import)</h3>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Nhấn nút <strong>"Nhập file"</strong> và chọn file dữ liệu từ máy tính của bạn.</li>
+                  <li>Định dạng file hỗ trợ: <strong>.xlsx, .xls, .csv</strong>.</li>
+                  <li>Dữ liệu trong file phải tuân thủ cấu trúc cột mẫu (Mã NV, Họ Tên, Phòng Ban, Chức Vụ...).</li>
+                  <li>Khuyến nghị: Bạn nên <strong>Xuất file</strong> trước để lấy template chuẩn, sau đó điền dữ liệu mới và import trở lại.</li>
+                </ul>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <h4 className="font-semibold text-amber-800 mb-1">⚠️ Lưu ý quan trọng</h4>
+                <p className="text-amber-700">Việc nhập file với số lượng lớn có thể mất vài phút. Vui lòng không đóng trình duyệt trong quá trình hệ thống đang xử lý dữ liệu.</p>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end">
+              <Button onClick={() => setIsInstructionOpen(false)}>Đã hiểu</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Danh sách Nhân viên</h1>
@@ -165,6 +209,9 @@ export default function EmployeeListPage() {
           )}
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" /> Xuất file
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setIsInstructionOpen(true)} className="w-9 h-9 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border border-indigo-200" title="Hướng dẫn Nhập/Xuất">
+            <HelpCircle className="w-4 h-4" />
           </Button>
           {isHR && (
             <Button size="sm" onClick={() => { setSelectedEmployeeId(null); setIsDrawerOpen(true); }}>

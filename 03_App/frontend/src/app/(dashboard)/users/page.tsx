@@ -176,7 +176,7 @@ export default function UsersPage() {
                 <option value="ADMIN">Quản trị viên (ADMIN)</option>
                 <option value="HR">Nhân sự (HR)</option>
                 <option value="DIRECTOR">Giám đốc (DIRECTOR)</option>
-                <option value="ACCOUNTANT">Kế toán (ACCOUNTANT)</option>
+
                 <option value="EMPLOYEE">Nhân viên (EMPLOYEE)</option>
               </select>
             </div>

@@ -34,15 +34,6 @@ const ROLES_DEFINITIONS = [
     permissions: ['Quản lý hồ sơ nhân sự', 'Quản lý hợp đồng', 'Quản lý phúc lợi', 'Duyệt/Từ chối nghỉ phép', 'Xem báo cáo nhân sự']
   },
   {
-    id: 'ACCOUNTANT',
-    name: 'Kế toán',
-    icon: Calculator,
-    color: 'bg-cyan-100 text-cyan-700',
-    borderColor: 'border-cyan-200',
-    description: 'Xử lý nghiệp vụ tài chính. Tính toán lương, quản lý phụ cấp, khấu trừ và xuất bảng lương.',
-    permissions: ['Tính lương', 'Quản lý phụ cấp', 'Xuất bảng lương', 'Xem báo cáo chi phí']
-  },
-  {
     id: 'EMPLOYEE',
     name: 'Nhân viên',
     icon: Users,
