@@ -71,6 +71,11 @@ export default function PayrollPage() {
 
   const payrolls = data?.data || [];
 
+  const deptMap = (departmentsData || []).reduce((acc: any, d: any) => {
+    acc[d.id || d.MaPB] = d.name || d.TenPB;
+    return acc;
+  }, {});
+
   const uniqueStatuses = Array.from(new Set(payrolls.map((p: any) => p.status))).filter(Boolean) as string[];
   const getStatusLabel = (s: string) => {
     switch(s) {
@@ -112,7 +117,7 @@ export default function PayrollPage() {
     const exportData = filteredPayrolls.map(r => ({
       'Mã NV': r.empId,
       'Họ Tên': r.name,
-      'Phòng Ban': r.dept,
+      'Phòng Ban': deptMap[r.dept] || r.dept,
       'Lương CB': r.basicSalary,
       'Ngày Công': r.workingDays,
       'Tăng Ca (h)': r.otHours,
@@ -408,7 +413,7 @@ export default function PayrollPage() {
                     </td>
                     <td className="px-6 py-4 font-medium text-slate-900">{record.empId}</td>
                     <td className="px-6 py-4 font-medium text-slate-900">{record.name}
-                      <div className="text-xs text-slate-500 font-normal">{record.dept}</div>
+                      <div className="text-xs text-slate-500 font-normal">{deptMap[record.dept] || record.dept}</div>
                     </td>
                     <td className="px-6 py-4 text-right font-medium">{formatMoney(record.basicSalary)}</td>
                     <td className="px-6 py-4 text-right">{record.workingDays}đ</td>

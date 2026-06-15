@@ -17,6 +17,7 @@ import { contractService } from "@/services/contract.service";
 import { leaveService } from "@/services/leave.service";
 import { payrollService } from "@/services/payroll.service";
 import { attendanceService } from "@/services/attendance.service";
+import { masterDataService } from "@/services/masterData.service";
 import { useAuthStore } from "@/store/useAuthStore";
 import { 
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
@@ -30,17 +31,24 @@ export default function DashboardPage() {
   const { data: leaveData, isLoading: leaveLoading } = useQuery({ queryKey: ['leaves'], queryFn: () => leaveService.getLeaves() });
   const { data: payrollData, isLoading: payrollLoading } = useQuery({ queryKey: ['payroll'], queryFn: () => payrollService.getPayroll() });
   const { data: attendanceData, isLoading: attendanceLoading } = useQuery({ queryKey: ['attendance'], queryFn: () => attendanceService.getAttendance() });
+  const { data: deptData, isLoading: deptLoading } = useQuery({ queryKey: ['departments'], queryFn: () => masterDataService.getDepartments() });
 
   const { user } = useAuthStore();
   const isEmployee = user?.role === 'EMPLOYEE';
 
-  const isLoading = empLoading || contractLoading || leaveLoading || payrollLoading || attendanceLoading;
+  const isLoading = empLoading || contractLoading || leaveLoading || payrollLoading || attendanceLoading || deptLoading;
 
   const employees = empData?.data || [];
   const contracts = contractData?.data || [];
   const leaves = leaveData?.data || [];
   const payrolls = payrollData?.data || [];
   const attendances = attendanceData?.data || [];
+  const departments = deptData || [];
+
+  const deptMap = departments.reduce((acc: any, dept: any) => {
+    acc[dept.id || dept.MaPB] = dept.name || dept.TenPB;
+    return acc;
+  }, {});
 
   // Calculate stats
   const totalEmployees = employees.length;
@@ -66,20 +74,22 @@ export default function DashboardPage() {
 
   // Chart Data Processing
   const departmentCount: Record<string, number> = {};
-  employees.forEach(emp => {
-    const dept = emp.MaPB || 'Chưa phân bổ';
-    departmentCount[dept] = (departmentCount[dept] || 0) + 1;
+  employees.forEach((emp: any) => {
+    const deptId = emp.MaPB;
+    const deptName = deptId ? (deptMap[deptId] || deptId) : 'Chưa phân bổ';
+    departmentCount[deptName] = (departmentCount[deptName] || 0) + 1;
   });
   const pieData = Object.keys(departmentCount).map(key => ({
     name: key,
     value: departmentCount[key]
   }));
-  const PIE_COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#64748b'];
+  const PIE_COLORS = ['#6366f1', '#10b981', '#f43f5e', '#f59e0b', '#8b5cf6', '#0ea5e9', '#ec4899', '#14b8a6'];
 
   const payrollByDept: Record<string, number> = {};
-  payrolls.forEach(p => {
-    const dept = p.dept || 'Chưa phân bổ';
-    payrollByDept[dept] = (payrollByDept[dept] || 0) + Number(p.netSalary);
+  payrolls.forEach((p: any) => {
+    const deptId = p.dept;
+    const deptName = deptId ? (deptMap[deptId] || deptId) : 'Chưa phân bổ';
+    payrollByDept[deptName] = (payrollByDept[deptName] || 0) + Number(p.netSalary);
   });
   const barData = Object.keys(payrollByDept).map(key => ({
     name: key,
@@ -274,16 +284,21 @@ export default function DashboardPage() {
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
-                    outerRadius={100}
+                    outerRadius={80}
                     paddingAngle={5}
                     dataKey="value"
+                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    labelLine={true}
                   >
                     {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} stroke="rgba(255,255,255,0.5)" strokeWidth={2} />
                     ))}
                   </Pie>
-                  <Tooltip />
-                  <Legend />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)', padding: '10px 14px' }}
+                    itemStyle={{ color: '#334155', fontWeight: 500 }}
+                    formatter={(value: any) => [value, 'Nhân sự']} 
+                  />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -310,10 +325,16 @@ export default function DashboardPage() {
                     tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
                   />
                   <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)', padding: '10px 14px' }}
+                    itemStyle={{ color: '#334155', fontWeight: 500 }}
                     formatter={(value: any) => [`${(value || 0).toLocaleString('vi-VN')} ₫`, 'Chi phí']}
-                    cursor={{fill: '#f1f5f9'}}
+                    cursor={{fill: '#f8fafc'}}
                   />
-                  <Bar dataKey="amount" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={40} />
+                  <Bar dataKey="amount" radius={[6, 6, 0, 0]} barSize={48}>
+                    {barData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : (

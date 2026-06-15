@@ -62,6 +62,12 @@ export default function EmployeeListPage() {
 
   const employees = data?.data || [];
 
+  const deptMap = (departmentsData || []).reduce((acc: any, d: any) => {
+    acc[d.id || d.MaPB] = d.name || d.TenPB;
+    return acc;
+  }, {});
+
+
   const uniqueStatuses = Array.from(new Set(employees.map((e: any) => e.TrangThai))).filter(Boolean) as string[];
   const getStatusLabel = (s: string) => {
     switch(s) {
@@ -100,7 +106,7 @@ export default function EmployeeListPage() {
     const exportData = filteredEmployees.map(emp => ({
       'Mã NV': emp.MaNV,
       'Họ Tên': emp.HoTen,
-      'Phòng Ban': emp.MaPB,
+      'Phòng Ban': deptMap[emp.MaPB] || emp.MaPB,
       'Chức Vụ': emp.MaCV,
       'Giới Tính': emp.GioiTinh === 'M' ? 'Nam' : emp.GioiTinh === 'F' ? 'Nữ' : 'Khác',
       'Ngày Sinh': emp.NgaySinh ? new Date(emp.NgaySinh).toLocaleDateString('vi-VN') : '',
@@ -247,7 +253,7 @@ export default function EmployeeListPage() {
                       </div>
                       {emp.HoTen}
                     </td>
-                    <td className="px-6 py-4">{emp.MaPB || '-'}</td>
+                    <td className="px-6 py-4">{deptMap[emp.MaPB] || emp.MaPB || '-'}</td>
                     <td className="px-6 py-4">{emp.MaCV || '-'}</td>
                     <td className="px-6 py-4">{emp.NgayVaoLam ? new Date(emp.NgayVaoLam).toLocaleDateString('vi-VN') : '-'}</td>
                     <td className="px-6 py-4">
