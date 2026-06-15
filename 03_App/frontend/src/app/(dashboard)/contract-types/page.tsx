@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileSignature, Plus, Search, Edit, Trash2, Clock, Percent, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,8 @@ import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
 
 export default function ContractTypesPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   
   // Modal states
@@ -18,6 +21,14 @@ export default function ContractTypesPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [editingType, setEditingType] = useState<MasterData | null>(null);
   const [deletingType, setDeletingType] = useState<MasterData | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') {
+      setEditingType(null);
+      setIsFormOpen(true);
+      router.replace('/contract-types');
+    }
+  }, [searchParams, router]);
 
   // Fetch contract types
   const { data: typesData, isLoading } = useQuery({

@@ -353,13 +353,7 @@ export default function DashboardPage() {
               </div>
             )}
             
-            {/* Center Label for Donut Chart */}
-            {pieData.length > 0 && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ top: '-10%' }}>
-                <span className="text-4xl font-black text-slate-800 tracking-tight">{pieData.reduce((acc, curr) => acc + curr.value, 0)}</span>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-1">Tổng NS</span>
-              </div>
-            )}
+
           </div>
         </div>
         

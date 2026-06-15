@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { UserCog, Plus, Search, Filter, Edit, Trash2, CheckCircle, XCircle, Shield, User as UserIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,8 @@ import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
 
 export default function UsersPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('ALL');
   
@@ -20,6 +23,14 @@ export default function UsersPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') {
+      setEditingUser(null);
+      setIsFormOpen(true);
+      router.replace('/users');
+    }
+  }, [searchParams, router]);
 
   // Fetch users
   const { data: usersResponse, isLoading } = useQuery({

@@ -117,10 +117,24 @@ export function Header() {
                   </Link>
                 </>
               )}
-              {(user?.role === 'HR' || user?.role === 'ADMIN') && (
-                <Link href="/benefits?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
-                  Tạo Phúc Lợi
-                </Link>
+              {user?.role === 'ADMIN' && (
+                <>
+                  <Link href="/users?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
+                    Tạo Tài Khoản
+                  </Link>
+                  <Link href="/departments?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
+                    Tạo Phòng Ban
+                  </Link>
+                  <Link href="/positions?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
+                    Tạo Chức Vụ
+                  </Link>
+                  <Link href="/contract-types?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
+                    Tạo Loại Hợp Đồng
+                  </Link>
+                  <Link href="/benefits?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
+                    Tạo Phúc Lợi
+                  </Link>
+                </>
               )}
               {user?.role !== 'ADMIN' && (
                 <Link href="/leaves?action=new" onClick={() => setShowQuickActions(false)} className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition-colors">

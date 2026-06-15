@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Building2, Plus, Search, Edit, Trash2, MapPin, Mail, Phone, Users as UsersIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,8 @@ import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
 
 export default function DepartmentsPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   
   // Modal states
@@ -19,6 +22,14 @@ export default function DepartmentsPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [editingDept, setEditingDept] = useState<MasterData | null>(null);
   const [deletingDept, setDeletingDept] = useState<MasterData | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') {
+      setEditingDept(null);
+      setIsFormOpen(true);
+      router.replace('/departments');
+    }
+  }, [searchParams, router]);
 
   // Fetch departments
   const { data: deptsData, isLoading } = useQuery({

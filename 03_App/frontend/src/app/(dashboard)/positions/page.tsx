@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Briefcase, Plus, Search, Edit, Trash2, Award, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,8 @@ import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
 
 export default function PositionsPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   
   // Modal states
@@ -18,6 +21,14 @@ export default function PositionsPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [editingPos, setEditingPos] = useState<MasterData | null>(null);
   const [deletingPos, setDeletingPos] = useState<MasterData | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') {
+      setEditingPos(null);
+      setIsFormOpen(true);
+      router.replace('/positions');
+    }
+  }, [searchParams, router]);
 
   // Fetch positions
   const { data: positionsData, isLoading } = useQuery({
