@@ -53,7 +53,10 @@ export default function AttendancePage() {
       case 'DL': return 'Đi làm';
       case 'NP': return 'Nghỉ phép';
       case 'OM': return 'Ốm';
+      case 'CX': return 'Công tác xa';
       case 'KP': return 'Không phép';
+      case 'NG': return 'Nghỉ lễ';
+      case 'WFH': return 'Làm từ xa';
       default: return s;
     }
   };
@@ -187,9 +190,13 @@ export default function AttendancePage() {
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="">Tất cả trạng thái</option>
-              {uniqueStatuses.map(status => (
-                <option key={status} value={status}>{getStatusLabel(status)}</option>
-              ))}
+              <option value="DL">Đi làm</option>
+              <option value="WFH">Làm từ xa</option>
+              <option value="CX">Công tác xa</option>
+              <option value="NP">Nghỉ phép</option>
+              <option value="OM">Ốm</option>
+              <option value="KP">Không phép</option>
+              <option value="NG">Nghỉ lễ</option>
             </select>
           </div>
 
@@ -208,7 +215,7 @@ export default function AttendancePage() {
                 <p>Không tìm thấy bản ghi chấm công nào.</p>
               </div>
             ) : (
-              <table className="w-full text-left border-collapse min-w-[700px]">
+              <table className="w-full text-left border-collapse min-w-[1000px] whitespace-nowrap">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-600">
                     <th className="px-6 py-3 w-12 rounded-tl-lg">
@@ -234,8 +241,12 @@ export default function AttendancePage() {
                         <span className={cn(
                           "px-2.5 py-1 rounded-full text-xs font-medium border",
                           record.status === 'DL' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                          record.status === 'WFH' ? "bg-teal-50 text-teal-700 border-teal-200" :
+                          record.status === 'CX' ? "bg-blue-50 text-blue-700 border-blue-200" :
                           record.status === 'NP' ? "bg-amber-50 text-amber-700 border-amber-200" :
-                          record.status === 'OM' ? "bg-rose-50 text-rose-700 border-rose-200" :
+                          record.status === 'OM' ? "bg-orange-50 text-orange-700 border-orange-200" :
+                          record.status === 'KP' ? "bg-red-50 text-red-700 border-red-200" :
+                          record.status === 'NG' ? "bg-purple-50 text-purple-700 border-purple-200" :
                           "bg-slate-50 text-slate-700 border-slate-200"
                         )}>
                           {getStatusLabel(record.status)}
@@ -352,9 +363,13 @@ export default function AttendancePage() {
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="">Tất cả trạng thái</option>
-            {uniqueStatuses.map(status => (
-              <option key={status} value={status}>{getStatusLabel(status)}</option>
-            ))}
+            <option value="DL">Đi làm</option>
+            <option value="WFH">Làm từ xa</option>
+            <option value="CX">Công tác xa</option>
+            <option value="NP">Nghỉ phép</option>
+            <option value="OM">Ốm</option>
+            <option value="KP">Không phép</option>
+            <option value="NG">Nghỉ lễ</option>
           </select>
         </div>
 
@@ -373,7 +388,7 @@ export default function AttendancePage() {
               <p>Không tìm thấy bản ghi chấm công nào.</p>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse min-w-[900px]">
+            <table className="w-full text-left border-collapse min-w-[1200px] whitespace-nowrap">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-600">
                   <th className="px-6 py-3 w-12 rounded-tl-lg">
@@ -404,8 +419,12 @@ export default function AttendancePage() {
                       <span className={cn(
                         "px-2.5 py-1 rounded-full text-xs font-medium border",
                         record.status === 'DL' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                        record.status === 'WFH' ? "bg-teal-50 text-teal-700 border-teal-200" :
+                        record.status === 'CX' ? "bg-blue-50 text-blue-700 border-blue-200" :
                         record.status === 'NP' ? "bg-amber-50 text-amber-700 border-amber-200" :
-                        record.status === 'OM' ? "bg-rose-50 text-rose-700 border-rose-200" :
+                        record.status === 'OM' ? "bg-orange-50 text-orange-700 border-orange-200" :
+                        record.status === 'KP' ? "bg-red-50 text-red-700 border-red-200" :
+                        record.status === 'NG' ? "bg-purple-50 text-purple-700 border-purple-200" :
                         "bg-slate-50 text-slate-700 border-slate-200"
                       )}>
                         {getStatusLabel(record.status)}
