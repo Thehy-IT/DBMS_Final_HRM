@@ -1,123 +1,106 @@
 # Phân hệ Backend (API Server) — HRM System
 
-Máy chủ API được xây dựng bằng Node.js và Express, chịu trách nhiệm xử lý các nghiệp vụ và tương tác trực tiếp với cơ sở dữ liệu MySQL.
+Chào mừng đến với hệ thống API Backend của dự án Quản lý Nhân sự (HRM).
+Hệ thống này được xây dựng trên nền tảng **Node.js** và **Express.js**, đóng vai trò là "bộ não" xử lý mọi nghiệp vụ cốt lõi, xác thực người dùng và giao tiếp với Cơ sở dữ liệu **MySQL**.
 
 ---
 
-## Yêu Cầu Cài Đặt
+## Công Nghệ Sử Dụng (Tech Stack)
 
-- Node.js (phiên bản 18.x trở lên)
-- MySQL Server 8.0+
-- Quản lý gói: npm
-- Công cụ `mysqldump` (để thực hiện tính năng sao lưu)
+- **Runtime**: Node.js v18+ (Sử dụng ES Modules chuẩn mới `import/export`)
+- **Web Framework**: Express.js
+- **Cơ sở dữ liệu**: MySQL 8.0+
+- **Database Driver**: `mysql2` (Hỗ trợ Promise/async-await để chống callback hell)
+- **Xác thực (Authentication)**: `jsonwebtoken` (JWT) phân quyền linh hoạt
+- **Bảo mật mã hóa**: `bcryptjs` để hash mật khẩu người dùng
+- **Khác**: `cors` (Quản lý nguồn gốc truy cập), `dotenv` (Quản lý biến môi trường)
 
 ---
 
 ## Cấu Trúc Mã Nguồn
 
-Dự án hiện tại được thiết kế theo cấu trúc phẳng (flat structure) để tối ưu cho việc quản lý tập trung:
-
-```
+```text
 03_App/backend/
-├── backups/          # Thư mục lưu trữ các bản sao lưu SQL
-├── .env.example      # File mẫu cấu hình môi trường
-├── package.json      # Danh sách dependencies và scripts
-├── server.js         # Entry point: Chứa toàn bộ Logic API, Auth, và Routes
-└── README.md         # Tài liệu hướng dẫn
+├── backups/          # Thư mục lưu trữ tự động các file SQL dump (sao lưu)
+├── .env.example      # File mẫu chứa cấu trúc các biến môi trường
+├── package.json      # Danh sách dependencies & cấu hình node scripts
+├── server.js         # Entry point chính - Định tuyến API, Controllers, và Database Config
+└── README.md         # File tài liệu bạn đang đọc
 ```
+
+*Lưu ý: Để giữ cấu trúc đơn giản (Flat Structure), toàn bộ logic, router và database schema hiện tại được tập trung chủ yếu vào `server.js` hoặc phân tách module cơ bản.*
 
 ---
 
-## Hướng Dẫn Cài Đặt
+## Hướng Dẫn Cài Đặt & Chạy
 
-### 1. Cài đặt thư viện
-Tại thư mục `03_App/backend`, chạy lệnh:
+### Bước 1: Cài đặt thư viện
+
+Mở terminal tại thư mục `03_App/backend` và chạy lệnh sau để tải về toàn bộ package cần thiết:
+
 ```bash
 npm install
 ```
 
-### 2. Cấu hình môi trường
-- Sao chép file `.env.example` thành file `.env`.
-- Cập nhật các thông tin kết nối Database của bạn:
+### Bước 2: Thiết lập Cơ sở dữ liệu & Biến môi trường
+
+1. Đảm bảo bạn đã có **MySQL Server** đang chạy trên máy (XAMPP, Docker, hoặc MySQL cài trực tiếp).
+2. Tạo một Schema (Database) trong MySQL (Ví dụ: `HRPayrollDB`).
+3. Đổi tên file `.env.example` thành `.env` (hoặc tạo file `.env` mới) và cập nhật thông tin:
+
 ```env
+# Cấu hình Server
+PORT=8080
+
+# Cấu hình Database MySQL
 DB_HOST=localhost
 DB_USER=root
-DB_PASSWORD=your_password
+DB_PASSWORD=mat_khau_cua_ban
 DB_NAME=HRPayrollDB
-PORT=8080
-JWT_SECRET=your_jwt_secret
+
+# Cấu hình Bảo mật JWT
+JWT_SECRET=mot_chuoi_bi_mat_bat_ky_sieu_kho_doan_123!@#
 ```
 
----
+### Bước 3: Khởi chạy Server
 
-## Khởi Chạy Server
+Trong quá trình phát triển (Dev Mode) với tính năng Auto-reload (Tự khởi động lại khi có thay đổi code):
 
-### Chế độ phát triển (Auto-reload)
 ```bash
 npm run dev
 ```
 
-### Chế độ production
+Chạy trong môi trường thực tế (Production):
+
 ```bash
 npm start
 ```
 
-Mặc định, server sẽ chạy tại: `http://localhost:8080`
+Mặc định, server sẽ lắng nghe trên cổng `8080` (hoặc cổng được định nghĩa trong `PORT` của file `.env`).
+URL API Base: `http://localhost:8080`
 
 ---
 
-## Danh Sách API (v1)
+## 📚 Tổng Quan Các Endpoint API (v1)
 
-Tất cả các API (ngoại trừ login) đều yêu cầu Header `Authorization: Bearer <token>`.
+Hệ thống API RESTful được chia thành các nhóm (modules) như sau:
 
-### 1. Xác thực & Tài khoản
-- `POST /v1/auth/login`: Đăng nhập hệ thống.
-- `GET /v1/users`: Danh sách tài khoản (Admin).
-- `POST /v1/users`: Tạo tài khoản mới (Admin).
-- `PUT /v1/users/:id`: Cập nhật tài khoản (Admin).
-- `DELETE /v1/users/:id`: Xóa tài khoản (Admin).
-- `GET /v1/roles/stats`: Thống kê vai trò (Admin).
+| Nhóm Tính Năng           | Endpoints Nổi Bật                                                      | Yêu Cầu Auth |
+| :-------------------------- | :----------------------------------------------------------------------- | :------------- |
+| **Xác Thực (Auth)** | `POST /v1/auth/login` (Đăng nhập cấp Token)                        | Không         |
+| **Tài Khoản**       | `GET /v1/users`, `POST /v1/users`, `DELETE /v1/users/:id`          | Có (Admin)    |
+| **Nhân Sự**         | `GET /v1/employees`, `POST /v1/employees`, `PUT /v1/employees/:id` | Có            |
+| **Hợp Đồng**       | `GET /v1/contracts`, `POST /v1/contracts`                            | Có            |
+| **Chấm Công**       | `GET /v1/attendance`, `POST /v1/attendance`                          | Có            |
+| **Tính Lương**     | `GET /v1/payroll`, `POST /v1/payroll/calculate`                      | Có            |
+| **Nghỉ Phép**       | `GET /v1/leaves`, `PUT /v1/leaves/:id/approve`                       | Có            |
+| **Danh Mục**         | `GET /v1/departments`, `GET /v1/positions`                           | Có            |
+| **Hệ Thống**        | `GET /v1/backups`, `POST /v1/backups`                                | Có (Admin)    |
 
-### 2. Quản lý Nhân sự (HR/Admin)
-- `GET /v1/employees`: Danh sách nhân viên (Phân quyền theo vai trò).
-- `GET /v1/employees/:id`: Chi tiết nhân viên.
-- `POST /v1/employees`: Thêm nhân viên mới (HR/Admin).
-- `PUT /v1/employees/:id`: Cập nhật thông tin nhân viên (HR/Admin).
-
-### 3. Hợp đồng & Chấm công
-- `GET /v1/contracts`: Danh sách hợp đồng.
-- `POST /v1/contracts`: Tạo hợp đồng mới (HR/Admin).
-- `GET /v1/attendance`: Dữ liệu chấm công.
-- `POST /v1/attendance`: Nhập chấm công (HR/Admin).
-
-### 4. Lương & Nghỉ phép
-- `GET /v1/payroll`: Bảng lương.
-- `POST /v1/payroll/calculate`: Tính lương tháng (HR/Admin).
-- `GET /v1/leaves`: Danh sách đơn nghỉ phép.
-- `POST /v1/leaves`: Gửi đơn nghỉ phép mới.
-- `PUT /v1/leaves/:id/approve`: Phê duyệt đơn nghỉ (HR/Admin).
-
-### 5. Dữ liệu Danh mục (Master Data)
-- `GET /v1/departments`: Phòng ban.
-- `GET /v1/positions`: Chức vụ.
-- `GET /v1/contract-types`: Loại hợp đồng.
-- `GET /v1/benefit-types`: Loại phúc lợi.
-
-### 6. Hệ thống & Sao lưu (Admin)
-- `GET /v1/system-logs`: Nhật ký thay đổi (Audit logs).
-- `GET /v1/backups`: Danh sách bản sao lưu.
-- `POST /v1/backups`: Tạo bản sao lưu mới.
-- `GET /v1/system/settings`: Thông tin trạng thái hệ thống.
+*(Tham khảo trực tiếp mã nguồn trong `server.js` hoặc Swagger Docs (nếu có) để xem cấu trúc JSON Request/Response chi tiết cho từng API).*
 
 ---
 
-## Các Công Nghệ Sử Dụng
+## 💡 Lưu Ý Về Sao Lưu (Backup) Database
 
-- **Express.js**: Framework Web API (ES Modules).
-- **MySQL2**: Kết nối cơ sở dữ liệu (Promise-based).
-- **JWT (JSON Web Token)**: Xác thực và phân quyền.
-- **Bcryptjs**: Mã hóa mật khẩu.
-- **CORS**: Hỗ trợ kết nối từ Frontend.
-
----
-*Cập nhật ngày: 15/06/2026 | HRM Development Team*
+Tính năng `POST /v1/backups` yêu cầu máy chủ/máy tính của bạn phải có sẵn lệnh `mysqldump` (thường được cài đặt cùng MySQL). Nếu API trả về lỗi không tìm thấy mysqldump, hãy đảm bảo bạn đã đưa thư mục `bin` của MySQL vào `System Environment Variables (PATH)`.

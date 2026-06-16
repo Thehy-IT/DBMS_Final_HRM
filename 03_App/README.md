@@ -1,131 +1,98 @@
-# 🏢 Hệ thống Quản trị Nhân sự (HRM ERP)
+# Hệ thống Quản trị Nhân sự (HRM System) - Monorepo
 
-Dự án được tổ chức theo mô hình **Monorepo** tách biệt rõ ràng các phân hệ, giúp bạn dễ dàng phân chia công việc, bảo trì và triển khai (Deploy) hệ thống.
+Chào mừng bạn đến với dự án **Hệ thống Quản trị Nhân sự (HRM)**. Dự án được cấu trúc theo dạng **Monorepo** phân tách rõ ràng giữa Frontend (Giao diện người dùng) và Backend (API Server), giúp việc quản lý, mở rộng và bảo trì trở nên dễ dàng và chuyên nghiệp.
 
-## 📁 Kiến trúc Tổng quan
+## Tổng Quan Kiến Trúc
+
+Dự án này bao gồm 2 phân hệ cốt lõi:
+
+- **Frontend (`/frontend`)**: Ứng dụng Web tính/SSR hiệu năng cao, xây dựng bằng **Next.js (App Router)** và **React 19**. Thiết kế giao diện hiện đại với **Tailwind CSS v4**.
+- **Backend (`/backend`)**: Máy chủ API mạnh mẽ xử lý nghiệp vụ kinh doanh (Business Logic) và giao tiếp với CSDL **MySQL**, được viết bằng **Node.js** và **Express.js**.
 
 ```text
 03_App/
-├── frontend/       # 💻 Giao diện người dùng (Next.js 15, React, Tailwind CSS)
-├── backend/        # ⚙️ API Server & Xử lý Database (Sẵn sàng để bạn code)
-├── docs/           # 📚 Toàn bộ tài liệu đặc tả, UI/UX, API Specification
-└── README.md       # 📖 Hướng dẫn quản lý dự án (File này)
+├── frontend/       # 💻 Web Application (Next.js, React, Tailwind CSS)
+├── backend/        # ⚙️ API Server (Node.js, Express, MySQL)
+└── README.md       # 📖 Tài liệu hướng dẫn cấp Root (File này)
 ```
 
 ---
 
-## ⚡ Hướng Dẫn Chạy Giao Diện Web Nhanh Gọn (Quick Start)
+## Hướng Dẫn Khởi Chạy Nhanh (Quick Start)
 
-Để trải nghiệm ngay lập tức giao diện người dùng cùng dữ liệu giả lập (Mock Data), bạn chỉ cần mở **2 cửa sổ Terminal (Command Prompt/PowerShell)** và làm theo các bước sau:
+Bạn cần mở **2 cửa sổ Terminal (PowerShell/CMD)** độc lập để khởi chạy song song Backend và Frontend.
 
-**Terminal 1: Chạy Backend (Cung cấp API)**
+### Terminal 1: Khởi động Backend (API Server)
 
-```bash
-cd 03_App/backend
-npm install
-npm start
-```
+Backend chịu trách nhiệm cung cấp dữ liệu qua RESTful APIs.
 
-*Máy chủ Backend sẽ báo: `🚀 HRM Backend API is running at http://localhost:8080`*
+1. Di chuyển vào thư mục backend:
+   ```bash
+   cd 03_App/backend
+   ```
+2. Cài đặt các thư viện (Dependencies):
+   ```bash
+   npm install
+   ```
+3. Cấu hình biến môi trường (`.env`):
+   Sao chép file `.env.example` thành `.env` và cập nhật thông tin kết nối MySQL của bạn (nếu có).
+4. Chạy server ở chế độ phát triển:
+   ```bash
+   npm run dev
+   ```
 
-**Terminal 2: Chạy Frontend (Giao diện người dùng)**
+   *Terminal sẽ thông báo Server đang chạy thành công.*
 
-```bash
-cd 03_App/frontend
-npm run dev
-```
+### Terminal 2: Khởi động Frontend (Web App)
 
-*Đợi một chút, sau đó mở trình duyệt và truy cập: **`http://localhost:3000`***
+Frontend gọi API từ Backend để hiển thị dữ liệu và cho phép người dùng tương tác.
 
-🎉 Vậy là xong! Bạn có thể xem Dashboard, Quản lý Nhân sự, Quản lý Hợp đồng và toàn bộ hệ thống giao diện chuẩn xác.
+1. Di chuyển vào thư mục frontend:
+   ```bash
+   cd 03_App/frontend
+   ```
+2. Cài đặt các thư viện (Dependencies):
+   ```bash
+   npm install
+   ```
+3. Chạy giao diện ở chế độ phát triển:
+   ```bash
+   npm run dev
+   ```
 
----
+   *Terminal sẽ cung cấp đường link truy cập, ví dụ: `http://localhost:3000`*
 
-## 💻 1. Frontend (Giao diện Web)
-
-Nằm trong thư mục `frontend/`. Đây là ứng dụng mà người dùng (Nhân sự, Admin) sẽ thao tác trực tiếp.
-
-**Đặc điểm:**
-
-- Cấu trúc thư mục tối ưu theo Next.js 15 App Router.
-- Giao diện thiết kế bằng **Tailwind CSS v4** và Shadcn UI principles.
-- Gọi API qua thư viện chuyên nghiệp **Axios** và quản lý cache bằng **TanStack Query**.
-
----
-
-## ⚙️ 2. Backend (Máy chủ API)
-
-Nằm trong thư mục `backend/`.
-
-- Hiện tại tôi đã khởi tạo sẵn một máy chủ **Node.js (Express)** nhỏ trong này để chứa các mảng Mock Data và trả về dạng API (`GET /v1/employees`, `GET /v1/contracts`, v.v.).
-- Nhờ có Backend này, Frontend đã được kiểm chứng hoạt động hoàn hảo thông qua RESTful API thay vì gắn cứng dữ liệu trên giao diện.
-
-### 🔌 Hướng dẫn kết nối Database (SQL Server) thật
-
-Để thay thế Mock Data bằng dữ liệu thật từ CSDL SQL Server (`DBMS_Final_HRM`), bạn làm theo các bước sau tại thư mục `backend/`:
-
-**Bước 1: Cài đặt thư viện SQL Server**
-Mở Terminal tại thư mục `backend` và chạy lệnh:
-
-```bash
-npm install mssql
-```
-
-**Bước 2: Cấu hình kết nối `.env`**
-Tạo một file tên là `.env` bên trong thư mục `backend/` để lưu thông tin bảo mật CSDL:
-
-```env
-PORT=8080
-DB_SERVER=localhost
-DB_USER=sa
-DB_PASSWORD=MatKhauCuaBan123
-DB_NAME=DBMS_Final_HRM
-```
-
-**Bước 3: Viết logic lấy dữ liệu thật trong `server.js`**
-Mở file `backend/server.js`, xóa các biến Mock (ví dụ `mockEmployees`) và thay API trả về dữ liệu bằng câu lệnh Query thực tế:
-
-```javascript
-import sql from 'mssql';
-import dotenv from 'dotenv';
-dotenv.config();
-
-const dbConfig = {
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    server: process.env.DB_SERVER,
-    database: process.env.DB_NAME,
-    options: { encrypt: false, trustServerCertificate: true }
-};
-
-// Thay thế API Lấy danh sách nhân viên:
-app.get('/v1/employees', async (req, res) => {
-    try {
-        await sql.connect(dbConfig);
-        const result = await sql.query('SELECT * FROM NhanVien'); // Tên bảng trong SQL
-        res.json({ data: result.recordset });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-```
-
-Sau khi lưu lại, khởi động lại Backend bằng lệnh `npm start`. Lúc này, mở giao diện Frontend, bạn sẽ thấy ứng dụng đã được đổ 100% dữ liệu thật từ Database thay vì dữ liệu mẫu!
+👉 Mở trình duyệt và truy cập **`http://localhost:3000`** để sử dụng hệ thống!
 
 ---
 
-## 📚 3. Docs (Tài liệu dự án)
+## Công Nghệ Sử Dụng (Tech Stack)
 
-Thư mục `docs/` là "linh hồn" của dự án. Tất cả cấu trúc, nghiệp vụ (Business Logic), yêu cầu màn hình và thiết kế Figma đều được lưu tại đây. Hãy đọc lại thư mục này nếu bạn cần nhớ quy tắc tính lương hay cấu trúc Database.
+### Frontend
+
+- **Framework Core**: Next.js 16+ (App Router), React 19
+- **Giao diện & UI**: Tailwind CSS v4, Lucide React (Icons)
+- **Quản lý State & API**: Zustand (Client State), TanStack React Query v5 (Server State), Axios
+- **Form & Validation**: React Hook Form, Zod
+- **Báo cáo & Phân tích**: Recharts (Biểu đồ), XLSX (Xuất Excel)
+
+### Backend
+
+- **Core Engine**: Node.js (ES Modules)
+- **Framework API**: Express.js
+- **Database Driver**: MySQL2 (Promise-based)
+- **Bảo mật**: JWT (JSON Web Tokens) cho Authentication, Bcryptjs cho Hashing mật khẩu.
+- **Tiện ích**: CORS, Dotenv
 
 ---
 
-## 🚀 Hướng dẫn Triển khai (Deployment Roadmap)
+## Xem Chi Tiết Từng Phân Hệ
 
-Khi mang dự án này lên chạy thực tế trên Server hoặc VPS:
+Để hiểu rõ hơn về kiến trúc thư mục, quy ước code và cách triển khai từng phần, vui lòng đọc các tài liệu tương ứng:
 
-1. **Deploy Database**: Đẩy CSDL của bạn lên một máy chủ SQL Server.
-2. **Deploy Backend**: Viết logic kết nối DB cho thư mục `backend/` và đưa lên máy chủ. Lấy đường link API (Ví dụ: `https://api.ten-du-an.com/v1`).
-3. **Deploy Frontend**:
-   - Vào file `frontend/src/lib/axios.ts`, đổi `baseURL` thành link API của bạn.
-   - Đưa source code `frontend/` lên nền tảng đám mây như **Vercel** hoặc **Netlify** bằng vài cú click chuột.
+- ➡️ [Tài liệu chi tiết Frontend](./frontend/README.md)
+- ➡️ [Tài liệu chi tiết Backend](./backend/README.md)
+
+---
+
+*© 2026 HRM Development Team. Built with passion.*
