@@ -81,7 +81,7 @@ URL API Base: `http://localhost:8080`
 
 ---
 
-## 📚 Tổng Quan Các Endpoint API (v1)
+## Tổng Quan Các Endpoint API (v1)
 
 Hệ thống API RESTful được chia thành các nhóm (modules) như sau:
 
@@ -101,6 +101,6 @@ Hệ thống API RESTful được chia thành các nhóm (modules) như sau:
 
 ---
 
-## 💡 Lưu Ý Về Sao Lưu (Backup) Database
+## Lưu Ý Về Sao Lưu (Backup) Database
 
 Tính năng `POST /v1/backups` yêu cầu máy chủ/máy tính của bạn phải có sẵn lệnh `mysqldump` (thường được cài đặt cùng MySQL). Nếu API trả về lỗi không tìm thấy mysqldump, hãy đảm bảo bạn đã đưa thư mục `bin` của MySQL vào `System Environment Variables (PATH)`.
