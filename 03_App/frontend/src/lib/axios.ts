@@ -15,7 +15,7 @@ api.interceptors.request.use((config) => {
       try {
         const parsed = JSON.parse(authStorage);
         token = parsed?.state?.token;
-      } catch (e) {}
+      } catch {}
     }
   }
   
