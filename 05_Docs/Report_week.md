@@ -1,152 +1,178 @@
-# BÁO CÁO TIẾN ĐỘ THEO TUẦN & PHÂN TÍCH CHUYÊN SÂU HỆ THỐNG
-
-**Dự án:** HRPayrollSystem — Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
-**Cơ sở dữ liệu:** MySQL 8.0+
+# BÁO CÁO DỰ ÁN MÔN HỆ QUẢN TRỊ CƠ SỞ DỮ LIỆU
+## Đề tài: Hệ Thống Quản Lý Nhân Sự và Tính Lương Tự Động (HRPayrollSystem)
 
 ---
 
-## 1. Tổng quan
+### 1. Tổng quan
+Dự án **HRPayrollSystem** là một hệ thống phần mềm (bao gồm Backend Node.js và Frontend Next.js) phục vụ tự động hóa quy trình quản lý nhân sự và tính lương cho doanh nghiệp. 
+Đặc biệt, hệ thống được xây dựng theo kiến trúc **Database-Centric** (lấy cơ sở dữ liệu làm trung tâm). Phần lớn logic nghiệp vụ phức tạp (như tính thuế, bảo hiểm, chốt lương, kiểm tra dữ liệu) được đẩy xuống tầng CSDL MySQL dưới dạng Stored Procedures, Functions và Triggers. Việc này đảm bảo tính toàn vẹn dữ liệu tuyệt đối (ACID), hiệu suất cao và khả năng bảo trì tập trung.
 
-Dự án HRPayrollSystem được xây dựng nhằm giải quyết bài toán quản lý hồ sơ nhân sự, hợp đồng, chấm công và tính lương tự động cho các doanh nghiệp quy mô vừa và nhỏ (50-500 nhân sự).
-Hệ thống áp dụng mạnh mẽ kiến trúc **Database-Centric**, tức là toàn bộ logic tính toán phức tạp (như tính thuế TNCN lũy tiến 7 bậc, BHXH, lương gross-to-net) và các quy tắc kiểm tra (validation) đều được đẩy xuống lớp CSDL. Việc này đảm bảo tính toàn vẹn dữ liệu tuyệt đối (ACID), hiệu năng tối đa ngay tại nguồn dữ liệu và khả năng Audit Trail chặt chẽ mà không phụ thuộc vào lớp ứng dụng (App Layer).
+### 2. Tác nhân chính
+Hệ thống xoay quanh 4 tác nhân chính có phân quyền rõ rệt:
+- **Nhân viên (Employee)**: Tương tác với hệ thống để xem thông tin cá nhân, kiểm tra bảng lương hàng tháng, thực hiện chấm công và xin nghỉ phép.
+- **Chuyên viên Nhân sự (HR)**: Quản lý hồ sơ nhân viên, duy trì hợp đồng lao động, duyệt đơn xin nghỉ phép, theo dõi báo cáo đi làm (chuyên cần).
+- **Kế toán lương (Payroll Admin)**: Khởi chạy quy trình tính lương tự động, quản lý các khoản phụ cấp/khấu trừ, xác nhận chốt bảng lương cuối tháng.
+- **Quản trị viên (Admin)**: Toàn quyền cấu hình hệ thống, quản lý tài khoản, phân quyền và phục hồi dữ liệu khi cần.
 
-## 2. Tác nhân chính
+### 3. Chức năng chính
+- **Quản lý Hồ sơ & Hợp đồng**: Thêm, sửa, xóa (soft-delete) thông tin nhân sự; quản lý vòng đời hợp đồng, lịch sử nâng lương.
+- **Quản lý Chấm công & Nghỉ phép**: Ghi nhận giờ làm việc, kiểm tra trùng lặp ngày nghỉ, tự động tính ra ngày công chuẩn làm cơ sở tính lương.
+- **Tính lương tự động**: Quy trình 8 bước biến Lương Gross thành Net. Tự động tính thuế Thu nhập cá nhân (TNCN) lũy tiến 7 bậc, tự động trừ các khoản BHXH, BHYT, BHTN theo đúng quy định pháp luật.
+- **Báo cáo thống kê**: Cung cấp các biểu đồ, số liệu về quỹ lương, tỷ lệ nhân sự biến động, chuyên cần trực quan.
 
-Hệ thống phục vụ các tác nhân (actors) chính sau:
+### 4. Giao tác (Transactions)
+Hệ thống sử dụng Giao tác để bọc các nghiệp vụ cập nhật nhiều bảng cùng lúc, đảm bảo nguyên tắc ACID (Atomicity, Consistency, Isolation, Durability). Quá trình này được đặt trong một transaction. Nếu lỗi xảy ra, toàn bộ sẽ `ROLLBACK`, nếu thành công trọn vẹn thì `COMMIT`.
 
-- **HR_ADMIN (Nhân viên Nhân sự / Admin):** Cập nhật hồ sơ nhân viên, tạo hợp đồng mới, nhập liệu chấm công, phê duyệt hoặc từ chối đơn nghỉ phép.
-- **HR_MANAGER / KẾ TOÁN (Quản lý / Kế toán):** Kích hoạt các Stored Procedure để tính lương tự động cuối tháng, xác nhận bảng lương, khóa bảng lương và xuất các báo cáo tài chính/nhân sự.
-- **Hệ thống (System / Triggers):** Tự động giám sát dữ liệu, ghi log lịch sử (Audit Log), chặn các thao tác sai nghiệp vụ (chấm công tương lai, xóa bảng lương đã chốt).
-- **Nhân viên (Employees):** Xem phiếu lương cá nhân, theo dõi chấm công và nộp đơn nghỉ phép.
-
-## 3. Chức năng chính
-
-- **Quản lý danh mục & Hồ sơ nhân sự:** Quản lý cơ cấu phòng ban, chức vụ, nhân viên, gia cảnh (người phụ thuộc) và mã số thuế.
-- **Quản lý Hợp đồng & Lương cơ bản:** Theo dõi vòng đời hợp đồng, mức lương đóng bảo hiểm (tuân thủ giới hạn 20 lần mức lương tối thiểu vùng).
-- **Chấm công & Nghỉ phép:** Ghi nhận giờ ra/vào, xử lý logic tăng ca (OT), phân loại ngày nghỉ (có lương, không lương, ốm đau, thai sản).
-- **Tính lương tự động (Payroll):** Tính Gross-to-Net hoàn chỉnh, trích lập thuế TNCN lũy tiến, bảo hiểm NLĐ và bảo hiểm phần NSDLĐ.
-- **Báo cáo thống kê:** Biểu đồ tỷ lệ chuyên cần, phân phối quỹ lương, quyết toán thuế cuối năm.
-
-## 4. Giao tác (Transactions)
-
-Hệ thống HRPayrollSystem áp dụng nghiêm ngặt các nguyên tắc quản lý giao tác (Transaction Management) để đảm bảo tính toàn vẹn (ACID) của dữ liệu. Tất cả các hành động liên quan đến việc cập nhật nhiều bảng hoặc dữ liệu nhạy cảm cùng lúc đều được đặt trong các khối `TRANSACTION` (hiển ngôn hoặc ẩn ngôn thông qua Stored Procedures và Triggers).
-
-Dưới đây là danh sách đầy đủ các giao tác cốt lõi trong hệ thống:
-
-### 4.1. Giao tác Tính Lương Tự Động (`sp_TinhLuong`)
-Đây là giao tác quan trọng nhất của dự án. SP chứa một khối `START TRANSACTION ... COMMIT` bao bọc 8 bước xử lý liên tục cho từng nhân viên:
-1. Lấy thông tin nhân viên & hợp đồng.
-2. Tính số ngày công thực tế (dựa vào hàm `fn_SoNgayChuanThang`).
-3. Tính các khoản phụ cấp và lương làm thêm.
-4. Tính Lương Gross.
-5. Trích lập Bảo hiểm (BHXH, BHYT, BHTN theo tỷ lệ % quy định).
-6. Tính Thuế TNCN lũy tiến 7 bậc.
-7. Xử lý các khoản khấu trừ phát sinh.
-8. Ghi dữ liệu vào CSDL (`BangLuong`, `ChiTietLuong` và cập nhật `KhauTru`).
-
-**Đảm bảo ACID:** Nếu có bất kỳ lỗi vi phạm ràng buộc (foreign key, toán học) nào xảy ra ở bất kỳ bước nào, toàn bộ chuỗi cập nhật cho nhân viên đó sẽ được `ROLLBACK` để hệ thống không rơi vào trạng thái mất đồng bộ (VD: có header BangLuong nhưng mất ChiTietLuong).
-
-### 4.2. Giao tác Quản Lý Chấm Công và Nghỉ Phép
-- **`sp_ChamCong_NhapHangNgay` & `sp_ChamCong_NhapLoat`:** Đảm bảo quá trình cập nhật trạng thái đi làm, giờ vào/ra, tăng ca hoạt động nhất quán thông qua cơ chế `INSERT ... ON DUPLICATE KEY UPDATE`.
-- **`sp_ChamCong_DongBoNghiPhep`:** Giao tác đọc các đơn nghỉ phép đã duyệt từ bảng `NghiPhep` và cập nhật đồng loạt trạng thái vào bảng `ChamCong`.
-
-### 4.3. Giao tác Quản Lý Bảng Lương
-- **`sp_TaoBangLuong_ChinhThuc` & các thủ tục con:** Thực hiện xử lý hàng loạt các khoản mục liên quan đến bảng lương theo từng chu kỳ.
-- **`sp_XacNhanBangLuong` / `sp_ThanhToanLuong`:** Giao tác chuyển đổi trạng thái của bảng lương (từ Nháp -> Chốt -> Đã thanh toán), đồng thời kích hoạt các cơ chế khóa dữ liệu, chặn mọi hành vi thay đổi trái phép (qua Trigger).
-
-### 4.4. Giao tác Lưu Vết (Audit Log qua Triggers)
-Mọi thay đổi dữ liệu nhạy cảm đều được hệ thống tự động đưa vào giao tác ẩn của CSDL (khi DML thực thi):
-- **Lịch sử hợp đồng:** Khi có thao tác Insert/Update trên bảng `HopDong`, các trigger tự động ghi lại snapshot dữ liệu vào bảng Log (như `trg_LogHopDong`).
-- **Toàn vẹn lương cơ bản:** Khi thêm mới mức lương, các Trigger (như `trg_LuongCoBan_CheckOneCurrent`) đảm bảo cùng lúc cập nhật trạng thái các mức lương cũ về vô hiệu hóa trước khi kích hoạt mức lương mới, tạo thành một giao tác trọn vẹn.
-
-## 5. Các đối tượng cơ sở dữ liệu (Database Objects)
-
-### 5.1. Views (6 đối tượng)
-
-Được sử dụng để che giấu độ phức tạp của các câu lệnh JOIN và bảo mật các dữ liệu nhạy cảm.
-- **Lương & Tiền lương:**
-  - `vw_BangLuong`: Chi tiết lương đầy đủ của từng nhân viên từng kỳ.
-  - `vw_BangLuong_TongHop`: Tổng hợp quỹ lương theo Phòng Ban / Tháng.
-  - `vw_ThueTNCN_KyQuyetToan`: Tổng hợp dữ liệu (tổng thu nhập chịu thuế, tổng các khoản giảm trừ) phục vụ cho quyết toán thuế cuối năm.
-- **Chấm công & Chuyên cần:**
-  - `vw_TongHopChamCong`: Thống kê tổng số ngày đi làm, nghỉ phép, nghỉ không phép,...
-  - `vw_ChamCong_ChiTiet`: Truy xuất chi tiết log chấm công hàng ngày của từng nhân viên.
-  - `vw_TyLeChuyenCan`: View đánh giá và theo dõi tỷ lệ chuyên cần theo phòng ban hoặc toàn công ty.
-
-### 5.2. Stored Procedures (23 đối tượng)
-
-Chia làm 4 nhóm chức năng chính bảo phủ toàn bộ quy trình nghiệp vụ:
-
-- **Nhóm 1 - Chấm công (`sp_ChamCong.sql`):** 
-  - `sp_ChamCong_NhapHangNgay`, `sp_ChamCong_NhapLoat`, `sp_ChamCong_CapNhat`, `sp_ChamCong_DongBoNghiPhep`, `sp_NghiPhep_PheDuyet`, `sp_ChamCong_BaoCaoThang`.
-- **Nhóm 2 - Tính lương (`sp_TinhLuong.sql`, `sp_TinhBHXH_ChiTiet.sql`, `sp_TinhThueTNCN_ChiTiet.sql`):** 
-  - `sp_TinhLuong`: Thủ tục cốt lõi thực hiện luồng quy trình chạy lương tổng.
-  - `sp_TinhBHXH_ChiTiet`, `sp_TinhThueTNCN_ChiTiet`: Xử lý tính toán và đổ ra chi tiết về bảo hiểm và thuế.
-- **Nhóm 3 - Quản lý bảng lương (`sp_TaoBangLuong.sql`):** 
-  - `sp_TaoBangLuong_ChinhThuc`, `sp_TaoBangLuong_PhieuLuong`, `sp_TaoBangLuong_BHXH`, `sp_TaoBangLuong_QuyetToanThue`, `sp_TaoBangLuong_SoSanh`, `sp_TaoBangLuong_ChiPhiNhanSu`, `sp_XacNhanBangLuong`, `sp_ThanhToanLuong`.
-- **Nhóm 4 - Báo cáo & Thống kê (`sp_BaoCaoNhanSu.sql`):**
-  - `sp_BaoCaoNhanSu_TongQuan`, `sp_BaoCaoNhanSu_TheoPhongBan`, `sp_BaoCaoNhanSu_HopDong`, `sp_BaoCaoNhanSu_BienDong`, `sp_BaoCaoNhanSu_LuongPhanPhoi`, `sp_BaoCaoNhanSu_NghiPhepNam`.
-
-### 5.3. Functions (12 đối tượng)
-
-Gói gọn các công thức tài chính và nhân sự thành các hàm (Scalar Functions) giúp tái sử dụng:
-
-- **Logic Ngày làm việc (`fn_SoNgayLamViec.sql`):** 
-  - `fn_SoNgayChuanThang`, `fn_SoNgayChamCong`, `fn_SoNgayNghiCoLuong`, `fn_SoNgayNghiKhongLuong`, `fn_HeSoLuongThang`, `fn_TinhLuongLamThem`.
-- **Logic Thuế TNCN (`fn_TinhThueTNCN.sql`):**
-  - `fn_TinhThueTNCN_Scalar` (tính thuế lũy tiến 7 bậc), `fn_XacDinhBacThue`, `fn_TinhGiamTruPhuThuoc`.
-- **Logic Bảo hiểm (`fn_TinhBHXH.sql`):**
-  - `fn_TinhLuongDongBH`, `fn_TinhBH_NLD` (tính chi phí Người lao động), `fn_TinhBH_NSDLD` (tính chi phí Người sử dụng lao động).
-
-### 5.4. Triggers (21 đối tượng)
-
-Bảo vệ dữ liệu, kiểm soát tính hợp lệ và tự động lưu vết (Audit Logging) ở tầng thấp nhất:
-
-- **Kiểm soát Nhân viên & Hợp đồng:**
-  - `trg_NhanVien_BeforeInsert_CheckTuoi`, `trg_NhanVien_BeforeUpdate_CheckTuoi` (Chặn nhân viên chưa đủ tuổi).
-  - Lịch sử hợp đồng: `trg_HopDong_AfterInsert`, `trg_HopDong_AfterUpdate`, `trg_HopDong_AfterDelete`, `trg_HopDong_BeforeUpdate`, `trg_HopDong_BeforeDelete`, `trg_HopDong_CheckOneActive` (Đảm bảo 1 NV chỉ có 1 hợp đồng active).
-- **Kiểm soát Lương & Khấu trừ:**
-  - Lịch sử Lương cơ bản: `trg_LuongCoBan_AfterInsert`, `trg_LuongCoBan_AfterUpdate`.
-  - Toàn vẹn thông tin lương: `trg_LuongCoBan_CheckOneCurrent`, `trg_LuongCoBan_CheckOneCurrent_Update`.
-  - Khóa Bảng lương khi đã chốt: `trg_BangLuong_BeforeUpdate`, `trg_BangLuong_BeforeDelete`, `trg_BangLuong_AfterUpdate`.
-  - Hợp lệ khấu trừ: `trg_KhauTru_BeforeInsert_NgayHopLe`, `trg_KhauTru_BeforeUpdate_NgayHopLe`.
-- **Kiểm soát Chấm công & Nghỉ phép:**
-  - Hợp lệ chấm công: `trg_ChamCong_BeforeInsert`, `trg_ChamCong_BeforeUpdate` (Chặn chấm công ngày tương lai).
-  - Trùng lịch nghỉ phép: `trg_NghiPhep_CheckOverlap_Insert`, `trg_NghiPhep_CheckOverlap_Update`.
+📍 **Danh sách TOÀN BỘ các vị trí áp dụng Giao tác (`START TRANSACTION`) trong hệ thống**:
+- **Bọc xử lý logic tính lương**: `02_Database/StoredProcedures/sp_TinhLuong.sql` (Dòng 275).
+- **Bọc dữ liệu mẫu an toàn (Seed Data)**: `02_Database/DML/seed_data.sql` (Tại các dòng: 11, 86, 171, 263, 355, 553, 4341, 4470, 4492, 4504).
 
 ---
 
-## 6. Kịch bản phát sinh đồng thời và cách khắc phục khi Demo
+### 5. Các mục (Đối tượng CSDL áp dụng)
+Hệ thống áp dụng triệt để các đối tượng Database để xử lý nghiệp vụ. Dưới đây là liệt kê **TOÀN BỘ CHI TIẾT** danh sách và vị trí file code trong hệ thống:
 
-Trong môi trường thực tế với nhiều HR hoạt động, các vấn đề về tương tranh (Concurrency Anomalies) bắt buộc phải xử lý:
+#### 5.1. View (6 Views)
+- **Mục đích**: Ẩn đi sự phức tạp của truy vấn JOIN nhiều bảng, cung cấp cấu trúc bảng ảo phục vụ nhanh cho việc đọc từ Backend, đồng thời bảo mật các cột nhạy cảm.
+- **Danh sách chi tiết**:
+  - `vw_BangLuong`: 📍 `02_Database/Views/vw_BangLuong.sql` (Dòng 20).
+  - `vw_BangLuong_TongHop`: 📍 `02_Database/Views/vw_BangLuong.sql` (Dòng 105).
+  - `vw_ThueTNCN_KyQuyetToan`: 📍 `02_Database/Views/vw_BangLuong.sql` (Dòng 157).
+  - `vw_TongHopChamCong`: 📍 `02_Database/Views/vw_TongHopChamCong.sql` (Dòng 19).
+  - `vw_ChamCong_ChiTiet`: 📍 `02_Database/Views/vw_TongHopChamCong.sql` (Dòng 75).
+  - `vw_TyLeChuyenCan`: 📍 `02_Database/Views/vw_TongHopChamCong.sql` (Dòng 115).
 
-### 6.1. Mất dữ liệu cập nhật (Lost Update)
+#### 5.2. Store Procedures (23 Thủ tục lưu trữ)
+- **Mục đích**: Đóng gói các logic xử lý dữ liệu phức tạp nhiều bước thành một lời gọi duy nhất từ Application, giảm thiểu độ trễ mạng và tăng hiệu suất.
+- **Danh sách chi tiết**:
+  - **Báo cáo nhân sự**:
+    - `sp_BaoCaoNhanSu_TongQuan`: 📍 `02_Database/StoredProcedures/sp_BaoCaoNhanSu.sql` (Dòng 25).
+    - `sp_BaoCaoNhanSu_TheoPhongBan`: 📍 `02_Database/StoredProcedures/sp_BaoCaoNhanSu.sql` (Dòng 125).
+    - `sp_BaoCaoNhanSu_HopDong`: 📍 `02_Database/StoredProcedures/sp_BaoCaoNhanSu.sql` (Dòng 169).
+    - `sp_BaoCaoNhanSu_BienDong`: 📍 `02_Database/StoredProcedures/sp_BaoCaoNhanSu.sql` (Dòng 223).
+    - `sp_BaoCaoNhanSu_LuongPhanPhoi`: 📍 `02_Database/StoredProcedures/sp_BaoCaoNhanSu.sql` (Dòng 285).
+    - `sp_BaoCaoNhanSu_NghiPhepNam`: 📍 `02_Database/StoredProcedures/sp_BaoCaoNhanSu.sql` (Dòng 353).
+  - **Chấm công**:
+    - `sp_ChamCong_NhapHangNgay`: 📍 `02_Database/StoredProcedures/sp_ChamCong.sql` (Dòng 24).
+    - `sp_ChamCong_NhapLoat`: 📍 `02_Database/StoredProcedures/sp_ChamCong.sql` (Dòng 119).
+    - `sp_ChamCong_CapNhat`: 📍 `02_Database/StoredProcedures/sp_ChamCong.sql` (Dòng 195).
+    - `sp_ChamCong_DongBoNghiPhep`: 📍 `02_Database/StoredProcedures/sp_ChamCong.sql` (Dòng 249).
+    - `sp_NghiPhep_PheDuyet`: 📍 `02_Database/StoredProcedures/sp_ChamCong.sql` (Dòng 312).
+    - `sp_ChamCong_BaoCaoThang`: 📍 `02_Database/StoredProcedures/sp_ChamCong.sql` (Dòng 363).
+  - **Bảng lương**:
+    - `sp_TaoBangLuong_ChinhThuc`: 📍 `02_Database/StoredProcedures/sp_TaoBangLuong.sql` (Dòng 24).
+    - `sp_TaoBangLuong_PhieuLuong`: 📍 `02_Database/StoredProcedures/sp_TaoBangLuong.sql` (Dòng 119).
+    - `sp_TaoBangLuong_BHXH`: 📍 `02_Database/StoredProcedures/sp_TaoBangLuong.sql` (Dòng 199).
+    - `sp_TaoBangLuong_QuyetToanThue`: 📍 `02_Database/StoredProcedures/sp_TaoBangLuong.sql` (Dòng 270).
+    - `sp_TaoBangLuong_SoSanh`: 📍 `02_Database/StoredProcedures/sp_TaoBangLuong.sql` (Dòng 317).
+    - `sp_TaoBangLuong_ChiPhiNhanSu`: 📍 `02_Database/StoredProcedures/sp_TaoBangLuong.sql` (Dòng 355).
+    - `sp_XacNhanBangLuong`: 📍 `02_Database/StoredProcedures/sp_TaoBangLuong.sql` (Dòng 417).
+    - `sp_ThanhToanLuong`: 📍 `02_Database/StoredProcedures/sp_TaoBangLuong.sql` (Dòng 459).
+  - **Tính toán Lõi**:
+    - `sp_TinhBHXH_ChiTiet`: 📍 `02_Database/StoredProcedures/sp_TinhBHXH_ChiTiet.sql` (Dòng 14).
+    - `sp_TinhLuong`: 📍 `02_Database/StoredProcedures/sp_TinhLuong.sql` (Dòng 27).
+    - `sp_TinhThueTNCN_ChiTiet`: 📍 `02_Database/StoredProcedures/sp_TinhThueTNCN_ChiTiet.sql` (Dòng 13).
 
-- **Kịch bản Demo:** Hai chuyên viên nhân sự (HR1 và HR2) cùng truy xuất bảng `ChamCong` của nhân viên A vào ngày 15/03. HR1 cập nhật "Số giờ tăng ca = 2", trong khi HR2 không biết nên cũng nhấn Save để cập nhật "Trạng thái = WFH". Lưu sau sẽ đè lưu trước, thao tác của HR1 bị mất.
-- **Khắc phục:** Sử dụng kỹ thuật Pessimistic Locking (`SELECT ... FOR UPDATE`) trong Procedure cập nhật chấm công. Dòng dữ liệu sẽ bị khóa đối với HR2 cho đến khi HR1 hoàn thành transaction.
+#### 5.3. Functions (12 Hàm)
+- **Mục đích**: Tính toán và trả về các giá trị vô hướng (scalar), dễ dàng tái sử dụng trong các vòng lặp hoặc truy vấn SELECT.
+- **Danh sách chi tiết**:
+  - **Ngày làm việc**:
+    - `fn_SoNgayChuanThang`: 📍 `02_Database/Functions/fn_SoNgayLamViec.sql` (Dòng 22).
+    - `fn_SoNgayChamCong`: 📍 `02_Database/Functions/fn_SoNgayLamViec.sql` (Dòng 77).
+    - `fn_SoNgayNghiCoLuong`: 📍 `02_Database/Functions/fn_SoNgayLamViec.sql` (Dòng 110).
+    - `fn_SoNgayNghiKhongLuong`: 📍 `02_Database/Functions/fn_SoNgayLamViec.sql` (Dòng 142).
+    - `fn_HeSoLuongThang`: 📍 `02_Database/Functions/fn_SoNgayLamViec.sql` (Dòng 175).
+    - `fn_TinhLuongLamThem`: 📍 `02_Database/Functions/fn_SoNgayLamViec.sql` (Dòng 213).
+  - **Bảo hiểm**:
+    - `fn_TinhLuongDongBH`: 📍 `02_Database/Functions/fn_TinhBHXH.sql` (Dòng 21).
+    - `fn_TinhBH_NLD`: 📍 `02_Database/Functions/fn_TinhBHXH.sql` (Dòng 54).
+    - `fn_TinhBH_NSDLD`: 📍 `02_Database/Functions/fn_TinhBHXH.sql` (Dòng 84).
+  - **Thuế TNCN**:
+    - `fn_TinhThueTNCN_Scalar`: 📍 `02_Database/Functions/fn_TinhThueTNCN.sql` (Dòng 16).
+    - `fn_XacDinhBacThue`: 📍 `02_Database/Functions/fn_TinhThueTNCN.sql` (Dòng 86).
+    - `fn_TinhGiamTruPhuThuoc`: 📍 `02_Database/Functions/fn_TinhThueTNCN.sql` (Dòng 116).
 
-### 6.2. Đọc dữ liệu rác (Dirty Read)
+#### 5.4. Triggers (21 Trình kích hoạt)
+- **Mục đích**: Tự động thực thi các kiểm tra (Validation) phức tạp hoặc ghi nhận lại nhật ký (Audit Trail) khi có sự kiện thay đổi dữ liệu (DML).
+- **Danh sách chi tiết**:
+  - **Kiểm tra tuổi nhân viên**:
+    - `trg_NhanVien_BeforeInsert_CheckTuoi`: 📍 `02_Database/Triggers/trg_NhanVien_CheckTuoi.sql` (Dòng 14).
+    - `trg_NhanVien_BeforeUpdate_CheckTuoi`: 📍 `02_Database/Triggers/trg_NhanVien_CheckTuoi.sql` (Dòng 37).
+  - **Khấu trừ hợp lệ**:
+    - `trg_KhauTru_BeforeInsert_NgayHopLe`: 📍 `02_Database/Triggers/trg_KhauTru_Validate.sql` (Dòng 12).
+    - `trg_KhauTru_BeforeUpdate_NgayHopLe`: 📍 `02_Database/Triggers/trg_KhauTru_Validate.sql` (Dòng 27).
+  - **Chấm công**:
+    - `trg_ChamCong_BeforeInsert`: 📍 `02_Database/Triggers/trg_KiemTraChamCong.sql` (Dòng 20).
+    - `trg_ChamCong_BeforeUpdate`: 📍 `02_Database/Triggers/trg_KiemTraChamCong.sql` (Dòng 62).
+  - **Log Hợp đồng & Bảo vệ dữ liệu**:
+    - `trg_HopDong_AfterInsert`: 📍 `02_Database/Triggers/trg_LogHopDong.sql` (Dòng 23).
+    - `trg_HopDong_AfterUpdate`: 📍 `02_Database/Triggers/trg_LogHopDong.sql` (Dòng 57).
+    - `trg_HopDong_AfterDelete`: 📍 `02_Database/Triggers/trg_LogHopDong.sql` (Dòng 120).
+    - `trg_HopDong_BeforeUpdate`: 📍 `02_Database/Triggers/trg_LogHopDong.sql` (Dòng 150).
+    - `trg_HopDong_BeforeDelete`: 📍 `02_Database/Triggers/trg_LogHopDong.sql` (Dòng 174).
+    - `trg_HopDong_CheckOneActive`: 📍 `02_Database/Triggers/trg_LogHopDong.sql` (Dòng 194).
+  - **Log & Bảo vệ Bảng lương/Lương cơ bản**:
+    - `trg_LuongCoBan_AfterInsert`: 📍 `02_Database/Triggers/trg_LogLuong.sql` (Dòng 20).
+    - `trg_LuongCoBan_AfterUpdate`: 📍 `02_Database/Triggers/trg_LogLuong.sql` (Dòng 56).
+    - `trg_BangLuong_BeforeUpdate`: 📍 `02_Database/Triggers/trg_LogLuong.sql` (Dòng 104).
+    - `trg_BangLuong_BeforeDelete`: 📍 `02_Database/Triggers/trg_LogLuong.sql` (Dòng 139).
+    - `trg_BangLuong_AfterUpdate`: 📍 `02_Database/Triggers/trg_LogLuong.sql` (Dòng 158).
+    - `trg_LuongCoBan_CheckOneCurrent`: 📍 `02_Database/Triggers/trg_LuongCoBan_CheckOneCurrent.sql` (Dòng 13).
+    - `trg_LuongCoBan_CheckOneCurrent_Update`: 📍 `02_Database/Triggers/trg_LuongCoBan_CheckOneCurrent.sql` (Dòng 34).
+  - **Nghỉ phép (Tránh trùng lặp)**:
+    - `trg_NghiPhep_CheckOverlap_Insert`: 📍 `02_Database/Triggers/trg_NghiPhep_CheckOverlap.sql` (Dòng 11).
+    - `trg_NghiPhep_CheckOverlap_Update`: 📍 `02_Database/Triggers/trg_NghiPhep_CheckOverlap.sql` (Dòng 35).
 
-- **Kịch bản Demo:** Quản lý đang chạy SP `sp_TinhLuong`. Bảng `ChiTietLuong` đang được Insert dữ liệu nhưng chưa `COMMIT`. Đúng lúc này Giám đốc mở Dashboard lấy dữ liệu từ `vw_BangLuong_TongHop`. Nếu đọc phải dữ liệu chưa commit, Giám đốc sẽ thấy báo cáo quỹ lương bị sai lệch.
-- **Khắc phục:** MySQL InnoDB được thiết lập Mức độ cô lập (Isolation Level) mặc định tối thiểu là `READ COMMITTED` (thường dùng `REPEATABLE READ`). Ở chế độ này, Giám đốc chỉ đọc được version dữ liệu đã commit trước đó, hoàn toàn tránh được Dirty Read.
+---
 
-### 6.3. Không đọc lại được dữ liệu (Non-repeatable Read)
+### 6. Các vấn đề đồng thời (Concurrency Anomalies) & Cách khắc phục khi Demo
+*(Khi demo, chúng ta sẽ dùng hàm `DO SLEEP(5);` trong MySQL để cố tình làm trễ giao dịch, nhằm tạo đủ thời gian kích hoạt các lỗi đồng thời từ các session khác nhau).*
 
-- **Kịch bản Demo:** Kế toán mở transaction, `SELECT` xem `LuongCoBan` của nhân viên B để chuẩn bị đối soát. Cùng lúc đó, HR_ADMIN thực hiện tăng lương cho nhân viên B và `COMMIT`. Nếu kế toán chạy lại `SELECT` lần 2 trong cùng một giao tác, mức lương sẽ bị thay đổi so với lần 1.
-- **Khắc phục:** Giữ Isolation Level của MySQL ở mức `REPEATABLE READ`. InnoDB cung cấp cơ chế MVCC (Multi-Version Concurrency Control) giúp tạo ra một snapshot của dữ liệu cho kế toán. Mọi lệnh đọc trong giao tác của kế toán đều nhất quán, bất chấp HR_ADMIN đã cập nhật.
+#### 6.1. Mất dữ liệu cập nhật (Lost Update)
+- **Ngữ cảnh**: Chuyên viên HR_A và HR_B cùng lúc tải thông tin của Nhân viên X lên giao diện để thay đổi phụ cấp. A cộng thêm 1 triệu, B cộng thêm 2 triệu. HR_A lưu trước, HR_B lưu ngay sau đó. Giá trị của A bị bản ghi của B đè lên và biến mất hoàn toàn.
+- **Demo bằng Sleep**: 
+  - Transaction 1 (TX1): `SELECT PhuCap FROM...` (Chờ `SLEEP(5)`).
+  - Transaction 2 (TX2): `SELECT PhuCap FROM...` -> Cập nhật `PhuCap = PhuCap + 2tr` -> `COMMIT`.
+  - TX1 thức dậy: Dựa trên giá trị cũ lúc nãy vừa đọc, cập nhật `PhuCap = PhuCap + 1tr` -> `COMMIT`. Cập nhật của TX2 bị mất.
+- **Cách khắc phục**: Áp dụng Khóa bi quan (Pessimistic Locking) bằng cách dùng `SELECT ... FOR UPDATE` trong lúc đọc, ép TX2 phải chờ TX1 xong mới được đọc/ghi tiếp.
 
-### 6.4. Bóng ma (Phantom)
+#### 6.2. Đọc dữ liệu rác (Dirty Read)
+- **Ngữ cảnh**: Kế toán đang trong một Transaction cập nhật tăng lương đồng loạt (chưa COMMIT). Lúc đó, một nhân viên truy cập hệ thống để xem lương của mình và thấy mức lương mới. Sau đó, Transaction của Kế toán bị lỗi và ROLLBACK. Kết quả: Nhân viên đã xem được một con số không hề tồn tại thực sự (dữ liệu rác).
+- **Demo bằng Sleep**: 
+  - (Chỉnh Isolation TX2 về `READ UNCOMMITTED`).
+  - TX1: Cập nhật Lương = 50tr cho NV1. Đang `SLEEP(5)`.
+  - TX2: Truy vấn Lương NV1 -> Thấy 50tr.
+  - TX1 báo lỗi, gọi `ROLLBACK`. NV1 thực chất chưa được tăng lương.
+- **Cách khắc phục**: Nâng mức cô lập (Isolation Level) lên tối thiểu `READ COMMITTED`. Hệ thống mặc định của MySQL là `REPEATABLE READ`, vốn đã giải quyết triệt để lỗi này.
 
-- **Kịch bản Demo:** Kế toán đang thực hiện chốt sổ lương, chạy `SUM()` để tính tổng chi phí nhân sự của toàn bộ Phòng Kế toán. Trong khi transaction đang mở, một HR_ADMIN thêm một hợp đồng mới cho một nhân viên kế toán vừa vào làm. Nếu kế toán `SUM()` lại, tổng chi phí đột ngột tăng lên (xuất hiện dòng dữ liệu bóng ma).
-- **Khắc phục:** Đối với các giao dịch tài chính chốt sổ, set Isolation Level thành `SERIALIZABLE` trước khi thực hiện báo cáo, hoặc dùng Next-Key Lock của InnoDB để khóa các khoảng (gaps) không cho phép `INSERT` thêm dòng mới thỏa mãn điều kiện `WHERE`.
+#### 6.3. Không đọc lại được dữ liệu (Non-repeatable Read)
+- **Ngữ cảnh**: Giám đốc đang chạy Báo cáo quỹ lương. Ở bước 1, đếm số nhân viên có lương > 20tr (giả sử có 5 người). Sau đó, Báo cáo tiến hành liệt kê chi tiết (SLEEP để xử lý). Cùng lúc, HR cập nhật lương một nhân viên từ 15tr lên 25tr và COMMIT. Khi Báo cáo liệt kê xong lại hiện ra 6 người, gây sai lệch thông tin trong cùng một lần chạy báo cáo.
+- **Demo bằng Sleep**:
+  - (Chỉnh Isolation TX1 về `READ COMMITTED`).
+  - TX1: Đọc lương NV1 -> 15tr. Đang `SLEEP(5)`.
+  - TX2: Cập nhật Lương NV1 lên 25tr -> `COMMIT`.
+  - TX1 thức dậy, đọc lại lương NV1 -> Lấy được 25tr (Khác hoàn toàn với bước 1 trong cùng TX).
+- **Cách khắc phục**: Sử dụng mức cô lập `REPEATABLE READ`. Nhờ cơ chế MVCC của MySQL (Multi-Version Concurrency Control), TX1 sẽ luôn đọc được phiên bản dữ liệu (snapshot) tại thời điểm nó bắt đầu, bất chấp TX2 đã thay đổi ở dưới CSDL.
 
-## 7. Deadlock (Khóa bế tắc)
+#### 6.4. Bóng ma (Phantom Read)
+- **Ngữ cảnh**: Kế toán đang xuất danh sách Phòng IT để chia quỹ thưởng (TX1). Truy vấn ban đầu thấy 10 người. Trong khi TX1 đang SLEEP để tính tiền, thì HR tuyển mới 1 nhân viên vào phòng IT và COMMIT. TX1 khi cập nhật tiền thưởng cho toàn bộ Phòng IT lại phát hiện có 11 record bị ảnh hưởng (1 dòng "bóng ma" mới xuất hiện).
+- **Demo bằng Sleep**:
+  - TX1: `SELECT * FROM NhanVien WHERE PhongBanID = 1;` (Ra 10 người). SLEEP(5).
+  - TX2: `INSERT INTO NhanVien (PhongBanID, ... ) VALUES (1, ...);` -> `COMMIT`.
+  - TX1: Cập nhật thưởng `UPDATE NhanVien SET Thuong = 500 WHERE PhongBanID = 1;` -> Kết quả có 11 affected rows.
+- **Cách khắc phục**: Nâng mức cô lập lên `SERIALIZABLE` hoặc trong trường hợp của InnoDB, sử dụng `SELECT ... FOR UPDATE` theo dạng Next-Key Locking (khóa luôn khoảng trống ID của điều kiện WHERE) để chặn các hành động `INSERT` lọt vào khoảng dữ liệu đang xử lý.
 
-- **Kịch bản Demo:**
-  1. Transaction A (Xác nhận bảng lương): Chạy `sp_XacNhanBangLuong`, khóa bảng `BangLuong`, chuẩn bị khóa bảng `NhanVien` để gửi thông báo.
-  2. Transaction B (Đồng bộ thôi việc): Chạy `sp_CapNhatNhanVien`, khóa bảng `NhanVien`, chuẩn bị khóa bảng `BangLuong` để hủy các phiếu lương đang nháp.
-  3. Xảy ra chu trình chờ vô tận (Circular Wait). MySQL sẽ phát hiện và kill một trong hai Transaction, báo lỗi *Deadlock found*.
-- **Cách khắc phục:**
-  1. **Quy chuẩn thứ tự Locking:** Đảm bảo mọi Procedure trong hệ thống đều truy xuất và khóa các bảng theo một thứ tự duy nhất (VD: luôn tác động `NhanVien` -> `HopDong` -> `BangLuong`).
-  2. Rút ngắn thời gian chạy của Transaction (không để tác vụ chờ người dùng nhập liệu).
-  3. Bổ sung cơ chế `TRY...CATCH` (hoặc kiểm tra Exception) ở tầng App Code để tự động bắt mã lỗi `1213` (Deadlock) và thực hiện lại giao dịch (Retry).
+---
+
+### 7. Deadlock (Khóa chết)
+- **Định nghĩa**: Hai (hoặc nhiều) giao dịch đang giữ khóa tài nguyên và chờ đợi tài nguyên mà bên kia đang giữ, dẫn đến một vòng lặp chờ đợi vô tận.
+- **Ngữ cảnh Demo**:
+  - TX1: Bắt đầu xử lý cho Nhân viên X -> Lấy Khóa cập nhật bảng `HopDong`. Đang SLEEP.
+  - TX2: Bắt đầu xử lý lương cho Nhân viên X -> Lấy Khóa cập nhật bảng `LuongCoBan`. Đang SLEEP.
+  - TX1 thức dậy: Cần cập nhật bảng `LuongCoBan` -> Bị Block (Chờ TX2 nhả khóa).
+  - TX2 thức dậy: Cần cập nhật bảng `HopDong` -> Bị Block (Chờ TX1 nhả khóa).
+  -> **Hậu quả**: MySQL phát hiện vòng lặp deadlock và buộc phải "giết" (kill) một trong hai transaction (kèm theo thông báo lỗi `Error 1213: Deadlock found`), transaction còn lại sẽ được tiếp tục.
+- **Cách khắc phục**:
+  1. **Quy tắc thứ tự khóa**: Luôn yêu cầu Backend/Stored Procedures phải truy cập các bảng theo một thứ tự nhất định, ví dụ luôn cập nhật `HopDong` trước rồi mới tới `LuongCoBan` trong mọi nghiệp vụ.
+  2. **Thời gian khóa cực ngắn**: Tối ưu index và cấu trúc truy vấn để khóa diễn ra nhanh nhất, giảm thời gian giao dịch.
+  3. **Xử lý ứng dụng (Retry)**: Bắt lỗi Deadlock ở phía Application Node.js (try...catch) và tự động thực thi lại transaction bị hủy sau vài phần nghìn giây.
