@@ -4,6 +4,7 @@ MỤC ĐÍCH   : Dữ liệu mẫu thực tế cho toàn bộ hệ thống
 DBMS       : MySQL 8.0.46
 */
 USE HRPayrollDB;
+SET SQL_SAFE_UPDATES = 1;
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -4501,7 +4502,7 @@ COMMIT;
 SET FOREIGN_KEY_CHECKS = 1;
 
 START TRANSACTION;
-DELETE FROM TaiKhoan;
+DELETE FROM TaiKhoan WHERE TenDangNhap <> '';
 -- Passwords are '123456' hashed with bcrypt (salt rounds: 10)
 INSERT INTO TaiKhoan(TenDangNhap, MatKhau, Quyen, MaNV) VALUES
 ('admin', '$2b$10$DXTNmPgGuoZ30ZRh7Ixnae6TM./ShNkdraDqYYXEXq4qrgIcaZTY.', 'ADMIN', NULL),

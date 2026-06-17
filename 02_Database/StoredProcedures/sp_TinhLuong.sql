@@ -176,6 +176,8 @@ BEGIN
               AND (hd.NgayKetThuc IS NULL OR hd.NgayKetThuc >= v_NgayDauThang)
             ORDER BY hd.NgayBatDau DESC
             LIMIT 1;
+            
+            SET v_done = FALSE;
 
             IF v_cur_MaLoaiHD IS NULL THEN
                 SET v_SoNVLoiToi = v_SoNVLoiToi + 1;
@@ -192,6 +194,8 @@ BEGIN
               AND (lcb.NgayHetHieuLuc IS NULL OR lcb.NgayHetHieuLuc >= v_NgayDauThang)
             ORDER BY lcb.NgayHieuLuc DESC
             LIMIT 1;
+            
+            SET v_done = FALSE;
 
             IF v_cur_LuongCB IS NULL THEN
                 SET v_SoNVLoiToi = v_SoNVLoiToi + 1;

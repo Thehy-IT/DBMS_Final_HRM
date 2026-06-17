@@ -255,10 +255,10 @@ SELECT '--- Tổng hợp quỹ lương theo phòng ban ---' AS Info;
 SELECT
     Nam, Thang, PhongBan, SoNhanVien,
     FORMAT(TongLuongGross, 0) AS QuiGross,
-    FORMAT(TongThucLinh,   0) AS QuiThucLinh,
+    FORMAT(TongLuongNet,   0) AS QuiThucLinh,
     FORMAT(TongBH_NSDLD,   0) AS QuiBH_DN
 FROM vw_BangLuong_TongHop
-ORDER BY Nam, Thang, TongThucLinh DESC;
+ORDER BY Nam, Thang, TongLuongNet DESC;
 
 -- §5.3 vw_TongHopChamCong
 SELECT '--- Tổng hợp chấm công tháng 1/2025 ---' AS Info;
