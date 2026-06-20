@@ -166,3 +166,8 @@ google-auth.json
 *.ed25519
 ssh_host_*
 *.config.backup
+
+# Cá nhân
+AGENTS.md
+instruction.md
+prompt_antigravity.md
