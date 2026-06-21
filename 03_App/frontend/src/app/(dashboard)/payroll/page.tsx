@@ -76,7 +76,6 @@ export default function PayrollPage() {
     return acc;
   }, {});
 
-  const uniqueStatuses = Array.from(new Set(payrolls.map((p: any) => p.status))).filter(Boolean) as string[];
   const getStatusLabel = (s: string) => {
     switch(s) {
       case 'D': return 'Nháp';
@@ -85,6 +84,14 @@ export default function PayrollPage() {
       case 'P': return 'Đã thanh toán';
       default: return s;
     }
+  };
+
+  const formatOtHours = (hours: number | undefined | null) => {
+    if (!hours) return "0h";
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}p`;
   };
 
   const filteredPayrolls = payrolls.filter(record => {
@@ -244,7 +251,7 @@ export default function PayrollPage() {
                       <td className="px-6 py-4 text-slate-600">{formatMoney(record.basicSalary)}</td>
                       <td className="px-6 py-4">
                         <div>{record.workingDays} ngày</div>
-                        {record.otHours > 0 && <div className="text-xs text-indigo-600">{record.otHours}h OT</div>}
+                        {record.otHours > 0 && <div className="text-xs text-indigo-600">{formatOtHours(record.otHours)} OT</div>}
                       </td>
                       <td className="px-6 py-4 font-mono font-medium text-emerald-600 text-lg">
                         {formatMoney(record.netSalary)}
@@ -369,9 +376,10 @@ export default function PayrollPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="">Tất cả trạng thái</option>
-            {uniqueStatuses.map(status => (
-              <option key={status} value={status}>{getStatusLabel(status)}</option>
-            ))}
+            <option value="D">Nháp</option>
+            <option value="C">Đã xác nhận</option>
+            <option value="L">Đã chốt</option>
+            <option value="P">Đã thanh toán</option>
           </select>
         </div>
 
@@ -415,12 +423,13 @@ export default function PayrollPage() {
                       <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
                     </td>
                     <td className="px-6 py-4 font-medium text-slate-900">{record.empId}</td>
-                    <td className="px-6 py-4 font-medium text-slate-900">{record.name}
+                    <td className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">
+                      {record.name}
                       <div className="text-xs text-slate-500 font-normal">{deptMap[record.dept] || record.dept}</div>
                     </td>
                     <td className="px-6 py-4 text-right font-medium">{formatMoney(record.basicSalary)}</td>
                     <td className="px-6 py-4 text-right">{record.workingDays}đ</td>
-                    <td className="px-6 py-4 text-right">{record.otHours}h</td>
+                    <td className="px-6 py-4 text-right">{formatOtHours(record.otHours)}</td>
                     <td className="px-6 py-4 text-right text-emerald-600">+{formatMoney(record.allowance)}</td>
                     <td className="px-6 py-4 text-right text-red-600">-{formatMoney(record.deduction)}</td>
                     <td className="px-6 py-4 text-right font-bold text-indigo-600">{formatMoney(record.netSalary)}</td>
