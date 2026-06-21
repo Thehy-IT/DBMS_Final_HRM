@@ -1,29 +1,36 @@
 # BÁO CÁO DỰ ÁN MÔN HỆ QUẢN TRỊ CƠ SỞ DỮ LIỆU
+
 ## Đề tài: Hệ Thống Quản Lý Nhân Sự và Tính Lương Tự Động (HRPayrollSystem)
 
 ---
 
 ### 1. Tổng quan
-Dự án **HRPayrollSystem** là một hệ thống phần mềm (bao gồm Backend Node.js và Frontend Next.js) phục vụ tự động hóa quy trình quản lý nhân sự và tính lương cho doanh nghiệp. 
+
+Dự án **HRPayrollSystem** là một hệ thống phần mềm (bao gồm Backend Node.js và Frontend Next.js) phục vụ tự động hóa quy trình quản lý nhân sự và tính lương cho doanh nghiệp.
 Đặc biệt, hệ thống được xây dựng theo kiến trúc **Database-Centric** (lấy cơ sở dữ liệu làm trung tâm). Phần lớn logic nghiệp vụ phức tạp (như tính thuế, bảo hiểm, chốt lương, kiểm tra dữ liệu) được đẩy xuống tầng CSDL MySQL dưới dạng Stored Procedures, Functions và Triggers. Việc này đảm bảo tính toàn vẹn dữ liệu tuyệt đối (ACID), hiệu suất cao và khả năng bảo trì tập trung.
 
 ### 2. Tác nhân chính
+
 Hệ thống xoay quanh 4 tác nhân chính có phân quyền rõ rệt:
+
 - **Nhân viên (Employee)**: Tương tác với hệ thống để xem thông tin cá nhân, kiểm tra bảng lương hàng tháng, thực hiện chấm công và xin nghỉ phép.
 - **Chuyên viên Nhân sự (HR)**: Quản lý hồ sơ nhân viên, duy trì hợp đồng lao động, duyệt đơn xin nghỉ phép, theo dõi báo cáo đi làm (chuyên cần).
 - **Kế toán lương (Payroll Admin)**: Khởi chạy quy trình tính lương tự động, quản lý các khoản phụ cấp/khấu trừ, xác nhận chốt bảng lương cuối tháng.
 - **Quản trị viên (Admin)**: Toàn quyền cấu hình hệ thống, quản lý tài khoản, phân quyền và phục hồi dữ liệu khi cần.
 
 ### 3. Chức năng chính
+
 - **Quản lý Hồ sơ & Hợp đồng**: Thêm, sửa, xóa (soft-delete) thông tin nhân sự; quản lý vòng đời hợp đồng, lịch sử nâng lương.
 - **Quản lý Chấm công & Nghỉ phép**: Ghi nhận giờ làm việc, kiểm tra trùng lặp ngày nghỉ, tự động tính ra ngày công chuẩn làm cơ sở tính lương.
 - **Tính lương tự động**: Quy trình 8 bước biến Lương Gross thành Net. Tự động tính thuế Thu nhập cá nhân (TNCN) lũy tiến 7 bậc, tự động trừ các khoản BHXH, BHYT, BHTN theo đúng quy định pháp luật.
 - **Báo cáo thống kê**: Cung cấp các biểu đồ, số liệu về quỹ lương, tỷ lệ nhân sự biến động, chuyên cần trực quan.
 
 ### 4. Giao tác (Transactions)
+
 Hệ thống sử dụng Giao tác để bọc các nghiệp vụ cập nhật nhiều bảng cùng lúc, đảm bảo nguyên tắc ACID (Atomicity, Consistency, Isolation, Durability). Quá trình này được đặt trong một transaction. Nếu lỗi xảy ra, toàn bộ sẽ `ROLLBACK`, nếu thành công trọn vẹn thì `COMMIT`.
 
 📍 **Danh sách TOÀN BỘ các vị trí áp dụng Giao tác (`START TRANSACTION`) trong hệ thống**:
+
 - **Bọc xử lý logic tính lương**: `02_Database/StoredProcedures/sp_TinhLuong.sql` (Dòng 275).
 - **Bọc dữ liệu mẫu an toàn (Seed Data)**: `02_Database/DML/seed_data.sql` (Tại các dòng: 11, 86, 171, 263, 355, 553, 4341, 4470, 4492, 4504).
 - **Tiếp nhận nhân sự mới (Onboarding)**: `02_Database/StoredProcedures/sp_TiepNhanNhanSu.sql`. Bọc việc tạo Nhân viên, Hợp đồng, Lương cơ bản, Tài khoản.
@@ -35,9 +42,11 @@ Hệ thống sử dụng Giao tác để bọc các nghiệp vụ cập nhật n
 ---
 
 ### 5. Các mục (Đối tượng CSDL áp dụng)
+
 Hệ thống áp dụng triệt để các đối tượng Database để xử lý nghiệp vụ. Dưới đây là liệt kê **TOÀN BỘ CHI TIẾT** danh sách và vị trí file code trong hệ thống:
 
 #### 5.1. View (6 Views)
+
 - **Mục đích**: Ẩn đi sự phức tạp của truy vấn JOIN nhiều bảng, cung cấp cấu trúc bảng ảo phục vụ nhanh cho việc đọc từ Backend, đồng thời bảo mật các cột nhạy cảm.
 - **Danh sách chi tiết**:
   - `vw_BangLuong`: 📍 `02_Database/Views/vw_BangLuong.sql` (Dòng 20).
@@ -48,6 +57,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
   - `vw_TyLeChuyenCan`: 📍 `02_Database/Views/vw_TongHopChamCong.sql` (Dòng 115).
 
 #### 5.2. Store Procedures (27 Thủ tục lưu trữ)
+
 - **Mục đích**: Đóng gói các logic xử lý dữ liệu phức tạp nhiều bước thành một lời gọi duy nhất từ Application, giảm thiểu độ trễ mạng và tăng hiệu suất.
 - **Danh sách chi tiết**:
   - **Quản lý Nhân sự (Giao tác vòng đời)**:
@@ -84,6 +94,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
     - `sp_TinhThueTNCN_ChiTiet`: 📍 `02_Database/StoredProcedures/sp_TinhThueTNCN_ChiTiet.sql` (Dòng 13).
 
 #### 5.3. Functions (12 Hàm)
+
 - **Mục đích**: Tính toán và trả về các giá trị vô hướng (scalar), dễ dàng tái sử dụng trong các vòng lặp hoặc truy vấn SELECT.
 - **Danh sách chi tiết**:
   - **Ngày làm việc**:
@@ -103,6 +114,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
     - `fn_TinhGiamTruPhuThuoc`: 📍 `02_Database/Functions/fn_TinhThueTNCN.sql` (Dòng 116).
 
 #### 5.4. Triggers (21 Trình kích hoạt)
+
 - **Mục đích**: Tự động thực thi các kiểm tra (Validation) phức tạp hoặc ghi nhận lại nhật ký (Audit Trail) khi có sự kiện thay đổi dữ liệu (DML).
 - **Danh sách chi tiết**:
   - **Kiểm tra tuổi nhân viên**:
@@ -136,19 +148,22 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 ---
 
 ### 6. Các vấn đề đồng thời (Concurrency Anomalies) & Cách khắc phục khi Demo
+
 *(Khi demo, chúng ta sẽ dùng hàm `DO SLEEP(5);` trong MySQL để cố tình làm trễ giao dịch, nhằm tạo đủ thời gian kích hoạt các lỗi đồng thời từ các session khác nhau).*
 
 #### 6.1. Mất dữ liệu cập nhật (Lost Update)
+
 - **Ngữ cảnh**: Chuyên viên HR_A và HR_B cùng lúc tải thông tin của Nhân viên X lên giao diện để thay đổi phụ cấp. A cộng thêm 1 triệu, B cộng thêm 2 triệu. HR_A lưu trước, HR_B lưu ngay sau đó. Giá trị của A bị bản ghi của B đè lên và biến mất hoàn toàn.
-- **Demo bằng Sleep**: 
+- **Demo bằng Sleep**:
   - Transaction 1 (TX1): `SELECT PhuCap FROM...` (Chờ `SLEEP(5)`).
   - Transaction 2 (TX2): `SELECT PhuCap FROM...` -> Cập nhật `PhuCap = PhuCap + 2tr` -> `COMMIT`.
   - TX1 thức dậy: Dựa trên giá trị cũ lúc nãy vừa đọc, cập nhật `PhuCap = PhuCap + 1tr` -> `COMMIT`. Cập nhật của TX2 bị mất.
 - **Cách khắc phục**: Áp dụng Khóa bi quan (Pessimistic Locking) bằng cách dùng `SELECT ... FOR UPDATE` trong lúc đọc, ép TX2 phải chờ TX1 xong mới được đọc/ghi tiếp.
 
 #### 6.2. Đọc dữ liệu rác (Dirty Read)
+
 - **Ngữ cảnh**: Kế toán đang trong một Transaction cập nhật tăng lương đồng loạt (chưa COMMIT). Lúc đó, một nhân viên truy cập hệ thống để xem lương của mình và thấy mức lương mới. Sau đó, Transaction của Kế toán bị lỗi và ROLLBACK. Kết quả: Nhân viên đã xem được một con số không hề tồn tại thực sự (dữ liệu rác).
-- **Demo bằng Sleep**: 
+- **Demo bằng Sleep**:
   - (Chỉnh Isolation TX2 về `READ UNCOMMITTED`).
   - TX1: Cập nhật Lương = 50tr cho NV1. Đang `SLEEP(5)`.
   - TX2: Truy vấn Lương NV1 -> Thấy 50tr.
@@ -156,6 +171,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 - **Cách khắc phục**: Nâng mức cô lập (Isolation Level) lên tối thiểu `READ COMMITTED`. Hệ thống mặc định của MySQL là `REPEATABLE READ`, vốn đã giải quyết triệt để lỗi này.
 
 #### 6.3. Không đọc lại được dữ liệu (Non-repeatable Read)
+
 - **Ngữ cảnh**: Giám đốc đang chạy Báo cáo quỹ lương. Ở bước 1, đếm số nhân viên có lương > 20tr (giả sử có 5 người). Sau đó, Báo cáo tiến hành liệt kê chi tiết (SLEEP để xử lý). Cùng lúc, HR cập nhật lương một nhân viên từ 15tr lên 25tr và COMMIT. Khi Báo cáo liệt kê xong lại hiện ra 6 người, gây sai lệch thông tin trong cùng một lần chạy báo cáo.
 - **Demo bằng Sleep**:
   - (Chỉnh Isolation TX1 về `READ COMMITTED`).
@@ -165,6 +181,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 - **Cách khắc phục**: Sử dụng mức cô lập `REPEATABLE READ`. Nhờ cơ chế MVCC của MySQL (Multi-Version Concurrency Control), TX1 sẽ luôn đọc được phiên bản dữ liệu (snapshot) tại thời điểm nó bắt đầu, bất chấp TX2 đã thay đổi ở dưới CSDL.
 
 #### 6.4. Bóng ma (Phantom Read)
+
 - **Ngữ cảnh**: Kế toán đang xuất danh sách Phòng IT để chia quỹ thưởng (TX1). Truy vấn ban đầu thấy 10 người. Trong khi TX1 đang SLEEP để tính tiền, thì HR tuyển mới 1 nhân viên vào phòng IT và COMMIT. TX1 khi cập nhật tiền thưởng cho toàn bộ Phòng IT lại phát hiện có 11 record bị ảnh hưởng (1 dòng "bóng ma" mới xuất hiện).
 - **Demo bằng Sleep**:
   - TX1: `SELECT * FROM NhanVien WHERE PhongBanID = 1;` (Ra 10 người). SLEEP(5).
@@ -175,13 +192,14 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 ---
 
 ### 7. Deadlock (Khóa chết)
+
 - **Định nghĩa**: Hai (hoặc nhiều) giao dịch đang giữ khóa tài nguyên và chờ đợi tài nguyên mà bên kia đang giữ, dẫn đến một vòng lặp chờ đợi vô tận.
 - **Ngữ cảnh Demo**:
   - TX1: Bắt đầu xử lý cho Nhân viên X -> Lấy Khóa cập nhật bảng `HopDong`. Đang SLEEP.
   - TX2: Bắt đầu xử lý lương cho Nhân viên X -> Lấy Khóa cập nhật bảng `LuongCoBan`. Đang SLEEP.
   - TX1 thức dậy: Cần cập nhật bảng `LuongCoBan` -> Bị Block (Chờ TX2 nhả khóa).
   - TX2 thức dậy: Cần cập nhật bảng `HopDong` -> Bị Block (Chờ TX1 nhả khóa).
-  -> **Hậu quả**: MySQL phát hiện vòng lặp deadlock và buộc phải "giết" (kill) một trong hai transaction (kèm theo thông báo lỗi `Error 1213: Deadlock found`), transaction còn lại sẽ được tiếp tục.
+    -> **Hậu quả**: MySQL phát hiện vòng lặp deadlock và buộc phải "giết" (kill) một trong hai transaction (kèm theo thông báo lỗi `Error 1213: Deadlock found`), transaction còn lại sẽ được tiếp tục.
 - **Cách khắc phục**:
   1. **Quy tắc thứ tự khóa**: Luôn yêu cầu Backend/Stored Procedures phải truy cập các bảng theo một thứ tự nhất định, ví dụ luôn cập nhật `HopDong` trước rồi mới tới `LuongCoBan` trong mọi nghiệp vụ.
   2. **Thời gian khóa cực ngắn**: Tối ưu index và cấu trúc truy vấn để khóa diễn ra nhanh nhất, giảm thời gian giao dịch.
