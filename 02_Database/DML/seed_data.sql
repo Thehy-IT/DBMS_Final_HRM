@@ -97,7 +97,7 @@ DELETE FROM HopDong;
 UPDATE PhongBan SET MaTruongPhong = NULL;
 DELETE FROM NhanVien;
 INSERT INTO NhanVien (MaNV,HoTen,GioiTinh,NgaySinh,CCCD,DiaChi,Email,SoDienThoai,MaPB,MaCV,NgayVaoLam,TrangThai,MaSoThue,SoTaiKhoanNH,TenNganHang,NguoiTao) VALUES
-('NV000001','Phan Quang Nam','M','1989-07-22','026896033115','Gò Vấp, TP.HCM','nam.pq@hrpayroll.vn','0971367643','PB0001','CV0001','2015-01-05','A','0319736572','190110002396','TPBank','HR_ADMIN'),
+('NV000001','Huỳnh Thế Hy','M','1989-07-22','026896033115','Gò Vấp, TP.HCM','nam.pq@hrpayroll.vn','0971367643','PB0001','CV0001','2015-01-05','A','0319736572','190110002396','TPBank','HR_ADMIN'),
 ('NV000002','Phạm Công Quang','M','1993-10-02','098934106298','Q.10, TP.HCM','quang.pc@hrpayroll.vn','0935708194','PB0002','CV0002','2016-02-21','A','0374988034','190396889215','Sacombank','HR_ADMIN'),
 ('NV000003','Vũ Thu Thủy','F','1992-02-05','080924475523','Q.10, TP.HCM','thuy.vt@hrpayroll.vn','0988703005','PB0003','CV0002','2017-05-16','A','0341272553','190452788129','MBBank','HR_ADMIN'),
 ('NV000004','Vũ Đức Phúc','M','1988-01-01','088886919270','Thủ Đức, TP.HCM','phuc.vd@hrpayroll.vn','0942287985','PB0004','CV0002','2016-10-12','A','0335140847','190813363254','Techcombank','HR_ADMIN'),
@@ -170,7 +170,7 @@ SELECT '§2 NhanVien hoàn tất' AS Info;
 
 START TRANSACTION;
 INSERT INTO HopDong(MaHD,MaNV,MaLoaiHD,NgayBatDau,NgayKetThuc,LuongCoBan,VungLuong,TrangThai,NguoiKy_NLD,NguoiKy_NSDLD,NgayKy,NguoiTao) VALUES
-('HD00000001','NV000001',4,'2015-01-05',NULL,70000000,1,'A','Phan Quang Nam','Nguyễn Hoàng Minh','2015-01-05','HR_ADMIN'),
+('HD00000001','NV000001',4,'2015-01-05',NULL,70000000,1,'A','Huỳnh Thế Hy','Nguyễn Hoàng Minh','2015-01-05','HR_ADMIN'),
 ('HD00000002','NV000002',4,'2016-02-21',NULL,35000000,1,'A','Phạm Công Quang','Nguyễn Hoàng Minh','2016-02-21','HR_ADMIN'),
 ('HD00000003','NV000003',2,'2017-05-16','2018-05-16',28000000,1,'E','Vũ Thu Thủy','Nguyễn Hoàng Minh','2017-05-16','HR_ADMIN'),
 ('HD00000004','NV000003',4,'2018-05-17',NULL,35000000,1,'A','Vũ Thu Thủy','Nguyễn Hoàng Minh','2018-05-17','HR_ADMIN'),
