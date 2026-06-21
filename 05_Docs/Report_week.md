@@ -45,10 +45,11 @@ Hệ thống sử dụng Giao tác để bọc các nghiệp vụ cập nhật n
 
 Hệ thống áp dụng triệt để các đối tượng Database để xử lý nghiệp vụ. Dưới đây là liệt kê **TOÀN BỘ CHI TIẾT** danh sách và vị trí file code trong hệ thống:
 
-#### 5.1. View (6 Views)
+#### 5.1. View (7 Views)
 
 - **Mục đích**: Ẩn đi sự phức tạp của truy vấn JOIN nhiều bảng, cung cấp cấu trúc bảng ảo phục vụ nhanh cho việc đọc từ Backend, đồng thời bảo mật các cột nhạy cảm.
 - **Danh sách chi tiết**:
+  - `vw_HoSoNhanVien_ChiTiet`: 📍 `02_Database/Views/vw_HoSoNhanVien_ChiTiet.sql`. Tổng hợp hồ sơ, hợp đồng và lương hiện tại.
   - `vw_BangLuong`: 📍 `02_Database/Views/vw_BangLuong.sql` (Dòng 20).
   - `vw_BangLuong_TongHop`: 📍 `02_Database/Views/vw_BangLuong.sql` (Dòng 105).
   - `vw_ThueTNCN_KyQuyetToan`: 📍 `02_Database/Views/vw_BangLuong.sql` (Dòng 157).
@@ -93,10 +94,12 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
     - `sp_TinhLuong`: 📍 `02_Database/StoredProcedures/sp_TinhLuong.sql` (Dòng 27).
     - `sp_TinhThueTNCN_ChiTiet`: 📍 `02_Database/StoredProcedures/sp_TinhThueTNCN_ChiTiet.sql` (Dòng 13).
 
-#### 5.3. Functions (12 Hàm)
+#### 5.3. Functions (13 Hàm)
 
 - **Mục đích**: Tính toán và trả về các giá trị vô hướng (scalar), dễ dàng tái sử dụng trong các vòng lặp hoặc truy vấn SELECT.
 - **Danh sách chi tiết**:
+  - **Quản lý Nhân sự**:
+    - `fn_TinhThamNien`: 📍 `02_Database/Functions/fn_TinhThamNien.sql`
   - **Ngày làm việc**:
     - `fn_SoNgayChuanThang`: 📍 `02_Database/Functions/fn_SoNgayLamViec.sql` (Dòng 22).
     - `fn_SoNgayChamCong`: 📍 `02_Database/Functions/fn_SoNgayLamViec.sql` (Dòng 77).
@@ -113,10 +116,13 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
     - `fn_XacDinhBacThue`: 📍 `02_Database/Functions/fn_TinhThueTNCN.sql` (Dòng 86).
     - `fn_TinhGiamTruPhuThuoc`: 📍 `02_Database/Functions/fn_TinhThueTNCN.sql` (Dòng 116).
 
-#### 5.4. Triggers (21 Trình kích hoạt)
+#### 5.4. Triggers (23 Trình kích hoạt)
 
 - **Mục đích**: Tự động thực thi các kiểm tra (Validation) phức tạp hoặc ghi nhận lại nhật ký (Audit Trail) khi có sự kiện thay đổi dữ liệu (DML).
 - **Danh sách chi tiết**:
+  - **Bảo vệ Kiểm toán**:
+    - `trg_BangLuong_BeforeUpdate_Protect`: 📍 `02_Database/Triggers/trg_BangLuong_Protect_DaChot.sql`. Chặn sửa dữ liệu bảng lương đã thanh toán.
+    - `trg_BangLuong_BeforeDelete_Protect`: 📍 `02_Database/Triggers/trg_BangLuong_Protect_DaChot.sql`. Chặn xóa bảng lương đã thanh toán.
   - **Kiểm tra tuổi nhân viên**:
     - `trg_NhanVien_BeforeInsert_CheckTuoi`: 📍 `02_Database/Triggers/trg_NhanVien_CheckTuoi.sql` (Dòng 14).
     - `trg_NhanVien_BeforeUpdate_CheckTuoi`: 📍 `02_Database/Triggers/trg_NhanVien_CheckTuoi.sql` (Dòng 37).
