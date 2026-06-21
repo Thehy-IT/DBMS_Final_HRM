@@ -112,7 +112,7 @@ BEGIN
 
     SET v_NgayChuanThang = fn_SoNgayChuanThang(p_Thang, p_Nam);
 
-    -- Guard: kiểm tra bảng lương đã CHOT chưa
+    -- Guard 1: Ngăn chặn tuyệt đối việc tính lại bảng lương đã Xác nhận/Thanh toán/Khóa
     IF EXISTS (
         SELECT 1 FROM BangLuong
         WHERE Thang     = p_Thang
@@ -120,11 +120,12 @@ BEGIN
           AND TrangThai IN ('C', 'P', 'L')
           AND (p_MaNV_Filter IS NULL OR MaNV = p_MaNV_Filter)
     ) THEN
-        IF p_Override = 0 THEN
-            SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'sp_TinhLuong: Bảng lương đã CHOT. Dùng p_Override=1 để tính lại bản nháp.';
-        END IF;
-        -- Override = 1: xoá bản nháp cũ (chỉ NHAP = D)
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'sp_TinhLuong: LỖI: Bảng lương đã Xác nhận (C) hoặc Thanh toán (P)/Khóa (L). Không thể tính lại!';
+    END IF;
+
+    -- Guard 2: Xóa bản nháp cũ nếu Override = 1
+    IF p_Override = 1 THEN
         DELETE ctl FROM ChiTietLuong ctl
         INNER JOIN BangLuong bl ON ctl.MaBL = bl.MaBL
         WHERE bl.Thang = p_Thang AND bl.Nam = p_Nam
@@ -134,6 +135,16 @@ BEGIN
         DELETE FROM BangLuong
         WHERE Thang = p_Thang AND Nam = p_Nam AND TrangThai = 'D'
           AND (p_MaNV_Filter IS NULL OR MaNV = p_MaNV_Filter);
+    ELSE
+        -- Nếu Override = 0, kiểm tra xem có bản nháp chưa
+        IF EXISTS (
+            SELECT 1 FROM BangLuong
+            WHERE Thang = p_Thang AND Nam = p_Nam AND TrangThai = 'D'
+              AND (p_MaNV_Filter IS NULL OR MaNV = p_MaNV_Filter)
+        ) THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'sp_TinhLuong: Đã có bản nháp. Dùng p_Override=1 để ghi đè.';
+        END IF;
     END IF;
 
     SELECT CONCAT('sp_TinhLuong — Kỳ ', p_Thang, '/', p_Nam,
@@ -249,8 +260,12 @@ BEGIN
             SET v_cur_LuongGross = v_cur_LuongTheoNgay + v_cur_LuongLamThem + v_cur_TongPhuCap;
 
             SET v_cur_GiamTruPT  = fn_TinhGiamTruPhuThuoc(v_cur_SoNguoiPT);
+            
+            -- FIX: Thu nhập tính thuế (ThuNhapTT) chỉ được tính trên phần Phụ cấp chịu thuế, KHÔNG tính trên Tổng phụ cấp
+            -- Công thức: (Lương ngày + Lương thêm + Phụ cấp chịu thuế) - Bảo hiểm - Giảm trừ
             SET v_cur_ThuNhapTT  = GREATEST(
-                v_cur_LuongGross - v_cur_TongBH_NLD - v_cur_GiamTruBT - v_cur_GiamTruPT,
+                (v_cur_LuongTheoNgay + v_cur_LuongLamThem + v_cur_PhuCapChiuThue) 
+                - v_cur_TongBH_NLD - v_cur_GiamTruBT - v_cur_GiamTruPT,
                 0
             );
             SET v_cur_ThueTNCN   = fn_TinhThueTNCN_Scalar(v_cur_ThuNhapTT);
