@@ -318,10 +318,23 @@ CREATE PROCEDURE sp_NghiPhep_PheDuyet(
 BEGIN
     DECLARE v_TrangThaiHienTai CHAR(1);
     DECLARE v_MaNV              CHAR(8);
+    DECLARE v_NgayBatDau        DATE;
+    DECLARE v_NgayKetThuc       DATE;
+    DECLARE v_LoaiNghi          VARCHAR(100);
 
-    -- Lấy trạng thái hiện tại
-    SELECT TrangThai, MaNV INTO v_TrangThaiHienTai, v_MaNV
-    FROM NghiPhep WHERE MaNP = p_MaNP;
+    -- Khai báo rollback nếu có lỗi
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    -- Lấy thông tin đơn nghỉ
+    SELECT np.TrangThai, np.MaNV, np.NgayBatDau, np.NgayKetThuc, lnp.TenLoaiNghi 
+    INTO v_TrangThaiHienTai, v_MaNV, v_NgayBatDau, v_NgayKetThuc, v_LoaiNghi
+    FROM NghiPhep np
+    JOIN LoaiNghiPhep lnp ON np.MaLoaiNghi = lnp.MaLoaiNghi
+    WHERE np.MaNP = p_MaNP;
 
     IF v_TrangThaiHienTai IS NULL THEN
         SIGNAL SQLSTATE '45000'
@@ -338,6 +351,9 @@ BEGIN
         SET MESSAGE_TEXT = 'sp_NghiPhep_PheDuyet: HanhDong phải là A/R/C.';
     END IF;
 
+    START TRANSACTION;
+
+    -- 1. Cập nhật trạng thái đơn
     UPDATE NghiPhep
     SET TrangThai   = p_HanhDong,
         NguoiDuyet  = p_NguoiDuyet,
@@ -345,8 +361,33 @@ BEGIN
         GhiChu      = COALESCE(p_GhiChu, GhiChu)
     WHERE MaNP = p_MaNP;
 
+    -- 2. Nếu DUYỆT (A), tự động sinh bản ghi chấm công (Sync liền mạch)
+    IF p_HanhDong = 'A' THEN
+        SET @current_date = v_NgayBatDau;
+        WHILE @current_date <= v_NgayKetThuc DO
+            -- Bỏ qua cuối tuần (T7=7, CN=1 trong MySQL)
+            IF DAYOFWEEK(@current_date) NOT IN (1, 7) THEN
+                INSERT INTO ChamCong (MaNV, NgayCham, TrangThai, GhiChu, NguoiCapNhat)
+                VALUES (
+                    v_MaNV, 
+                    @current_date, 
+                    CASE WHEN v_LoaiNghi = 'Nghỉ ốm' THEN 'OM' ELSE 'NP' END,
+                    CONCAT('Duyệt từ đơn nghỉ tự động MaNP=', p_MaNP),
+                    p_NguoiDuyet
+                )
+                ON DUPLICATE KEY UPDATE
+                    TrangThai = VALUES(TrangThai),
+                    GhiChu    = VALUES(GhiChu),
+                    NguoiCapNhat = VALUES(NguoiCapNhat);
+            END IF;
+            SET @current_date = DATE_ADD(@current_date, INTERVAL 1 DAY);
+        END WHILE;
+    END IF;
+
+    COMMIT;
+
     SELECT CONCAT('[OK] Đơn nghỉ MaNP=', p_MaNP, ' → ',
-                  CASE p_HanhDong WHEN 'A' THEN 'ĐÃ DUYỆT'
+                  CASE p_HanhDong WHEN 'A' THEN 'ĐÃ DUYỆT và tự động sinh bản ghi chấm công'
                                   WHEN 'R' THEN 'TỪ CHỐI'
                                   ELSE 'ĐÃ HỦY' END) AS KetQua;
 END$$
