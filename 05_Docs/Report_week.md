@@ -26,6 +26,11 @@ Hệ thống sử dụng Giao tác để bọc các nghiệp vụ cập nhật n
 📍 **Danh sách TOÀN BỘ các vị trí áp dụng Giao tác (`START TRANSACTION`) trong hệ thống**:
 - **Bọc xử lý logic tính lương**: `02_Database/StoredProcedures/sp_TinhLuong.sql` (Dòng 275).
 - **Bọc dữ liệu mẫu an toàn (Seed Data)**: `02_Database/DML/seed_data.sql` (Tại các dòng: 11, 86, 171, 263, 355, 553, 4341, 4470, 4492, 4504).
+- **Tiếp nhận nhân sự mới (Onboarding)**: `02_Database/StoredProcedures/sp_TiepNhanNhanSu.sql`. Bọc việc tạo Nhân viên, Hợp đồng, Lương cơ bản, Tài khoản.
+- **Nghỉ việc / Thanh lý hợp đồng (Offboarding)**: `02_Database/StoredProcedures/sp_NghiViec.sql`. Chốt sổ toàn bộ trạng thái và vô hiệu hóa tài khoản.
+- **Điều chuyển / Thăng chức**: `02_Database/StoredProcedures/sp_DieuChuyenThangChuc.sql`. Đảm bảo liền mạch lịch sử lương và chức vụ.
+- **Duyệt đơn nghỉ phép liền mạch**: `02_Database/StoredProcedures/sp_ChamCong.sql` (trong thủ tục `sp_NghiPhep_PheDuyet`). Tự động sinh bản ghi chấm công.
+- **Chốt và thanh toán bảng lương**: `02_Database/StoredProcedures/sp_ChotBangLuong.sql`. Cập nhật trạng thái lương và các khoản khấu trừ đồng thời.
 
 ---
 
@@ -42,9 +47,13 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
   - `vw_ChamCong_ChiTiet`: 📍 `02_Database/Views/vw_TongHopChamCong.sql` (Dòng 75).
   - `vw_TyLeChuyenCan`: 📍 `02_Database/Views/vw_TongHopChamCong.sql` (Dòng 115).
 
-#### 5.2. Store Procedures (23 Thủ tục lưu trữ)
+#### 5.2. Store Procedures (27 Thủ tục lưu trữ)
 - **Mục đích**: Đóng gói các logic xử lý dữ liệu phức tạp nhiều bước thành một lời gọi duy nhất từ Application, giảm thiểu độ trễ mạng và tăng hiệu suất.
 - **Danh sách chi tiết**:
+  - **Quản lý Nhân sự (Giao tác vòng đời)**:
+    - `sp_TiepNhanNhanSu`: 📍 `02_Database/StoredProcedures/sp_TiepNhanNhanSu.sql`
+    - `sp_NghiViec`: 📍 `02_Database/StoredProcedures/sp_NghiViec.sql`
+    - `sp_DieuChuyenThangChuc`: 📍 `02_Database/StoredProcedures/sp_DieuChuyenThangChuc.sql`
   - **Báo cáo nhân sự**:
     - `sp_BaoCaoNhanSu_TongQuan`: 📍 `02_Database/StoredProcedures/sp_BaoCaoNhanSu.sql` (Dòng 25).
     - `sp_BaoCaoNhanSu_TheoPhongBan`: 📍 `02_Database/StoredProcedures/sp_BaoCaoNhanSu.sql` (Dòng 125).
@@ -68,6 +77,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
     - `sp_TaoBangLuong_ChiPhiNhanSu`: 📍 `02_Database/StoredProcedures/sp_TaoBangLuong.sql` (Dòng 355).
     - `sp_XacNhanBangLuong`: 📍 `02_Database/StoredProcedures/sp_TaoBangLuong.sql` (Dòng 417).
     - `sp_ThanhToanLuong`: 📍 `02_Database/StoredProcedures/sp_TaoBangLuong.sql` (Dòng 459).
+    - `sp_ChotBangLuong`: 📍 `02_Database/StoredProcedures/sp_ChotBangLuong.sql`
   - **Tính toán Lõi**:
     - `sp_TinhBHXH_ChiTiet`: 📍 `02_Database/StoredProcedures/sp_TinhBHXH_ChiTiet.sql` (Dòng 14).
     - `sp_TinhLuong`: 📍 `02_Database/StoredProcedures/sp_TinhLuong.sql` (Dòng 27).
