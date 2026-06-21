@@ -227,20 +227,18 @@ BEGIN
 
             SELECT
                 IFNULL(SUM(
-                    CASE lfl.LoaiGiaTri
+                    ROUND(CASE lfl.LoaiGiaTri
                         WHEN 'F' THEN COALESCE(nvfl.GiaTriOverride, lfl.GiaTri)
-                        WHEN 'P' THEN ROUND(v_cur_LuongCB
-                                     * COALESCE(nvfl.GiaTriOverride, lfl.GiaTri) / 100.0, 0)
-                        ELSE 0 END
+                        WHEN 'P' THEN v_cur_LuongCB * COALESCE(nvfl.GiaTriOverride, lfl.GiaTri) / 100.0
+                        ELSE 0 END * v_cur_HeSoLuong, 0)
                 ), 0),
                 IFNULL(SUM(
-                    CASE WHEN lfl.CoTinhThue = 1
+                    ROUND(CASE WHEN lfl.CoTinhThue = 1
                          THEN CASE lfl.LoaiGiaTri
                                 WHEN 'F' THEN COALESCE(nvfl.GiaTriOverride, lfl.GiaTri)
-                                WHEN 'P' THEN ROUND(v_cur_LuongCB
-                                               * COALESCE(nvfl.GiaTriOverride, lfl.GiaTri) / 100.0, 0)
+                                WHEN 'P' THEN v_cur_LuongCB * COALESCE(nvfl.GiaTriOverride, lfl.GiaTri) / 100.0
                                 ELSE 0 END
-                         ELSE 0 END
+                         ELSE 0 END * v_cur_HeSoLuong, 0)
                 ), 0)
             INTO v_cur_TongPhuCap, v_cur_PhuCapChiuThue
             FROM NhanVienPhucLoi nvfl
@@ -252,10 +250,18 @@ BEGIN
               AND lfl.IsActive = 1;
 
             -- ══ BƯỚC F — BẢO HIỂM & THUẾ
-            SET v_cur_BHXH_NLD   = ROUND(v_cur_LuongDongBH * 0.08,  0);
-            SET v_cur_BHYT_NLD   = ROUND(v_cur_LuongDongBH * 0.015, 0);
-            SET v_cur_BHTN_NLD   = ROUND(v_cur_LuongDongBH * 0.01,  0);
-            SET v_cur_TongBH_NLD = v_cur_BHXH_NLD + v_cur_BHYT_NLD + v_cur_BHTN_NLD;
+            -- LUẬT LĐ: Nghỉ không lương >= 14 ngày trong tháng -> Không tính đóng Bảo hiểm
+            IF (v_NgayChuanThang - (v_cur_NgayDiLam + v_cur_NgayNghiCL)) >= 14 THEN
+                SET v_cur_BHXH_NLD   = 0;
+                SET v_cur_BHYT_NLD   = 0;
+                SET v_cur_BHTN_NLD   = 0;
+                SET v_cur_TongBH_NLD = 0;
+            ELSE
+                SET v_cur_BHXH_NLD   = ROUND(v_cur_LuongDongBH * 0.08,  0);
+                SET v_cur_BHYT_NLD   = ROUND(v_cur_LuongDongBH * 0.015, 0);
+                SET v_cur_BHTN_NLD   = ROUND(v_cur_LuongDongBH * 0.01,  0);
+                SET v_cur_TongBH_NLD = v_cur_BHXH_NLD + v_cur_BHYT_NLD + v_cur_BHTN_NLD;
+            END IF;
 
             SET v_cur_LuongGross = v_cur_LuongTheoNgay + v_cur_LuongLamThem + v_cur_TongPhuCap;
 
@@ -344,11 +350,10 @@ BEGIN
                     v_cur_MaBL,
                     '+',
                     CONCAT('Phụ cấp: ', lfl.TenFL),
-                    CASE lfl.LoaiGiaTri
+                    ROUND(CASE lfl.LoaiGiaTri
                         WHEN 'F' THEN COALESCE(nvfl.GiaTriOverride, lfl.GiaTri)
-                        WHEN 'P' THEN ROUND(v_cur_LuongCB
-                                     * COALESCE(nvfl.GiaTriOverride, lfl.GiaTri) / 100.0, 0)
-                        ELSE 0 END
+                        WHEN 'P' THEN v_cur_LuongCB * COALESCE(nvfl.GiaTriOverride, lfl.GiaTri) / 100.0
+                        ELSE 0 END * v_cur_HeSoLuong, 0)
                 FROM NhanVienPhucLoi nvfl
                 JOIN LoaiPhucLoi lfl ON nvfl.MaFL = lfl.MaFL
                 WHERE nvfl.MaNV = v_cur_MaNV
