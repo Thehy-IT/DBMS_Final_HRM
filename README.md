@@ -19,7 +19,7 @@ Hệ thống được thiết kế theo mô hình **Database-Centric Architectur
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     CLIENT LAYER                                │
-│          (MySQL Workbench / Application / Reporting Tool)       │
+│       (Next.js Dashboard / React / TailwindCSS / Web App)       │
 └────────────────────────┬────────────────────────────────────────┘
                          │  CALL / SELECT / INSERT
 ┌────────────────────────▼────────────────────────────────────────┐
@@ -87,10 +87,11 @@ Mọi thay đổi hợp đồng và lương đều được ghi log tự động
 
 ```
 Lương Gross  = LuongCoBan × HeSoChucVu × (NgayDiLam / NgayChuanThang)
-             + Tổng Phụ Cấp
+             + (Tổng Phụ Cấp × (NgayDiLam / NgayChuanThang))
              + Lương Làm Thêm Giờ
 
-Lương đóng BH = min(LuongCoBan, 20 × LuongToiThieuVung)
+* Quy tắc 14 ngày: Nếu số ngày nghỉ không lương ≥ 14 ngày/tháng → Miễn đóng BH.
+Lương đóng BH = min(LuongCoBan, 20 × LuongToiThieuVung) (nếu phải đóng)
 BHXH NLĐ = LuongDongBH × 8%  │  BHYT NLĐ = × 1.5%  │  BHTN NLĐ = × 1%
 Tổng BH NLĐ = 10.5%
 
@@ -157,7 +158,10 @@ DBMS_Final_HRM/
 │       └── test_queries.sql        # 71 integration queries
 │
 ├── 03_App/
-│   └── connection.config           # Cấu hình kết nối MySQL
+│   ├── frontend/                   # Ứng dụng Next.js (React, TailwindCSS, TypeScript)
+│   │   ├── src/app/(dashboard)/    # Giao diện quản lý: Bảng lương, Lịch sử, Báo cáo
+│   │   └── src/components/         # Các thành phần UI có thể tái sử dụng
+│   └── backend/                    # API Server xử lý Database Layer
 │
 ├── 04_Testing/
 │   ├── testcase_luong.sql          # 102 test cases — module lương
@@ -219,10 +223,10 @@ SOURCE 02_Database/Views/vw_TongHopChamCong.sql;
 -- Bước 8: Seed data
 SOURCE 02_Database/DML/seed_data.sql;
 
--- Bước 9: Chạy tính lương 3 tháng
-CALL sp_TinhLuong(1, 2025, NULL, 0, 0);
-CALL sp_TinhLuong(2, 2025, NULL, 0, 0);
-CALL sp_TinhLuong(3, 2025, NULL, 0, 0);
+-- Bước 9: Chạy tính lương 3 tháng năm 2026
+CALL sp_TinhLuong(3, 2026, NULL, 0, 0);
+CALL sp_TinhLuong(4, 2026, NULL, 0, 0);
+CALL sp_TinhLuong(5, 2026, NULL, 0, 0);
 ```
 
 > Xem chi tiết từng bước, xử lý lỗi và checklist hoàn thành tại [HUONG_DAN_CHAY_DU_AN.md](HUONG_DAN_CHAY_DU_AN.md)
@@ -370,4 +374,4 @@ Tier 5 — Audit (ghi bởi Triggers)
 
 ---
 
-*Cập nhật lần cuối: 07/06/2026 — DBMS: MySQL 8.0+ — DL2301CLCA*
+*Cập nhật lần cuối: 21/06/2026 — DBMS: MySQL 8.0+ — Tích hợp Frontend Next.js*
