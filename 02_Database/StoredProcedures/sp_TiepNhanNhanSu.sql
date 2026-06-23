@@ -85,12 +85,9 @@ BEGIN
         v_TenDangNhap, p_MatKhau, 'EMPLOYEE', p_MaNV, 'A'
     );
 
-    -- ==========================================
-    -- HOÀN TẤT GIAO TÁC
-    -- ==========================================
     COMMIT;
     
     -- Trả về kết quả thành công
-    SELECT CONCAT('[OK] Tiếp nhận nhân sự ', p_HoTen, ' (', p_MaNV, ') thành công. Đã tạo đầy đủ HĐ, Lương và Tài khoản.') AS KetQua;
+    SELECT CONCAT('Tiếp nhận nhân sự ', p_HoTen, ' (', p_MaNV, ') thành công. Đã tạo đầy đủ HĐ, Lương và Tài khoản.') AS KetQua;
 END$$
 DELIMITER ;
