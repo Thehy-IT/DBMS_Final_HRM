@@ -1,4 +1,3 @@
--- FILE       : sp_TinhBHXH_ChiTiet.sql
 -- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Procedure tính chi tiết Bảo Hiểm Xã Hội / Y Tế / Thất Nghiệp
 

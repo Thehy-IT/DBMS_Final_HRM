@@ -1,4 +1,3 @@
--- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Các hàm tính ngày công — nền tảng cho sp_TinhLuong
 -- FUNCTIONS  :
 --   1. fn_SoNgayChuanThang  — Scalar: ngày chuẩn làm việc/tháng

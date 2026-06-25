@@ -1,4 +1,3 @@
--- FILE       : sp_TinhThueTNCN_ChiTiet.sql
 -- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Procedure tính chi tiết Thuế Thu Nhập Cá Nhân lũy tiến 7 bậc
 

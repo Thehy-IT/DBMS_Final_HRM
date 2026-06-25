@@ -1,17 +1,17 @@
---  Hệ thống Quản lý Nhân sự & Tính lương tự động
---  DBMS  : MySQL 8.0+
---  Author: HRPayroll Team
---  Phiên : v2.0 (Converted from SQL Server)
---
---  THỨ TỰ TẠO BẢNG (phụ thuộc FK):
---    Tier 0 — Không phụ thuộc  : PhongBan, ChucVu, LoaiHopDong
---                                LoaiNghiPhep, LoaiPhucLoi
---    Tier 1 — Phụ thuộc Tier 0 : NhanVien
---    Tier 2 — Phụ thuộc Tier 1 : HopDong, LuongCoBan, NghiPhep
---                                NhanVienPhucLoi
---    Tier 3 — Phụ thuộc Tier 1 : ChamCong
---    Tier 4 — Tính toán         : BangLuong → ChiTietLuong, KhauTru
---    Tier 5 — Audit             : AuditLog_HopDong, AuditLog_Luong
+/*Hệ thống Quản lý Nhân sự & Tính lương tự động
+DBMS  : MySQL 8.0+
+ Author: HRPayroll Team
+ Phiên : v2.0 (Converted from SQL Server)
+
+ THỨ TỰ TẠO BẢNG (phụ thuộc FK):
+   Tier 0 — Không phụ thuộc  : PhongBan, ChucVu, LoaiHopDong
+                               LoaiNghiPhep, LoaiPhucLoi
+   Tier 1 — Phụ thuộc Tier 0 : NhanVien
+   Tier 2 — Phụ thuộc Tier 1 : HopDong, LuongCoBan, NghiPhep
+                               NhanVienPhucLoi
+   Tier 3 — Phụ thuộc Tier 1 : ChamCong
+   Tier 4 — Tính toán         : BangLuong → ChiTietLuong, KhauTru
+   Tier 5 — Audit             : AuditLog_HopDong, AuditLog_Luong*/
 -- Tạo database nếu chưa tồn tại
 CREATE DATABASE IF NOT EXISTS HRPayrollDB
     CHARACTER SET utf8mb4
@@ -486,6 +486,6 @@ WHERE
 ORDER BY
     TABLE_NAME;
 
-SELECT CONCAT('[DONE] 01_create_tables.sql — ', COUNT(*), ' bảng đã tạo thành công.') AS KetQua
+SELECT CONCAT('01_create_tables.sql — ', COUNT(*), ' bảng đã tạo thành công.') AS KetQua
 FROM information_schema.TABLES
 WHERE TABLE_SCHEMA = 'HRPayrollDB';

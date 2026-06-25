@@ -1,11 +1,9 @@
--- FILE       : fn_TinhThueTNCN.sql
--- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
--- MỤC ĐÍCH   : Hàm tính Thuế Thu Nhập Cá Nhân lũy tiến 7 bậc
---              theo Thông tư 111/2013/TT-BTC (còn hiệu lực)
--- FUNCTIONS  :
---   1. fn_TinhThueTNCN_Scalar  — trả về tiền thuế
---   2. fn_XacDinhBacThue        — trả về số bậc (1-7)
---   3. fn_TinhGiamTruPhuThuoc   — tổng giảm trừ phụ thuộc
+/*MỤC ĐÍCH   : Hàm tính Thuế Thu Nhập Cá Nhân lũy tiến 7 bậc
+              theo Thông tư 111/2013/TT-BTC (còn hiệu lực)
+ FUNCTIONS  :
+   1. fn_TinhThueTNCN_Scalar  — trả về tiền thuế
+   2. fn_XacDinhBacThue        — trả về số bậc (1-7)
+   3. fn_TinhGiamTruPhuThuoc   — tổng giảm trừ phụ thuộc*/
 
 USE HRPayrollDB;
 -- HÀM 1: fn_TinhThueTNCN_Scalar
@@ -184,4 +182,4 @@ FROM (
     SELECT 4
 ) T;
 
-SELECT '[DONE] fn_TinhThueTNCN.sql — 3 functions, tất cả test PASS' AS Status;
+SELECT 'fn_TinhThueTNCN.sql — 3 functions, tất cả test PASS' AS Status;

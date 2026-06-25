@@ -1,38 +1,34 @@
--- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
--- MỤC ĐÍCH   : Bổ sung ràng buộc & index cho MySQL
---              §1  Unique Index có điều kiện (emulated trong MySQL)
---              §2  CHECK định dạng mã
---              §3  CHECK nghiệp vụ nâng cao
---              §4  CHECK tài chính & pháp lý
---              §5  Composite Index hiệu năng
---              §6  Kiểm tra & báo cáo tổng thể
--- DEPENDENCY : Chạy SAU 01_create_tables.sql
--- DBMS       : MySQL 8.0.46
+/* MỤC ĐÍCH   : Bổ sung ràng buộc & index cho MySQL
+              1  Unique Index có điều kiện (emulated trong MySQL)
+              2  CHECK định dạng mã
+              3  CHECK nghiệp vụ nâng cao
+              4  CHECK tài chính & pháp lý
+              5  Composite Index hiệu năng
+              6  Kiểm tra & báo cáo tổng thể
+ DEPENDENCY : Chạy SAU 01_create_tables.sql
+ DBMS       : MySQL 8.0.46 */
 USE HRPayrollDB;
 
-SELECT '[INFO] 02_constraints.sql — bắt đầu áp dụng ràng buộc' AS Status;
+SELECT '02_constraints.sql — bắt đầu áp dụng ràng buộc' AS Status;
 
--- §1  UNIQUE INDEX (thay thế Filtered Unique Index của SQL Server)
+-- 1  UNIQUE INDEX (thay thế Filtered Unique Index của SQL Server)
 
--- ── §1.1  BR-05: Mỗi nhân viên chỉ có 1 hợp đồng đang hiệu lực
+-- BR-05: Mỗi nhân viên chỉ có 1 hợp đồng đang hiệu lực
 -- Được kiểm soát bởi trigger trg_HopDong_CheckOneActive (xem Triggers/)
 
--- ── §1.2  Mỗi nhân viên chỉ có 1 mức lương cơ bản đang áp dụng
+-- 1.2  Mỗi nhân viên chỉ có 1 mức lương cơ bản đang áp dụng
 -- Được kiểm soát bởi trigger trg_LuongCoBan_CheckOneCurrent
 
--- ── §1.3  BangLuong đã LOCK không được tạo lại
+-- 1.3  BangLuong đã LOCK không được tạo lại
 -- UNIQUE (MaNV, Thang, Nam) đã tạo trong 01_create_tables.sql
 
--- ── §1.4  Cùng nhân viên không có 2 đơn nghỉ APPROVED trùng ngày
+-- 1.4  Cùng nhân viên không có 2 đơn nghỉ APPROVED trùng ngày
 -- Được kiểm soát bởi trigger trg_NghiPhep_CheckOverlap
 
 
--- ============================================================
--- §2  CHECK ĐỊNH DẠNG MÃ (FORMAT VALIDATION)
+-- 2  CHECK ĐỊNH DẠNG MÃ (FORMAT VALIDATION)
 -- Đã được thêm trong 01_create_tables.sql bằng CHECK + REGEXP
--- ============================================================
 
--- Helper procedure để add constraint an toàn (tránh lỗi nếu đã tồn tại)
 DROP PROCEDURE IF EXISTS _AddConstraintSafe;
 DELIMITER $$
 CREATE PROCEDURE _AddConstraintSafe(
@@ -56,7 +52,7 @@ BEGIN
 END$$
 DELIMITER ;
 
--- ── §2.5  NhanVien.SoDienThoai
+-- 2.5  NhanVien.SoDienThoai
 -- Kiểm tra trong MySQL với REGEXP
 CALL _AddConstraintSafe(
     'NhanVien',
@@ -68,7 +64,7 @@ CALL _AddConstraintSafe(
     )'
 );
 
--- ── §2.6  NhanVien.MaSoThue
+-- 2.6  NhanVien.MaSoThue
 CALL _AddConstraintSafe(
     'NhanVien',
     'CK_NhanVien_MST_Format',
@@ -82,19 +78,17 @@ CALL _AddConstraintSafe(
 );
 
 
--- ============================================================
--- §3  CHECK NGHIỆP VỤ NHÂN SỰ NÂNG CAO
--- ============================================================
--- ── §3.1  NhanVien: tuổi tối thiểu 18 và tối đa 70
+--  3  CHECK NGHIỆP VỤ NHÂN SỰ NÂNG CAO
+-- 3.1  NhanVien: tuổi tối thiểu 18 và tối đa 70
 -- CHUYỂN SANG TRIGGER: trg_NhanVien_CheckTuoi (tạo bên dưới)
 
--- ── §3.2  HopDong: Ngày bắt đầu hợp lệ (đã có trong CREATE TABLE)
+-- 3.2  HopDong: Ngày bắt đầu hợp lệ (đã có trong CREATE TABLE)
 
--- ── §3.3  HopDong: Ngày ký không sau ngày bắt đầu (đã có)
+-- 3.3  HopDong: Ngày ký không sau ngày bắt đầu (đã có)
 
--- ── §3.5  NghiPhep: Số ngày nghỉ tối đa 365 (đã có trong CREATE TABLE)
+-- 3.5  NghiPhep: Số ngày nghỉ tối đa 365 (đã có trong CREATE TABLE)
 
--- ── §3.6  NghiPhep: Ngày duyệt phải sau hoặc bằng ngày tạo
+-- 3.6  NghiPhep: Ngày duyệt phải sau hoặc bằng ngày tạo
 -- NOTE: NgayDuyet là DATETIME, NgayTao là DATETIME → so sánh OK (deterministic field comparison)
 CALL _AddConstraintSafe(
     'NghiPhep',
@@ -103,10 +97,10 @@ CALL _AddConstraintSafe(
         CHECK (NgayDuyet IS NULL OR NgayDuyet >= NgayTao)'
 );
 
--- ── §3.7  ChamCong: Không chấm công tương lai
+-- 3.7  ChamCong: Không chấm công tương lai
 -- → Đã có trong trg_ChamCong_BeforeInsert và trg_ChamCong_BeforeUpdate
 
--- ── §3.8  ChamCong: Giờ vào hợp lệ (05:00 – 11:00)
+-- 3.8  ChamCong: Giờ vào hợp lệ (05:00 – 11:00)
 -- TIME literal là deterministic → OK trong CHECK
 CALL _AddConstraintSafe(
     'ChamCong',
@@ -117,7 +111,7 @@ CALL _AddConstraintSafe(
     )'
 );
 
--- ── §3.9  ChamCong: Giờ ra hợp lệ (12:00 – 23:59)
+-- 3.9  ChamCong: Giờ ra hợp lệ (12:00 – 23:59)
 CALL _AddConstraintSafe(
     'ChamCong',
     'CK_ChamCong_GioRaHopLe',
@@ -127,15 +121,13 @@ CALL _AddConstraintSafe(
     )'
 );
 
--- ── §3.10  KhauTru: Ngày phát sinh không ở tương lai
+-- 3.10  KhauTru: Ngày phát sinh không ở tương lai
 -- PHẢI DÙNG TRIGGER vì CURDATE() là non-deterministic trong CHECK
 -- → Enforce qua trigger / stored procedure nhập liệu
 
--- ============================================================
--- §4  CHECK TÀI CHÍNH & PHÁP LÝ
--- ============================================================
-
--- ── §4.2  HopDong: Lương không thấp hơn mức tối thiểu vùng
+ --  4  CHECK TÀI CHÍNH & PHÁP LÝ
+ 
+-- 4.2  HopDong: Lương không thấp hơn mức tối thiểu vùng
 -- Sửa lại theo mức lương tối thiểu vùng 2024 (Nghị định 74/2024/NĐ-CP)
 -- Vùng 1: 4.960.000 / Vùng 2: 4.410.000 / Vùng 3: 3.860.000 / Vùng 4: 3.450.000
 CALL _AddConstraintSafe(
@@ -149,7 +141,7 @@ CALL _AddConstraintSafe(
     )'
 );
 
--- ── §4.5  BangLuong: Ngày thanh toán phải sau ngày xác nhận
+-- 4.5  BangLuong: Ngày thanh toán phải sau ngày xác nhận
 -- DATE(NgayXacNhan): hàm DATE() là deterministic khi applied to column → OK trong CHECK
 CALL _AddConstraintSafe(
     'BangLuong',
@@ -164,15 +156,11 @@ CALL _AddConstraintSafe(
 DROP PROCEDURE IF EXISTS _AddConstraintSafe;
 
 
--- ============================================================
--- §5  COMPOSITE INDEX BỔ SUNG (HIỆU NĂNG TRUY VẤN)
+ --  5  COMPOSITE INDEX BỔ SUNG (HIỆU NĂNG TRUY VẤN)
 -- Đã được chuyển sang 03_indexes.sql để tạo an toàn (IF NOT EXISTS)
--- ============================================================
-
--- ============================================================
--- §6  BÁO CÁO TỔNG HỢP
--- ============================================================
--- ── 6.1  Tất cả CHECK constraints
+ 
+ --  6  BÁO CÁO TỔNG HỢP
+ -- ── 6.1  Tất cả CHECK constraints
 SELECT
     tc.TABLE_NAME       AS Bảng,
     cc.CONSTRAINT_NAME  AS TênConstraint,
@@ -208,5 +196,5 @@ WHERE TABLE_SCHEMA = 'HRPayrollDB'
   AND REFERENCED_TABLE_NAME IS NOT NULL
 ORDER BY TABLE_NAME, CONSTRAINT_NAME;
 
-SELECT '[DONE] 02_constraints.sql hoàn tất.' AS Status;
-SELECT 'Sẵn sàng cho bước tiếp: 03_indexes.sql' AS NextStep;
+SELECT '02_constraints.sql hoàn tất.' AS Status;
+SELECT 'Bước tiếp: 03_indexes.sql' AS NextStep;

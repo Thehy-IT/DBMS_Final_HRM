@@ -1,5 +1,3 @@
--- FILE       : trg_KiemTraChamCong.sql
--- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Trigger validate chấm công: không trùng ngày,
 --              không tương lai, không trùng đơn nghỉ đã duyệt,
 --              tự động tính SoGioLam từ GioVao/GioRa

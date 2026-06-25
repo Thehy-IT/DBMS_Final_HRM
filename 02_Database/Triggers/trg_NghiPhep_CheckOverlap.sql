@@ -1,4 +1,3 @@
--- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Ngăn chặn đơn nghỉ phép trùng lặp (Overlap)
 -- BR-07      : Một nhân viên không thể có 2 đơn nghỉ APPROVED trùng ngày nhau
 -- DBMS       : MySQL 8.0+

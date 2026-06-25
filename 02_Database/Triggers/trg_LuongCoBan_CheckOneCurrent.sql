@@ -1,5 +1,3 @@
--- FILE       : trg_LuongCoBan_CheckOneCurrent.sql
--- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Đảm bảo mỗi nhân viên chỉ có 1 mức lương đang áp dụng
 -- BR-06      : Mỗi nhân viên chỉ có 1 dòng LuongCoBan có NgayHetHieuLuc IS NULL
 -- DBMS       : MySQL 8.0+

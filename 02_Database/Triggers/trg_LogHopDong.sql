@@ -1,4 +1,3 @@
--- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Trigger tự động ghi AUDIT LOG mọi thay đổi
 --              trên bảng HopDong (INSERT / UPDATE / DELETE)
 -- TRIGGERS   :

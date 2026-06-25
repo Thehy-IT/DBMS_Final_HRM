@@ -1,5 +1,3 @@
--- FILE       : trg_LogLuong.sql
--- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Trigger audit log bảng LuongCoBan + BangLuong
 -- TRIGGERS   :
 --   1. trg_LuongCoBan_AfterInsert  — log điều chỉnh lương mới

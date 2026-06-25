@@ -1,5 +1,3 @@
--- FILE       : trg_NhanVien_CheckTuoi.sql
--- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Kiểm soát độ tuổi lao động (18 - 70 tuổi)
 -- DBMS       : MySQL 8.0+
 -- GHI CHÚ   : Phải dùng Trigger vì CHECK CONSTRAINT trong MySQL

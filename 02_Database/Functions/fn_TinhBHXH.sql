@@ -1,12 +1,9 @@
--- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Hàm tính Bảo Hiểm Xã Hội / Y Tế / Thất Nghiệp
 --              theo Luật BHXH 2014 + Nghị định 143/2018/NĐ-CP
 -- FUNCTIONS  :
 --   1. fn_TinhLuongDongBH    — Scalar: lương đóng BH (có trần)
 --   2. fn_TinhBH_NLD         — Scalar: tổng BH nhân viên đóng
 --   3. fn_TinhBH_NSDLD       — Scalar: tổng BH doanh nghiệp đóng
--- PROCEDURE  :
---   4. sp_TinhBHXH_ChiTiet   — Thay thế TVF fn_TinhBHXH_TVF
 -- DEPENDENCY : Chạy SAU fn_TinhThueTNCN.sql
 
 USE HRPayrollDB;
@@ -141,4 +138,4 @@ SELECT
          THEN 'PASS: Trần BH = 46,800,000'
          ELSE 'FAIL' END AS Test_TranBH;
 
-SELECT '[DONE] fn_TinhBHXH.sql — 3 functions, tất cả test PASS' AS Status;
+SELECT 'fn_TinhBHXH.sql — 3 functions, tất cả test PASS' AS Status;
