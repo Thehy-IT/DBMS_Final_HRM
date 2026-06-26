@@ -286,13 +286,13 @@ export default function EmployeeListPage() {
                   <th className="px-6 py-3 w-10">
                     <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
                   </th>
-                  <th className="px-6 py-3">Mã NV</th>
-                  <th className="px-6 py-3">Họ Tên</th>
-                  <th className="px-6 py-3">Phòng Ban</th>
-                  <th className="px-6 py-3">Chức Vụ</th>
-                  <th className="px-6 py-3">Ngày Vào Làm</th>
-                  <th className="px-6 py-3">Trạng Thái</th>
-                  <th className="px-6 py-3 text-right">Hành động</th>
+                  <th className="px-6 py-3 whitespace-nowrap">Mã NV</th>
+                  <th className="px-6 py-3 whitespace-nowrap">Họ Tên</th>
+                  <th className="px-6 py-3 whitespace-nowrap">Phòng Ban</th>
+                  <th className="px-6 py-3 whitespace-nowrap">Chức Vụ</th>
+                  <th className="px-6 py-3 whitespace-nowrap">Ngày Vào Làm</th>
+                  <th className="px-6 py-3 whitespace-nowrap">Trạng Thái</th>
+                  <th className="px-6 py-3 whitespace-nowrap text-right">Hành động</th>
                 </tr>
               </thead>
               <tbody className="text-sm">
@@ -301,14 +301,14 @@ export default function EmployeeListPage() {
                     <td className="px-6 py-4">
                       <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
                     </td>
-                    <td className="px-6 py-4 font-medium text-indigo-600 cursor-pointer hover:underline">{emp.MaNV}</td>
-                    <td className="px-6 py-4 font-medium text-slate-900">
+                    <td className="px-6 py-4 font-medium text-indigo-600 whitespace-nowrap cursor-pointer hover:underline">{emp.MaNV}</td>
+                    <td className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">
                       {emp.HoTen}
                     </td>
-                    <td className="px-6 py-4">{deptMap[emp.MaPB] || emp.MaPB || '-'}</td>
-                    <td className="px-6 py-4">{emp.MaCV || '-'}</td>
-                    <td className="px-6 py-4">{emp.NgayVaoLam ? new Date(emp.NgayVaoLam).toLocaleDateString('vi-VN') : '-'}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">{deptMap[emp.MaPB] || emp.MaPB || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{emp.MaCV || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{emp.NgayVaoLam ? new Date(emp.NgayVaoLam).toLocaleDateString('vi-VN') : '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={cn(
                         "px-2.5 py-1 rounded-full text-xs font-medium border",
                         emp.TrangThai === 'A' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
@@ -323,7 +323,7 @@ export default function EmployeeListPage() {
                          emp.TrangThai === 'P' ? 'Thử việc' : emp.TrangThai}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
                       {isHR ? (
                         <div className="flex items-center justify-end gap-2 text-slate-400">
                           <button 

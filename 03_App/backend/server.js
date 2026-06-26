@@ -33,6 +33,34 @@ const pool = mysql.createPool({
 
 const JWT_SECRET = process.env.JWT_SECRET || 'hrpayroll_super_secret_key';
 
+// Setup table DanhMucKhauTru tự động nếu chưa có
+(async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS DanhMucKhauTru (
+          MaLKT CHAR(6) NOT NULL,
+          TenLKT VARCHAR(100) NOT NULL,
+          Mota VARCHAR(255) NULL,
+          IsActive TINYINT NOT NULL DEFAULT 1,
+          PRIMARY KEY (MaLKT),
+          UNIQUE KEY UQ_DanhMucKhauTru_Ten (TenLKT)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+    const [rows] = await pool.query('SELECT COUNT(*) as cnt FROM DanhMucKhauTru');
+    if (rows[0].cnt === 0) {
+      await pool.query(`
+        INSERT INTO DanhMucKhauTru (MaLKT, TenLKT, Mota) VALUES 
+        ('KT0001', 'Phạt đi trễ', 'Đi làm muộn so với quy định'),
+        ('KT0002', 'Làm hỏng thiết bị', 'Đền bù thiệt hại tài sản công ty'),
+        ('KT0003', 'Tạm ứng', 'Khấu trừ tiền đã ứng trước'),
+        ('KT0004', 'Vi phạm nội quy', 'Phạt vi phạm các quy định khác')
+      `);
+    }
+  } catch (err) {
+    console.error("Auto DB Setup Error:", err.message);
+  }
+})();
+
 // Middleware Authentication
 export const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -555,12 +583,169 @@ app.put('/v1/benefit-types/:id', requireAdmin, async (req, res) => {
 app.delete('/v1/benefit-types/:id', requireAdmin, async (req, res) => {
   try {
     // Check if there are employees linked to this benefit
-    const [empBenefits] = await pool.query('SELECT 1 FROM NhanVien_PhucLoi WHERE MaFL = ? LIMIT 1', [req.params.id]);
+    const [empBenefits] = await pool.query('SELECT 1 FROM NhanVienPhucLoi WHERE MaFL = ? LIMIT 1', [req.params.id]);
     if (empBenefits.length > 0) {
       return res.status(400).json({ error: 'Không thể xóa phúc lợi đang được áp dụng cho nhân viên' });
     }
     
     await pool.query('DELETE FROM LoaiPhucLoi WHERE MaFL=?', [req.params.id]);
+    res.json({ message: 'Xóa thành công' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Deduction Types (Loại Khấu Trừ) ---
+app.get('/v1/deduction-types', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        MaLKT as id, 
+        TenLKT as name, 
+        dk.* 
+      FROM DanhMucKhauTru dk
+    `);
+    res.json({ data: rows });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/v1/deduction-types', requireAdmin, async (req, res) => {
+  const { MaLKT, TenLKT, Mota, IsActive } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO DanhMucKhauTru (MaLKT, TenLKT, Mota, IsActive) VALUES (?, ?, ?, ?)',
+      [MaLKT, TenLKT, Mota || null, IsActive !== undefined ? IsActive : 1]
+    );
+    res.status(201).json({ message: 'Tạo loại khấu trừ thành công' });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: 'Mã hoặc tên loại khấu trừ đã tồn tại' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/v1/deduction-types/:id', requireAdmin, async (req, res) => {
+  const { TenLKT, Mota, IsActive } = req.body;
+  try {
+    await pool.query(
+      'UPDATE DanhMucKhauTru SET TenLKT=?, Mota=?, IsActive=? WHERE MaLKT=?',
+      [TenLKT, Mota || null, IsActive !== undefined ? IsActive : 1, req.params.id]
+    );
+    res.json({ message: 'Cập nhật loại khấu trừ thành công' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/v1/deduction-types/:id', requireAdmin, async (req, res) => {
+  try {
+    // Không cho xóa nếu đã được dùng (trong KhauTru, LoaiKhauTru là text lưu TenLKT)
+    const [empDeductions] = await pool.query('SELECT 1 FROM KhauTru WHERE LoaiKhauTru = (SELECT TenLKT FROM DanhMucKhauTru WHERE MaLKT = ?) LIMIT 1', [req.params.id]);
+    if (empDeductions.length > 0) {
+      return res.status(400).json({ error: 'Không thể xóa loại khấu trừ đã từng được áp dụng' });
+    }
+    await pool.query('DELETE FROM DanhMucKhauTru WHERE MaLKT=?', [req.params.id]);
+    res.json({ message: 'Xóa thành công' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Helper: Recalculate Payroll ---
+async function recalculatePayrollIfPossible(empId) {
+  if (!empId) return;
+  const date = new Date();
+  const month = date.getMonth() + 1;
+  const year = date.getFullYear();
+  try {
+    await pool.query(`CALL sp_TinhLuong(?, ?, ?, 1, 0)`, [month, year, empId]);
+  } catch (err) {
+    console.log(`Note: Không thể tự động tính lại lương cho NV ${empId}: ${err.message}`);
+  }
+}
+
+// --- Employee Benefits ---
+app.get('/v1/employee-benefits/:empId', requireHR, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT nvpl.*, fl.TenFL, fl.LoaiGiaTri, fl.GiaTri as GiaTriGoc
+      FROM NhanVienPhucLoi nvpl
+      JOIN LoaiPhucLoi fl ON nvpl.MaFL = fl.MaFL
+      WHERE nvpl.MaNV = ?
+      ORDER BY nvpl.NgayApDung DESC
+    `, [req.params.empId]);
+    res.json({ data: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/v1/employee-benefits', requireHR, async (req, res) => {
+  const { MaNV, MaFL, GiaTriOverride, NgayApDung, NgayKetThuc, GhiChu } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO NhanVienPhucLoi (MaNV, MaFL, GiaTriOverride, NgayApDung, NgayKetThuc, GhiChu) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE GiaTriOverride=?, NgayKetThuc=?, GhiChu=?, IsActive=1',
+      [MaNV, MaFL, GiaTriOverride || null, NgayApDung, NgayKetThuc || null, GhiChu || null, GiaTriOverride || null, NgayKetThuc || null, GhiChu || null]
+    );
+    // Tự động tính lại lương (nếu chưa chốt) để đồng bộ hệ thống
+    await recalculatePayrollIfPossible(MaNV);
+    res.json({ message: 'Lưu phúc lợi thành công' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/v1/employee-benefits/:empId/:maFL/:ngayApDung', requireHR, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM NhanVienPhucLoi WHERE MaNV=? AND MaFL=? AND NgayApDung=?', 
+      [req.params.empId, req.params.maFL, req.params.ngayApDung]);
+    // Tự động tính lại lương
+    await recalculatePayrollIfPossible(req.params.empId);
+    res.json({ message: 'Xóa thành công' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Deductions ---
+app.get('/v1/deductions/:empId', requireHR, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM KhauTru WHERE MaNV = ? ORDER BY NgayPhatSinh DESC', [req.params.empId]);
+    res.json({ data: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/v1/deductions', requireHR, async (req, res) => {
+  const { MaNV, LoaiKhauTru, GiaTri, NgayPhatSinh, GhiChu } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO KhauTru (MaNV, LoaiKhauTru, GiaTri, NgayPhatSinh, GhiChu, NguoiDuyet) VALUES (?, ?, ?, ?, ?, ?)',
+      [MaNV, LoaiKhauTru, GiaTri, NgayPhatSinh || new Date(), GhiChu || null, req.user.username]
+    );
+    // Tự động tính lại lương
+    await recalculatePayrollIfPossible(MaNV);
+    res.json({ message: 'Thêm khấu trừ thành công' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/v1/deductions/:id', requireHR, async (req, res) => {
+  try {
+    // Lấy MaNV trước khi xóa để tính lại lương
+    const [rows] = await pool.query('SELECT MaNV FROM KhauTru WHERE MaKT=?', [req.params.id]);
+    const empId = rows[0]?.MaNV;
+    
+    await pool.query('DELETE FROM KhauTru WHERE MaKT=?', [req.params.id]);
+    
+    if (empId) {
+      await recalculatePayrollIfPossible(empId);
+    }
     res.json({ message: 'Xóa thành công' });
   } catch (err) {
     res.status(500).json({ error: err.message });

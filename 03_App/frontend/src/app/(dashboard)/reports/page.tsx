@@ -119,7 +119,7 @@ export default function ReportsPage() {
     return acc;
   }, {});
 
-  const trendData = Object.values(trendByMonth).sort((a: any, b: any) => (a.month || '').localeCompare(b.month || ''));
+  const trendData = Object.values(trendByMonth).sort((a: any, b: any) => String(a.month || '').localeCompare(String(b.month || '')));
 
   // Handle Exports
   const handleExport = () => {

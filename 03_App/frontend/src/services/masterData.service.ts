@@ -26,6 +26,8 @@ export interface MasterData {
   LoaiGiaTri?: string;
   GiaTri?: number;
   CoTinhThue?: number;
+  MaLKT?: string;
+  TenLKT?: string;
 }
 
 export const masterDataService = {
@@ -91,6 +93,22 @@ export const masterDataService = {
   },
   deleteBenefitType: async (id: string) => {
     const { data } = await api.delete(`/benefit-types/${id}`);
+    return data;
+  },
+  getDeductionTypes: async () => {
+    const { data } = await api.get<{ data: MasterData[] }>('/deduction-types');
+    return data.data;
+  },
+  createDeductionType: async (deductionData: any) => {
+    const { data } = await api.post('/deduction-types', deductionData);
+    return data;
+  },
+  updateDeductionType: async (id: string, deductionData: any) => {
+    const { data } = await api.put(`/deduction-types/${id}`, deductionData);
+    return data;
+  },
+  deleteDeductionType: async (id: string) => {
+    const { data } = await api.delete(`/deduction-types/${id}`);
     return data;
   },
   getLeaveTypes: async () => {

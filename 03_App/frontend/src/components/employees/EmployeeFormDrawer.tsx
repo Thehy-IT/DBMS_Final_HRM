@@ -11,6 +11,7 @@ import { employeeService } from "@/services/employee.service";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { EmployeeBenefitsTab } from "./EmployeeBenefitsTab";
 
 const employeeSchema = z.object({
   MaNV: z.string().optional(),
@@ -53,6 +54,7 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
     { id: "contact", label: "Liên hệ" },
     { id: "identity", label: "Định danh" },
     { id: "work", label: "Công việc" },
+    { id: "benefits", label: "Phúc lợi & Khấu trừ" },
   ];
 
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: masterDataService.getDepartments, enabled: isOpen });
@@ -294,14 +296,19 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
               </div>
             </form>
           )}
+
+          <div className={cn(activeTab !== "benefits" && "hidden")}>
+            <EmployeeBenefitsTab employeeId={employeeId} />
+          </div>
         </div>
 
         <div className="p-6 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
           <Button variant="outline" onClick={onClose} type="button">Hủy bỏ</Button>
-          <Button type="submit" form="employee-form" disabled={mutation.isPending || isLoadingEmployee} className="bg-indigo-600 hover:bg-indigo-700">
-            {mutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-            {employeeId ? 'Cập nhật' : 'Lưu nhân viên'}
-          </Button>
+          {activeTab !== "benefits" && (
+            <Button type="submit" form="employee-form" disabled={mutation.isPending}>
+              {mutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Đang lưu...</> : 'Lưu Thay Đổi'}
+            </Button>
+          )}
         </div>
       </div>
     </>

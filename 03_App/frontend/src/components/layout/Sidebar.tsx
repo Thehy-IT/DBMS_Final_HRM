@@ -22,7 +22,8 @@ import {
   Key,
   Building2,
   FileSignature,
-  Database
+  Database,
+  Receipt
 } from "lucide-react";
 
 const navGroups = [
@@ -63,6 +64,7 @@ const navGroups = [
       { title: "Chức vụ", href: "/positions", icon: Briefcase, roles: ['ADMIN'] },
       { title: "Loại hợp đồng", href: "/contract-types", icon: FileSignature, roles: ['ADMIN'] },
       { title: "Loại phúc lợi", href: "/benefits", icon: Gift, roles: ['HR'] },
+      { title: "Loại khấu trừ", href: "/deduction-types", icon: Receipt, roles: ['HR'] },
       { title: "Công thức lương", href: "/payroll-formulas", icon: Calculator, roles: ['ADMIN'] },
     ]
   },
