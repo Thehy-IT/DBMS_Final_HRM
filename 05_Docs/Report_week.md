@@ -153,7 +153,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 
 ---
 
-### 6. Các vấn đề đồng thời (Concurrency Anomalies) & Cách khắc phục đặc trưng trong HRPayrollSystem
+### 6. Các vấn đề đồng thời, Cách khắc phục & Hướng dẫn Demo Thực Hành
 
 *(Khi demo, chúng ta sẽ dùng hàm `DO SLEEP(5);` trong MySQL lồng vào giữa các Stored Procedures để cố tình làm trễ giao dịch, nhằm tạo đủ thời gian kích hoạt các lỗi đồng thời mang tính đặc thù của hệ thống).*
 
@@ -195,71 +195,80 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
   - TX1: Thực thi `UPDATE BangLuong SET TrangThai = 'PAID' WHERE TrangThai = 'DRAFT';` -> Báo cáo Affected Rows là 51.
 - **Cách khắc phục**: Sử dụng mức `SERIALIZABLE` hoặc dùng Next-Key Locking với `SELECT ... FOR UPDATE` trên bảng `BangLuong`. Lúc này, giao dịch `sp_NghiViec` sẽ bị block lại (không thể `INSERT` thêm dòng 'DRAFT' mới) cho đến khi `sp_ChotBangLuong` thực hiện xong.
 
-#### 6.5. Khuyến Nghị Chiến Lược Tối Ưu Nhất Cho Hệ Thống
+#### 6.5. Các mục (Đối tượng CSDL áp dụng)
 
-Dựa trên phân tích các vấn đề đồng thời mang tính đặc thù trên, chiến lược điều khiển tương tranh **tốt nhất** cho dự án HRPayrollSystem là sự kết hợp giữa **Sơ đồ Đa phiên bản (MVCC)** và **Khóa ở quy mô Bản ghi (Row-level Locking) / Kỹ thuật Xác nhận (Optimistic Locking)**.
+#### 6.6. Hướng dẫn chi tiết thao tác Demo Thực Hành (Giao diện & CSDL)
 
-**Lý do lựa chọn chiến lược này (Góc độ Kiến trúc sư CSDL):**
+Phần này cung cấp kịch bản chuyên sâu để hội đồng và giảng viên thấy rõ các lỗi đồng thời xảy ra như thế nào. Việc kết hợp song song giữa **Giao diện người dùng (UI)** và **Lệnh SQL trực tiếp trên MySQL (CSDL)** sẽ phản ánh chính xác luồng dữ liệu của hệ thống thực tế.
 
-1. **Khắc phục "Nghẽn cổ chai" nhờ MVCC**: Đặc thù hệ thống là các khối tính lương và báo cáo mất rất nhiều thời gian duyệt hàng ngàn bản ghi. Trong kiến trúc MVCC, các tác vụ tính lương/báo cáo sẽ đọc một Snapshot tĩnh (phiên bản cũ) mà không chặn các chuyên viên HR cập nhật dữ liệu mới ("Người đọc không bao giờ chặn người ghi"). Điều này giúp hệ thống đạt độ tương tranh cực cao.
-2. **Bảo vệ toàn vẹn logic bằng REPEATABLE READ**: Chạy các Stored Procedures tính lương ở mức độ cô lập `REPEATABLE READ` giúp dữ liệu tham chiếu để tính thuế, bảo hiểm, lương cơ bản xuyên suốt quá trình tính toán của một nhân viên được bảo đảm hoàn toàn nhất quán, chặn đứng hiện tượng Non-repeatable Read và Dirty Read.
-3. **Quản lý linh hoạt xung đột cập nhật (Lost Update)**:
-   - Với các Giao dịch tự động (Store Procedures) chạy ngầm có xung đột cao: Sử dụng **Bi quan (Pessimistic Locking / Strict 2PL)** qua lệnh `SELECT ... FOR UPDATE` hoặc các hàm Update cộng dồn tương đối.
-   - Với thao tác nhập liệu của người dùng trên Giao diện UI: Sử dụng **Lạc quan (Optimistic Locking / Validation)** bằng cơ chế kiểm tra biến `Version` hoặc `UpdatedAt`. Cách này giúp tối ưu chi phí cấp khóa vì xác suất đụng độ trên cùng một field của cùng một hồ sơ nhân sự trong một thời điểm là rất thấp.
+##### 6.6.1. Chuẩn bị môi trường Demo
 
----
+- **Bước 1 (Giao diện):** Mở trình duyệt web. Đăng nhập bằng 2 tài khoản Kế toán/HR khác nhau trên 2 cửa sổ ẩn danh (Incognito) để giả lập 2 phiên làm việc độc lập của người dùng.
+- **Bước 2 (CSDL):** Mở MySQL Workbench, mở 2 tab Query Editor đại diện cho 2 tiến trình (Transaction 1 và Transaction 2).
+- **Bước 3 (Thiết lập độ trễ):** Để mắt thường kịp quan sát lỗi, ta sẽ sửa tạm thời các Stored Procedure cốt lõi bằng cách chèn `DO SLEEP(8);` để ép hệ thống "treo", tạo khe hở thời gian cho giao dịch thứ 2 xen vào.
+  *(Ví dụ: Sửa `sp_ChotBangLuong`)*
 
-### 7. Hướng dẫn chi tiết thao tác Demo Thực Hành (Giao diện & CSDL)
+##### 6.6.2. Thao tác Demo: Lost Update (Mất dữ liệu cập nhật)
 
-Phần này cung cấp kịch bản từng bước để hội đồng và giảng viên thấy rõ các lỗi đồng thời xảy ra như thế nào từ cả góc nhìn người dùng cuối (Giao diện Frontend) và góc độ hệ thống (CSDL).
-
-#### 7.1. Chuẩn bị môi trường Demo
-
-- **Bước 1**: Mở trình duyệt web. Đăng nhập bằng 2 tài khoản Kế toán/HR khác nhau trên 2 cửa sổ ẩn danh (Incognito) để giả lập 2 phiên làm việc độc lập của người dùng.
-- **Bước 2**: Mở MySQL Workbench (hoặc DBeaver), mở 2 tab Query Editor đại diện cho 2 tiến trình (Transaction 1 và Transaction 2).
-- **Bước 3**: Để dễ quan sát lỗi, chèn tạm thời lệnh `DO SLEEP(7);` vào giữa các Stored Procedure cốt lõi (như `sp_TinhLuong`, `sp_ChotBangLuong`) để ép hệ thống "treo" vài giây, tạo khe hở thời gian cho giao dịch thứ 2 xen vào.
-
-#### 7.2. Thao tác Demo: Lost Update (Mất dữ liệu cập nhật)
-
-- **Ngữ cảnh**: Kế toán A và Kế toán B cùng cập nhật lương cho Nhân viên X.
+- **Ngữ cảnh**: Cạnh tranh cập nhật bảng lương của `NV000008` trên UI.
 - **Thao tác trên Giao diện**:
-  1. Cửa sổ 1 (Kế toán A) và Cửa sổ 2 (Kế toán B) cùng mở trang "Chi tiết Bảng Lương tháng 5" của Nhân viên X. Cả 2 màn hình đều đang hiển thị: *Phụ cấp = 0đ, Khấu trừ = 0đ*.
-  2. Tại Cửa sổ 1, Kế toán A nhập số tiền Phụ cấp dự án: `2.000.000đ`.
-  3. Tại Cửa sổ 2, Kế toán B nhập số tiền Khấu trừ đi trễ: `500.000đ`.
-  4. Kế toán A bấm nút "Lưu". Màn hình báo thành công.
-  5. Kế toán B (chậm tay hơn 1-2 giây) cũng bấm nút "Lưu".
-  6. **Kết quả Lỗi**: Tải lại (Refresh) trang chi tiết lương. Thông tin hiển thị chỉ còn *Khấu trừ = 500.000đ*, khoản *Phụ cấp 2.000.000đ* đã hoàn toàn biến mất (vì hệ thống của B đã ghi đè toàn bộ bản ghi cũ).
-- **Thao tác Khắc phục**:
-  - Mở mã nguồn Backend (API Cập nhật lương) hoặc Stored Procedure.
-  - **Cách 1 (Khóa bi quan)**: Sửa câu lệnh truy vấn lấy dữ liệu thành `SELECT ... FOR UPDATE`. Lúc này khi làm lại thao tác trên, nút "Lưu" của Kế toán B sẽ bị xoay (loading) chờ cho đến khi Kế toán A lưu xong.
-  - **Cách 2 (Cập nhật tương đối)**: Đổi logic Update thành `UPDATE BangLuong SET TongPhuCap = TongPhuCap + ?, TongKhauTru = TongKhauTru + ?`. Cả 2 khoản tiền sẽ được cộng dồn chính xác.
+  1. **Cửa sổ 1 (Kế toán A) & Cửa sổ 2 (Kế toán B)** cùng mở trang "Chi tiết Bảng Lương tháng 5" của `NV000001`. Cả 2 đang thấy: *Tổng phụ cấp = 0, Tổng khấu trừ = 0*.
+  2. Tại **Cửa sổ 1**, Kế toán A nhập phụ cấp: `2.000.000` đ.
+  3. Tại **Cửa sổ 2**, Kế toán B nhập khấu trừ đi trễ: `500.000` đ.
+  4. Kế toán A bấm nút **"Lưu"**. Màn hình báo thành công. (Lúc này dưới CSDL: `UPDATE BangLuong SET TongPhuCap = 2000000, TongKhauTru = 0`).
+  5. Kế toán B (chậm tay hơn 2 giây) bấm nút **"Lưu"**. (Lúc này dưới CSDL: `UPDATE BangLuong SET TongPhuCap = 0, TongKhauTru = 500000`).
+- **Kết quả Lỗi trên Giao diện**: Tải lại (Refresh) trang. Hệ thống chỉ ghi nhận *Khấu trừ = 500.000đ*. Khoản *Phụ cấp 2.000.000đ* của Kế toán A đã bị bay màu do Kế toán B dùng bộ data cũ ghi đè.
+- **Mã khắc phục (CSDL)**: Sửa API/SP dùng cập nhật tương đối:
+  `UPDATE BangLuong SET TongPhuCap = TongPhuCap + ?, TongKhauTru = TongKhauTru + ? WHERE MaNV = ?`
 
-#### 7.3. Thao tác Demo: Dirty Read (Đọc dữ liệu rác)
+##### 6.6.3. Thao tác Demo: Dirty Read (Đọc dữ liệu rác)
 
-- **Ngữ cảnh**: Giám đốc xem nhầm quỹ lương từ một nhân viên chưa được duyệt Onboarding hoàn chỉnh.
-- **Thao tác trên CSDL & Giao diện**:
-  1. **Trên MySQL (Tab 1)**: Đặt mức cô lập xuống thấp nhất bằng lệnh: `SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;`
-  2. Khởi chạy một phần giao dịch Onboarding: `START TRANSACTION; INSERT INTO LuongCoBan (NhanVienID, LuongCoBan) VALUES (999, 25000000); DO SLEEP(8);` (Giả lập hệ thống đang tạo Tài khoản).
-  3. **Trên Giao diện Giám đốc (Trình duyệt)**: Trong lúc Tab 1 đang Sleep, lập tức nhấn nút "Xuất Báo Cáo Quỹ Lương".
-  4. **Kết quả Lỗi**: Biểu đồ và Excel xuất ra cho thấy tổng quỹ lương đã bị đội thêm 25.000.000đ.
-  5. **Trên MySQL (Tab 1)**: Gọi lệnh `ROLLBACK;` (Giả lập quá trình Onboarding bị lỗi). Nhân viên 999 chưa từng được tạo ra, nhưng Giám đốc đã cầm báo cáo có con số 25 triệu ảo.
-- **Thao tác Khắc phục**:
-  - Trở lại MySQL, nâng mức cô lập lên chuẩn: `SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;` (hoặc `REPEATABLE READ`).
-  - Làm lại thao tác tương tự. Lần này, khi Giám đốc nhấn xuất báo cáo trong lúc Tab 1 đang Sleep, hệ thống sẽ bỏ qua bản ghi 25 triệu chưa được COMMIT, đảm bảo dữ liệu luôn chính xác.
+- **Ngữ cảnh**: Giám đốc xem nhầm quỹ lương từ một tiến trình Onboarding đang chạy dở dang.
+- **Thao tác trên CSDL (Giả lập Job Onboarding treo)**:
+  ```sql
+  -- Tab 1 (Chạy Onboarding)
+  SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+  START TRANSACTION; 
+  INSERT INTO NhanVien (MaNV, HoTen) VALUES ('NV999999', 'Nhân viên Ảo');
+  INSERT INTO LuongCoBan (MaNV, LuongCoBan) VALUES ('NV999999', 50000000); 
+  DO SLEEP(8); -- Giả lập hệ thống đang kẹt ở bước gửi Email
+  ```
+- **Thao tác trên Giao diện (Giám đốc)**: Trong 8 giây Tab 1 đang Sleep, Giám đốc bấm nút **"Xuất Báo Cáo Quỹ Lương Tổng Quan"**.
+- **Kết quả Lỗi**: Biểu đồ trên UI và file Excel báo cáo bị đội thêm 50.000.000đ một cách phi lý.
+- **Tiếp tục trên CSDL**: Hết 8 giây, Tab 1 bị lỗi mạng, hệ thống gọi `ROLLBACK;`. Nhân viên `NV999999` chưa bao giờ tồn tại, nhưng Giám đốc đã lưu lại bản báo cáo sai lệch.
+- **Mã khắc phục**: Đảm bảo Backend sử dụng `SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;` cho mọi tiến trình truy xuất báo cáo.
 
-#### 7.4. Thao tác Demo: Non-repeatable Read & Phantom Read
+##### 6.6.4. Thao tác Demo: Non-repeatable Read (Sai lệch công thức tính lương)
 
-- **Thao tác CSDL (Tương tự Dirty Read)**:
-  - Khởi chạy một Transaction 1 có chứa `DO SLEEP(10);` (Giả lập `sp_TinhLuong` hoặc `sp_ChotBangLuong`).
-  - Trong lúc TX1 đang treo, mở Transaction 2 chạy lệnh `UPDATE` (Đổi mức lương) hoặc `INSERT` (Thêm nhân viên nghỉ việc) rồi `COMMIT` ngay lập tức.
-  - Khi TX1 tỉnh dậy và tiếp tục chạy lệnh SELECT hoặc UPDATE diện rộng, hội đồng sẽ thấy dữ liệu tính toán ở nửa sau của TX1 đã bị sai lệch so với nửa đầu (do tác động của TX2).
-- **Thao tác Khắc phục**:
-  - Sử dụng lệnh `SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;` để khắc phục Non-repeatable Read (MVCC sẽ cấp cho TX1 một bản snapshot cố định).
-  - Sử dụng lệnh `SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;` để khắc phục Phantom Read (TX2 khi gọi INSERT sẽ lập tức bị Block/Loading mỏi mòn chờ TX1 thực thi xong).
+- **Ngữ cảnh**: Chuyên viên HR cập nhật hợp đồng đúng lúc hệ thống đang chạy tính lương.
+- **Thao tác trên CSDL (Giả lập Job Tính Lương chậm)**:
+  ```sql
+  -- Tab 1 (Kế toán chạy Tính Lương)
+  SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+  -- Trong nội dung sp_TinhLuong, chèn DO SLEEP(8) vào giữa
+  -- bước đọc Lương Cơ Bản tính BHXH và bước đọc lại để tính Thuế TNCN
+  CALL sp_TinhLuong(5, 2025, 'NV000001', 1, 0);
+  ```
+- **Thao tác trên Giao diện (HR)**: Trong 8 giây Tab 1 đang Sleep, chuyên viên HR mở hồ sơ `NV000001` trên UI, sửa Lương cơ bản từ 20 triệu thành 30 triệu, rồi bấm **"Lưu Hợp Đồng"**.
+- **Kết quả Lỗi trên Giao diện**: Sau khi Job tính lương hoàn tất, Kế toán mở "Phiếu lương" của `NV000001`. Sự phi lý hiện rõ: Tiền BHXH (8%) bị trừ dựa trên mức lương cũ (20 triệu), nhưng Thuế TNCN ở dưới lại bị cấn trừ dựa trên mức lương mới (30 triệu).
+- **Mã khắc phục**: Sử dụng `SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;` trước khi gọi `sp_TinhLuong`.
+
+##### 6.6.5. Thao tác Demo: Phantom Read (Bóng ma chốt sổ)
+
+- **Ngữ cảnh**: Kế toán đang chốt danh sách lương thì có người bị HR cho nghỉ việc giữa chừng.
+- **Thao tác trên Giao diện (Kế toán)**: Kế toán vào màn hình "Duyệt Bảng Lương Tháng 5". UI hiển thị rõ danh sách bảng lương phòng Kỹ Thuật gồm **50 người** (Trạng thái DRAFT). Kế toán yên tâm bấm nút **"Chốt toàn bộ lương"**.
+- **Thao tác trên CSDL (Giả lập HR làm việc)**: Trong lúc quá trình chốt đang chạy và bị `SLEEP(8)`, HR chạy thủ tục thanh lý hợp đồng:
+  ```sql
+  -- Tab 2 (HR thao tác nghỉ việc)
+  CALL sp_NghiViec('NV000051', '2025-05-15');
+  -- sp_NghiViec sẽ tự động phát sinh thêm 1 bảng lương DRAFT cho NV000051
+  ```
+- **Kết quả Lỗi trên Giao diện**: Sau khi màn hình loading chốt lương hoàn tất, Toast Message hiện ra: *"Đã chốt và thanh toán thành công 51 bảng lương"*. Xuất hiện 1 nhân viên thanh toán ngoài dự toán mà Kế toán không hề tích chọn lúc đầu.
+- **Mã khắc phục**: Sử dụng `SERIALIZABLE` hoặc `SELECT ... FOR UPDATE`. Khi đó lệnh `sp_NghiViec` ở Tab 2 sẽ bị Block không thể sinh ra bản ghi mới cho tới khi Kế toán chốt sổ xong.
 
 ---
 
-### 8. Deadlock (Khóa chết)
+### 7. Deadlock (Khóa chết)
 
 - **Định nghĩa**: Hai (hoặc nhiều) giao dịch đang giữ khóa tài nguyên và chờ đợi tài nguyên mà bên kia đang giữ, dẫn đến một vòng lặp chờ đợi vô tận.
 - **Ngữ cảnh Demo**:
@@ -275,11 +284,11 @@ Phần này cung cấp kịch bản từng bước để hội đồng và giả
 
 ---
 
-### 9. Báo Cáo Chi Tiết Các Đối Tượng CSDL Chính (Dùng Cho Báo Cáo Tuần)
+### 8. Báo Cáo Chi Tiết Các Đối Tượng CSDL Chính (Dùng Cho Báo Cáo Tuần)
 
 Dưới đây là chi tiết 2 đối tượng tiêu biểu cho từng loại (Giao tác, View, Store Procedure, Function, Trigger) để trình bày nhanh trong các buổi báo cáo tiến độ hàng tuần.
 
-#### 9.1. Giao tác (Transactions)
+#### 8.1. Giao tác (Transactions)
 
 1. **`sp_TiepNhanNhanSu` (Onboarding Transaction)**
    - **Vị trí file**: `02_Database/StoredProcedures/sp_TiepNhanNhanSu.sql`
@@ -290,7 +299,7 @@ Dưới đây là chi tiết 2 đối tượng tiêu biểu cho từng loại (G
    - **Mục đích**: Chốt và thanh toán bảng lương cuối kỳ đồng bộ.
    - **Chi tiết**: Cập nhật đồng thời trạng thái bảng `BangLuong` sang 'P' (Đã thanh toán) và các khoản khấu trừ trong bảng `KhauTru` sang 'A' (Đã áp dụng). Việc đặt vào `START TRANSACTION` giúp hệ thống không gặp tình trạng bảng lương đã chốt nhưng khấu trừ vẫn treo nháp.
 
-#### 9.2. Views (Bảng ảo)
+#### 8.2. Views (Bảng ảo)
 
 1. **`vw_HoSoNhanVien_ChiTiet`**
    - **Vị trí file**: `02_Database/Views/vw_HoSoNhanVien_ChiTiet.sql`
@@ -301,7 +310,7 @@ Dưới đây là chi tiết 2 đối tượng tiêu biểu cho từng loại (G
    - **Mục đích**: Cung cấp nguồn dữ liệu sạch để xuất biểu đồ và Excel báo cáo quỹ lương phòng ban.
    - **Chi tiết**: Gộp nhóm (`GROUP BY`) theo tháng, năm và tên phòng ban. Tự động dùng các hàm tính tổng (`SUM`) để trả ra: Tổng lương Gross, Bảo hiểm NSDLĐ phải đóng, Tổng thuế TNCN và Tổng chi phí nhân sự thực tế.
 
-#### 9.3. Store Procedures (Thủ tục lưu trữ)
+#### 8.3. Store Procedures (Thủ tục lưu trữ)
 
 1. **`sp_TinhLuong`**
    - **Vị trí file**: `02_Database/StoredProcedures/sp_TinhLuong.sql`
@@ -312,7 +321,7 @@ Dưới đây là chi tiết 2 đối tượng tiêu biểu cho từng loại (G
    - **Mục đích**: Đóng gói quy trình thanh lý hợp đồng và cho nhân viên nghỉ việc.
    - **Chi tiết**: Tự động chuyển trạng thái của nhân viên thành "Nghỉ việc", thay đổi ngày kết thúc hợp đồng hiện tại thành ngày hiện hành, chốt và đóng lại bảng lương hiện tại, đồng thời khóa `TaiKhoan` đăng nhập để đảm bảo bảo mật.
 
-#### 9.4. Functions (Hàm tính toán vô hướng)
+#### 8.4. Functions (Hàm tính toán vô hướng)
 
 1. **`fn_SoNgayChuanThang`**
    - **Vị trí file**: `02_Database/Functions/fn_SoNgayLamViec.sql` (Từ dòng 22)
@@ -323,7 +332,7 @@ Dưới đây là chi tiết 2 đối tượng tiêu biểu cho từng loại (G
    - **Mục đích**: Tự động hóa biểu thuế lũy tiến 7 bậc của Việt Nam.
    - **Chi tiết**: Hàm nhận đầu vào là `ThuNhapChiuThue`, chạy qua các điều kiện `IF` xếp tầng từ bậc 7 (> 80 triệu, 35%) lùi dần về bậc 1 (0-5 triệu, 5%). Mỗi bậc tính xong sẽ cấn trừ dần và cộng dồn vào tổng tiền thuế.
 
-#### 9.5. Triggers (Trình kích hoạt)
+#### 8.5. Triggers (Trình kích hoạt)
 
 1. **`trg_NghiPhep_CheckOverlap_Insert`**
    - **Vị trí file**: `02_Database/Triggers/trg_NghiPhep_CheckOverlap.sql` (Từ dòng 11)
