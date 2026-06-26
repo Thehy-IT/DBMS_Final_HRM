@@ -153,134 +153,209 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 
 ---
 
-### 6. Các vấn đề đồng thời, Cách khắc phục & Hướng dẫn Demo Thực Hành
+### 6. Các Vấn Đề Đồng Thời & Hướng Dẫn Kịch Bản Demo Khắc Phục Chi Tiết (Kết hợp UI & Database)
 
-*(Khi demo, chúng ta sẽ dùng hàm `DO SLEEP(5);` trong MySQL lồng vào giữa các Stored Procedures để cố tình làm trễ giao dịch, nhằm tạo đủ thời gian kích hoạt các lỗi đồng thời mang tính đặc thù của hệ thống).*
+*(Lưu ý: Kịch bản demo dưới đây là sự kết hợp thực tế giữa các thao tác trên Giao Diện Người Dùng (UI) của hệ thống Next.js và các can thiệp giả lập độ trễ bằng lệnh `DO SLEEP(seconds);` dưới MySQL để hội đồng thấy rõ cách lỗi phát sinh ở tầng ứng dụng).*
 
-#### 6.1. Mất dữ liệu cập nhật (Lost Update) - Cạnh tranh cập nhật phụ cấp & khấu trừ
+#### 6.1. Mất dữ liệu cập nhật (Lost Update)
 
-- **Ngữ cảnh đặc trưng**: Kế toán A đang xử lý nhập "Phụ cấp dự án" (cộng 2.000.000đ) cho nhân viên X. Cùng lúc, Kế toán B nhận được báo cáo vi phạm và nhập "Khấu trừ đi trễ" (trừ 500.000đ) cũng cho nhân viên X. Cả hai cùng mở giao diện, cùng tải dữ liệu `BangLuong` hiện tại. Kế toán A lưu trước, Kế toán B lưu sau. Do B không biết cập nhật của A, hệ thống lưu đè bản ghi khiến nhân viên X bị mất oan khoản phụ cấp 2 triệu.
-- **Demo bằng Sleep**:
-  - Transaction 1 (TX1 - Kế toán A): `SELECT TongPhuCap FROM BangLuong...` (Lấy ra 0đ). Chờ `SLEEP(5)`.
-  - Transaction 2 (TX2 - Kế toán B): `SELECT TongKhauTru FROM BangLuong...` (Lấy ra 0đ) -> Cập nhật `TongKhauTru = 500000` -> `COMMIT`.
-  - TX1 thức dậy: Dựa trên dữ liệu cũ, cập nhật `TongPhuCap = 2000000` và lưu đè. Các thông tin khác (bao gồm khấu trừ 500k của TX2) bị trả về nguyên trạng.
-- **Cách khắc phục**: Áp dụng Khóa bi quan (Pessimistic Locking) bằng `SELECT ... FOR UPDATE` để ép TX2 phải chờ TX1 ghi xong. Hoặc đổi logic Update thành câu lệnh Update tương đối: `UPDATE BangLuong SET TongPhuCap = TongPhuCap + 2000000`.
+*   **Ngữ cảnh đặc trưng mang tính hệ thống:** 
+    Chuyên viên Nhân sự (HR) A thực hiện rà soát thông tin hồ sơ để chỉnh sửa Số Điện Thoại của nhân viên trên giao diện UI. Cùng thời điểm đó, HR B nhận được yêu cầu cập nhật Mã Số Thuế cá nhân cho cùng nhân viên này. Cả hai cùng tải form thông tin của nhân viên (Ví dụ: `NV000001`). HR A thực hiện lưu số điện thoại thành công. Tuy nhiên ngay sau đó 1 giây, HR B bấm lưu mã số thuế. Kết quả là toàn bộ thông tin của B lưu đè lên A do form UI của B gửi lên nguyên bộ dữ liệu cũ kèm mã số thuế mới, làm mất đi số điện thoại mà A vừa mới bỏ công sửa.
 
-#### 6.2. Đọc dữ liệu rác (Dirty Read) - Hệ lụy từ Giao tác Onboarding
+*   **Danh sách các cách khắc phục:**
+    1.  **Khóa bi quan (Pessimistic Locking):** Sử dụng câu lệnh `SELECT ... FOR UPDATE` khi đọc dữ liệu để khóa bản ghi (Row-level Lock). Bất kỳ ai muốn lấy bản ghi đó để sửa đều phải chờ giao dịch hiện tại hoàn tất.
+    2.  **Khóa lạc quan (Optimistic Locking):** Thêm một cột `Version` (phiên bản) hoặc `LastModified` vào bảng `NhanVien`. Mỗi lần Update sẽ kiểm tra `WHERE Version = <Version_cũ>`, nếu thành công thì `Version = Version + 1`. Nếu không có dòng nào được update nghĩa là dữ liệu đã bị sửa bởi người khác, báo lỗi trên UI yêu cầu tải lại.
+    3.  **Cập nhật tương đối/cục bộ (Partial Update):** UI chỉ gửi lên đúng các trường cần thay đổi thay vì nguyên object. Dùng lệnh UPDATE chỉ update đúng cột cần thiết: `UPDATE NhanVien SET MaSoThue = ? WHERE MaNV = ?`.
 
-- **Ngữ cảnh đặc trưng**: Hệ thống đang chạy Giao tác `sp_TiepNhanNhanSu` (Onboarding) rất dài (tạo Nhân sự, Hợp đồng, Lương cơ bản, Tài khoản). Vừa tạo xong thông tin Nhân sự và Lương thì gọi SLEEP. Lúc này, Giám đốc chạy `sp_BaoCaoNhanSu_TongQuan` để xem tổng chi phí quỹ lương dự kiến và hệ thống tính gộp cả nhân viên mới này vào. Đột ngột, bước tạo Tài khoản ở cuối thủ tục Onboarding bị lỗi (ví dụ: trùng email), toàn bộ `sp_TiepNhanNhanSu` bị `ROLLBACK`. Giám đốc đang cầm trên tay báo cáo tài chính chứa quỹ lương của một người không hề tồn tại.
-- **Demo bằng Sleep**:
-  - (Chỉnh Isolation TX2 về `READ UNCOMMITTED`).
-  - TX1 (`sp_TiepNhanNhanSu`): `INSERT NhanVien`, `INSERT LuongCoBan` = 25tr. Đang `SLEEP(5)`.
-  - TX2 (`sp_BaoCaoNhanSu_TongQuan`): Đọc và Sum tổng quỹ lương -> Thấy tăng thêm 25tr.
-  - TX1: Lỗi `INSERT TaiKhoan` -> Gọi `ROLLBACK`. Dữ liệu nhân viên 25tr biến mất.
-- **Cách khắc phục**: Nâng mức cô lập lên `READ COMMITTED` hoặc `REPEATABLE READ` (mặc định của InnoDB). Báo cáo của Giám đốc sẽ chỉ đọc dữ liệu từ các giao dịch đã thực sự `COMMIT`.
+*   **Lựa chọn cách tốt nhất & Lý do:**
+    Cách tốt nhất là **Cập nhật cục bộ (Partial Update) kết hợp Khóa lạc quan (Optimistic Locking)**. 
+    Lý do: Trong các hệ thống Web đa người dùng, dùng `SELECT ... FOR UPDATE` ở request HTTP rất nguy hiểm vì có thể khóa chết database nếu người dùng giữ trạng thái treo (Timeout). Việc kết hợp Optimistic Locking và Partial Update giúp đảm bảo vẹn toàn dữ liệu nhưng không gây khóa cơ sở dữ liệu, tối ưu hiệu suất truy cập song song rất tốt.
 
-#### 6.3. Không đọc lại được dữ liệu (Non-repeatable Read) - Sai lệch trong quy trình tính lương 8 bước
+*   **Chi tiết Demo kết hợp UI & CSDL:**
+    **Bước 1: Tái hiện lỗi**
+    - **Trên UI (Cửa sổ 1 - HR A) & (Cửa sổ 2 - HR B):** Cả hai đăng nhập bằng 2 tài khoản khác nhau, cùng mở trang "Chỉnh sửa hồ sơ nhân viên NV000001". Cả 2 form lúc này đều hiện *Số điện thoại cũ, Mã số thuế cũ*.
+    - **Thao tác UI (HR A):** Nhập số điện thoại mới `0987654321` và ấn nút **Lưu**. Toast message hiện "Thành công".
+      *(Dưới DB: `UPDATE NhanVien SET SoDienThoai = '0987654321', MaSoThue = 'OLD_TAX' WHERE MaNV = 'NV000001';`)*.
+    - **Thao tác UI (HR B - Sau 2 giây):** Nhập mã số thuế mới `9999999` (vẫn để nguyên số ĐT cũ trên form) và ấn nút **Lưu**. Toast message hiện "Thành công".
+      *(Dưới DB: `UPDATE NhanVien SET SoDienThoai = 'OLD_PHONE', MaSoThue = '9999999' WHERE MaNV = 'NV000001';`)*.
+    - **Kết quả trên UI:** Tải lại trang (F5). Số điện thoại hiển thị lại số cũ, công sức của HR A đã bốc hơi hoàn toàn.
 
-- **Ngữ cảnh đặc trưng**: Giao tác `sp_TinhLuong` đang chạy để biến Lương Gross thành Net. Ở bước 1, thủ tục lấy `LuongCoBan` là 20 triệu để làm cơ sở tính BHXH (8%). Sau đó giao dịch SLEEP. Cùng lúc, HR thực hiện `sp_DieuChuyenThangChuc` nâng mức lương của nhân viên này lên 30 triệu và `COMMIT`. Khi `sp_TinhLuong` tỉnh dậy và chạy tới bước 5 (Tính Thuế TNCN), nó đọc lại `LuongCoBan` thì bất ngờ nhận giá trị 30 triệu. **Hệ quả cực kỳ nghiêm trọng**: Thuế TNCN bị tính ở mức thu nhập 30 triệu, trong khi BHXH lại chỉ trích ở mức 20 triệu, phá vỡ hoàn toàn logic công thức tính của kỳ lương đó.
-- **Demo bằng Sleep**:
-  - (Chỉnh Isolation TX1 về `READ COMMITTED`).
-  - TX1 (`sp_TinhLuong`): Đọc `LuongCoBan` -> 20tr. Tính BHXH. Đang `SLEEP(5)`.
-  - TX2 (`sp_DieuChuyenThangChuc`): `UPDATE LuongCoBan` lên 30tr -> `COMMIT`.
-  - TX1: Đọc lại `LuongCoBan` để tính Thuế TNCN -> Lấy ra 30tr (Khác với dòng đọc ở trên).
-- **Cách khắc phục**: Sử dụng mức `REPEATABLE READ`. Nhờ cơ chế MVCC (Multi-Version Concurrency Control), toàn bộ các dòng SELECT trong suốt vòng đời của `sp_TinhLuong` sẽ chỉ nhìn thấy một snapshot dữ liệu duy nhất tại thời điểm bắt đầu giao dịch, bảo toàn tính nhất quán của công thức.
+    **Bước 2: Triển khai khắc phục**
+    Sửa cấu trúc bảng `NhanVien`, thêm cột phiên bản:
+    ```sql
+    ALTER TABLE NhanVien ADD COLUMN Version INT NOT NULL DEFAULT 1;
+    ```
+    Chỉnh sửa câu lệnh xử lý trong API Update (Backend Node.js) thành logic Optimistic Locking:
+    ```sql
+    -- Backend nhận version = 1 từ UI gửi lên
+    UPDATE NhanVien 
+    SET MaSoThue = '9999999', Version = Version + 1
+    WHERE MaNV = 'NV000001' AND Version = 1;
+    ```
+    *(Nếu HR B ấn Lưu sau HR A, DB sẽ trả về `ROW_COUNT() = 0`. Backend trả mã 409 Conflict, UI sẽ hiện Popup: "Dữ liệu đã được cập nhật bởi một người khác. Vui lòng tải lại trang!")*.
 
-#### 6.4. Bóng ma (Phantom Read) - Chốt sổ thanh lý hợp đồng lọt vào giữa kỳ chốt lương
+#### 6.2. Đọc dữ liệu rác (Dirty Read)
 
-- **Ngữ cảnh đặc trưng**: Kế toán gọi `sp_ChotBangLuong` duyệt danh sách bảng lương tháng này của phòng Kỹ Thuật (trạng thái 'DRAFT') để chốt sang 'PAID' và xuất quỹ. Truy vấn đầu tiên đếm được 50 nhân viên. Đang chờ xử lý kết toán (SLEEP). Cùng lúc, HR chạy `sp_NghiViec` cho một nhân viên phòng Kỹ Thuật. Logic của thủ tục nghỉ việc sẽ tự động sinh thêm 1 bản ghi `BangLuong` trạng thái 'DRAFT' (để thanh toán những ngày làm dở dang) và `COMMIT`. Khi `sp_ChotBangLuong` tỉnh dậy và thực hiện Update chốt lương, nó cập nhật trúng 51 bản ghi. Quỹ thực chi bị lẹm 1 dòng thanh toán nghỉ việc bất ngờ ngoài dự toán ban đầu.
-- **Demo bằng Sleep**:
-  - TX1 (`sp_ChotBangLuong`): `SELECT COUNT(*) FROM BangLuong WHERE TrangThai = 'DRAFT';` -> Ra 50 dòng. `SLEEP(5)`.
-  - TX2 (`sp_NghiViec`): Tự động `INSERT INTO BangLuong (...) VALUES (..., 'DRAFT')` -> `COMMIT`.
-  - TX1: Thực thi `UPDATE BangLuong SET TrangThai = 'PAID' WHERE TrangThai = 'DRAFT';` -> Báo cáo Affected Rows là 51.
-- **Cách khắc phục**: Sử dụng mức `SERIALIZABLE` hoặc dùng Next-Key Locking với `SELECT ... FOR UPDATE` trên bảng `BangLuong`. Lúc này, giao dịch `sp_NghiViec` sẽ bị block lại (không thể `INSERT` thêm dòng 'DRAFT' mới) cho đến khi `sp_ChotBangLuong` thực hiện xong.
+*   **Ngữ cảnh đặc trưng mang tính hệ thống:**
+    Kế toán trưởng đang mở Dashboard Báo Cáo Nhân Sự trên UI để xem tổng quỹ lương hiện hữu của toàn doanh nghiệp. Cùng thời điểm, hệ thống ngầm đang chạy Giao tác `sp_TiepNhanNhanSu` tiếp nhận 1 nhân sự cấp cao mới vào hệ thống với Lương Cơ Bản là 100 triệu. Việc `INSERT` nhân viên và Lương cơ bản đã diễn ra, nhưng khi đến phần tạo tài khoản đăng nhập thì hệ thống bị lỗi Email đã tồn tại. Giao tác `sp_TiepNhanNhanSu` bị `ROLLBACK`.
+    Thảm họa xảy ra khi Dashboard của Kế toán trưởng đọc đúng lúc bản ghi 100 triệu vừa `INSERT` xong nhưng chưa `ROLLBACK`. Kết quả báo cáo báo quỹ lương tăng ảo thêm 100 triệu dù nhân viên đó chưa từng gia nhập.
 
-#### 6.5. Các mục (Đối tượng CSDL áp dụng)
+*   **Danh sách các cách khắc phục:**
+    1.  Tăng mức độ cô lập (Isolation Level) lên `READ COMMITTED`.
+    2.  Tăng mức độ cô lập lên `REPEATABLE READ`.
+    3.  Tăng mức độ cô lập lên `SERIALIZABLE`.
 
-#### 6.6. Hướng dẫn chi tiết thao tác Demo Thực Hành (Giao diện & CSDL)
+*   **Lựa chọn cách tốt nhất & Lý do:**
+    Cách tốt nhất là **`READ COMMITTED` (hoặc `REPEATABLE READ` vì InnoDB mặc định đã là REPEATABLE READ)**. 
+    Lý do: Để chống lại Dirty Read, chỉ cần `READ COMMITTED` là đủ. Ở mức này, giao dịch Báo cáo chỉ nhìn thấy những dữ liệu đã được `COMMIT` thành công, hoàn toàn loại bỏ được dữ liệu "rác" từ các transaction đang dở dang.
 
-Phần này cung cấp kịch bản chuyên sâu để hội đồng và giảng viên thấy rõ các lỗi đồng thời xảy ra như thế nào. Việc kết hợp song song giữa **Giao diện người dùng (UI)** và **Lệnh SQL trực tiếp trên MySQL (CSDL)** sẽ phản ánh chính xác luồng dữ liệu của hệ thống thực tế.
+*   **Chi tiết Demo kết hợp UI & CSDL:**
+    **Bước 1: Tái hiện lỗi**
+    - **Trên CSDL (Giả lập Job Onboarding bị treo):**
+      ```sql
+      START TRANSACTION;
+      INSERT INTO NhanVien (MaNV, HoTen, GioiTinh, NgaySinh, CCCD, MaPB, MaCV, NgayVaoLam) 
+      VALUES ('NV888888', 'Giám Đốc Mới', 'M', '1990-01-01', '012345678910', 'PB0001', 'CV0001', '2025-01-01');
+      INSERT INTO LuongCoBan (MaNV, LuongCB, LuongDongBH, NgayHieuLuc) 
+      VALUES ('NV888888', 100000000, 46800000, '2025-01-01');
+      DO SLEEP(8); -- Giả lập đang xử lý bước tạo tài khoản gửi mail
+      ROLLBACK; -- Giả lập bị lỗi cuối cùng
+      ```
+    - **Trên UI (Kế toán trưởng - Trong 8s Sleep):** Nhấn nút **"Xuất Báo Cáo Quỹ Lương Tổng Quan"**.
+      *(Dưới DB API gọi báo cáo đang bị set cố tình lỗi: `SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED; CALL sp_BaoCaoNhanSu_TongQuan();`)*.
+    - **Kết quả trên UI:** Biểu đồ hiển thị trên màn hình bị vọt lên thêm 100,000,000 đ từ `NV888888`. Sau 8s, nhân viên kia rollback biến mất, nhưng Kế toán trưởng đã xuất file Excel sai lệch.
 
-##### 6.6.1. Chuẩn bị môi trường Demo
+    **Bước 2: Triển khai khắc phục**
+    Bọc chuẩn API gọi báo cáo ở tầng Backend bằng mức `READ COMMITTED`:
+    ```sql
+    SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+    START TRANSACTION;
+    CALL sp_BaoCaoNhanSu_TongQuan();
+    COMMIT;
+    ```
+    *(Lúc này, dù bấm nút Báo cáo trên UI vào giữa lúc Onboarding đang chạy, Biểu đồ vẫn không tính dòng 100tr đang `UNCOMMITTED`, dữ liệu hiển thị hoàn toàn chính xác).*
 
-- **Bước 1 (Giao diện):** Mở trình duyệt web. Đăng nhập bằng 2 tài khoản Kế toán/HR khác nhau trên 2 cửa sổ ẩn danh (Incognito) để giả lập 2 phiên làm việc độc lập của người dùng.
-- **Bước 2 (CSDL):** Mở MySQL Workbench, mở 2 tab Query Editor đại diện cho 2 tiến trình (Transaction 1 và Transaction 2).
-- **Bước 3 (Thiết lập độ trễ):** Để mắt thường kịp quan sát lỗi, ta sẽ sửa tạm thời các Stored Procedure cốt lõi bằng cách chèn `DO SLEEP(8);` để ép hệ thống "treo", tạo khe hở thời gian cho giao dịch thứ 2 xen vào.
-  *(Ví dụ: Sửa `sp_ChotBangLuong`)*
+#### 6.3. Không đọc lại được dữ liệu (Non-repeatable Read)
 
-##### 6.6.2. Thao tác Demo: Lost Update (Mất dữ liệu cập nhật)
+*   **Ngữ cảnh đặc trưng mang tính hệ thống:**
+    Kế toán ấn nút "Tính lương tháng 5" trên UI, hệ thống chạy `sp_TinhLuong` là một đường ống rất dài. Giả sử tiến trình đang xử lý tính lương cho `NV000001`. Bước 2: đọc `LuongCoBan` ra (hiện là 20 triệu) để đóng làm trần tính BHXH. Máy chủ xử lý tác vụ bị nghẽn nên ngưng lại vài giây (SLEEP). Lúc này, Nhân sự HR nhấn nút "Duyệt thăng chức" trên UI, nâng lương cơ bản của `NV000001` lên 30 triệu, thực hiện `UPDATE` và `COMMIT` thành công. Tiến trình `sp_TinhLuong` tiếp tục chạy đến bước 6: Tính Thuế TNCN, nó lại thực hiện `SELECT LuongCB` và thu được 30 triệu.
+    Hậu quả: Tiền BHXH (8%) bị trừ ở mức 20 triệu, nhưng Thuế TNCN (thuế suất cao) bị tính cấn trừ dựa trên thu nhập 30 triệu. Cùng 1 kỳ lương nhưng công thức đọc 2 mức lương khác nhau.
 
-- **Ngữ cảnh**: Cạnh tranh cập nhật bảng lương của `NV000008` trên UI.
-- **Thao tác trên Giao diện**:
-  1. **Cửa sổ 1 (Kế toán A) & Cửa sổ 2 (Kế toán B)** cùng mở trang "Chi tiết Bảng Lương tháng 5" của `NV000001`. Cả 2 đang thấy: *Tổng phụ cấp = 0, Tổng khấu trừ = 0*.
-  2. Tại **Cửa sổ 1**, Kế toán A nhập phụ cấp: `2.000.000` đ.
-  3. Tại **Cửa sổ 2**, Kế toán B nhập khấu trừ đi trễ: `500.000` đ.
-  4. Kế toán A bấm nút **"Lưu"**. Màn hình báo thành công. (Lúc này dưới CSDL: `UPDATE BangLuong SET TongPhuCap = 2000000, TongKhauTru = 0`).
-  5. Kế toán B (chậm tay hơn 2 giây) bấm nút **"Lưu"**. (Lúc này dưới CSDL: `UPDATE BangLuong SET TongPhuCap = 0, TongKhauTru = 500000`).
-- **Kết quả Lỗi trên Giao diện**: Tải lại (Refresh) trang. Hệ thống chỉ ghi nhận *Khấu trừ = 500.000đ*. Khoản *Phụ cấp 2.000.000đ* của Kế toán A đã bị bay màu do Kế toán B dùng bộ data cũ ghi đè.
-- **Mã khắc phục (CSDL)**: Sửa API/SP dùng cập nhật tương đối:
-  `UPDATE BangLuong SET TongPhuCap = TongPhuCap + ?, TongKhauTru = TongKhauTru + ? WHERE MaNV = ?`
+*   **Danh sách các cách khắc phục:**
+    1.  Tăng mức độ cô lập lên `REPEATABLE READ`.
+    2.  Sử dụng biến cục bộ tạm thời để lưu trữ thay vì truy vấn `SELECT` lại từ bảng dữ liệu vật lý.
+    3.  Tăng mức độ cô lập lên `SERIALIZABLE`.
 
-##### 6.6.3. Thao tác Demo: Dirty Read (Đọc dữ liệu rác)
+*   **Lựa chọn cách tốt nhất & Lý do:**
+    Cách tốt nhất là **Kết hợp dùng biến tạm trong thủ tục lưu trữ VÀ thiết lập cô lập `REPEATABLE READ`**.
+    Lý do: Lưu giá trị `LuongCoBan` vào một biến cục bộ ngay từ đầu (`DECLARE v_LuongCB DECIMAL(15,2);`) vừa triệt tiêu lỗi, vừa tăng tốc độ xử lý SP vì không cần Query bảng lại.
 
-- **Ngữ cảnh**: Giám đốc xem nhầm quỹ lương từ một tiến trình Onboarding đang chạy dở dang.
-- **Thao tác trên CSDL (Giả lập Job Onboarding treo)**:
-  ```sql
-  -- Tab 1 (Chạy Onboarding)
-  SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-  START TRANSACTION; 
-  INSERT INTO NhanVien (MaNV, HoTen) VALUES ('NV999999', 'Nhân viên Ảo');
-  INSERT INTO LuongCoBan (MaNV, LuongCoBan) VALUES ('NV999999', 50000000); 
-  DO SLEEP(8); -- Giả lập hệ thống đang kẹt ở bước gửi Email
-  ```
-- **Thao tác trên Giao diện (Giám đốc)**: Trong 8 giây Tab 1 đang Sleep, Giám đốc bấm nút **"Xuất Báo Cáo Quỹ Lương Tổng Quan"**.
-- **Kết quả Lỗi**: Biểu đồ trên UI và file Excel báo cáo bị đội thêm 50.000.000đ một cách phi lý.
-- **Tiếp tục trên CSDL**: Hết 8 giây, Tab 1 bị lỗi mạng, hệ thống gọi `ROLLBACK;`. Nhân viên `NV999999` chưa bao giờ tồn tại, nhưng Giám đốc đã lưu lại bản báo cáo sai lệch.
-- **Mã khắc phục**: Đảm bảo Backend sử dụng `SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;` cho mọi tiến trình truy xuất báo cáo.
+*   **Chi tiết Demo kết hợp UI & CSDL:**
+    **Bước 1: Tái hiện lỗi**
+    - **Trên CSDL (Kế toán chạy Tính Lương):**
+      ```sql
+      SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+      START TRANSACTION;
+      -- Đọc lương lần 1 để tính BHXH (ra 20tr)
+      SELECT LuongCB INTO @luongCB_BHXH FROM LuongCoBan WHERE MaNV = 'NV000001' ORDER BY NgayHieuLuc DESC LIMIT 1;
+      DO SLEEP(8); -- Gặp độ trễ
+      -- Đọc lương lần 2 để tính Thuế TNCN (sau 8s sẽ đọc ra 30tr vì HR can thiệp)
+      SELECT LuongCB INTO @luongCB_Thue FROM LuongCoBan WHERE MaNV = 'NV000001' ORDER BY NgayHieuLuc DESC LIMIT 1;
+      COMMIT;
+      ```
+    - **Trên UI (HR - Trong 8s Sleep):** Chuyên viên HR vào form "Hợp đồng & Lương", đổi Mức lương cơ bản của NV000001 thành 30.000.000đ và bấm nút **"Cập Nhật"**.
+    - **Kết quả trên UI (Kế toán):** Khi tiến trình tính lương chạy xong, Kế toán mở trang "Phiếu Lương Cá Nhân" của NV000001. Hệ thống hiển thị: *Thu nhập đóng BHXH = 20tr, nhưng Thu nhập tính Thuế TNCN = 30tr*. Công thức hiển thị trên UI sai lệch hoàn toàn.
 
-##### 6.6.4. Thao tác Demo: Non-repeatable Read (Sai lệch công thức tính lương)
+    **Bước 2: Triển khai khắc phục**
+    Sửa cấu trúc gọi lệnh trong SP `sp_TinhLuong`:
+    ```sql
+    -- Thay vì liên tục truy vấn SELECT bảng LuongCoBan ở mỗi bước
+    DECLARE v_LuongCoBan_Current DECIMAL(15,2);
+    -- Lấy snapshot một lần duy nhất tại thời điểm bắt đầu tính toán
+    SELECT LuongCB INTO v_LuongCoBan_Current 
+    FROM LuongCoBan WHERE MaNV = p_MaNV ORDER BY NgayHieuLuc DESC LIMIT 1;
+    -- Dùng biến v_LuongCoBan_Current để tính toán chung cho cả BHXH và Thuế
+    ```
 
-- **Ngữ cảnh**: Chuyên viên HR cập nhật hợp đồng đúng lúc hệ thống đang chạy tính lương.
-- **Thao tác trên CSDL (Giả lập Job Tính Lương chậm)**:
-  ```sql
-  -- Tab 1 (Kế toán chạy Tính Lương)
-  SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-  -- Trong nội dung sp_TinhLuong, chèn DO SLEEP(8) vào giữa
-  -- bước đọc Lương Cơ Bản tính BHXH và bước đọc lại để tính Thuế TNCN
-  CALL sp_TinhLuong(5, 2025, 'NV000001', 1, 0);
-  ```
-- **Thao tác trên Giao diện (HR)**: Trong 8 giây Tab 1 đang Sleep, chuyên viên HR mở hồ sơ `NV000001` trên UI, sửa Lương cơ bản từ 20 triệu thành 30 triệu, rồi bấm **"Lưu Hợp Đồng"**.
-- **Kết quả Lỗi trên Giao diện**: Sau khi Job tính lương hoàn tất, Kế toán mở "Phiếu lương" của `NV000001`. Sự phi lý hiện rõ: Tiền BHXH (8%) bị trừ dựa trên mức lương cũ (20 triệu), nhưng Thuế TNCN ở dưới lại bị cấn trừ dựa trên mức lương mới (30 triệu).
-- **Mã khắc phục**: Sử dụng `SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;` trước khi gọi `sp_TinhLuong`.
+#### 6.4. Bóng ma (Phantom Read)
 
-##### 6.6.5. Thao tác Demo: Phantom Read (Bóng ma chốt sổ)
+*   **Ngữ cảnh đặc trưng mang tính hệ thống:**
+    Kế toán Lương cần chốt sổ toàn bộ nhân viên phòng IT. Kế toán vào màn hình UI "Chốt lương", thấy danh sách tổng là 20 người (trạng thái Draft). Kế toán bấm nút **"Chốt và Xuất Quỹ"** (hệ thống chạy ngầm `sp_ChotBangLuong`). Đột nhiên HR quyết định sa thải 1 nhân sự cấp dưới phòng IT, trên UI nhân sự bấm nút **"Thanh lý hợp đồng"**. Logic nghỉ việc lập tức sinh ra 1 bảng lương Draft dở dang cho những ngày làm việc cuối cùng. Tiến trình chốt quỹ của Kế toán chạy xong, thông báo UI trả về: "Đã chốt thành công 21 bản ghi". Bản ghi bóng ma (Phantom Row) này đã thâm nhập vào quỹ thanh toán ngoài dự toán của kế toán.
 
-- **Ngữ cảnh**: Kế toán đang chốt danh sách lương thì có người bị HR cho nghỉ việc giữa chừng.
-- **Thao tác trên Giao diện (Kế toán)**: Kế toán vào màn hình "Duyệt Bảng Lương Tháng 5". UI hiển thị rõ danh sách bảng lương phòng Kỹ Thuật gồm **50 người** (Trạng thái DRAFT). Kế toán yên tâm bấm nút **"Chốt toàn bộ lương"**.
-- **Thao tác trên CSDL (Giả lập HR làm việc)**: Trong lúc quá trình chốt đang chạy và bị `SLEEP(8)`, HR chạy thủ tục thanh lý hợp đồng:
-  ```sql
-  -- Tab 2 (HR thao tác nghỉ việc)
-  CALL sp_NghiViec('NV000051', '2025-05-15');
-  -- sp_NghiViec sẽ tự động phát sinh thêm 1 bảng lương DRAFT cho NV000051
-  ```
-- **Kết quả Lỗi trên Giao diện**: Sau khi màn hình loading chốt lương hoàn tất, Toast Message hiện ra: *"Đã chốt và thanh toán thành công 51 bảng lương"*. Xuất hiện 1 nhân viên thanh toán ngoài dự toán mà Kế toán không hề tích chọn lúc đầu.
-- **Mã khắc phục**: Sử dụng `SERIALIZABLE` hoặc `SELECT ... FOR UPDATE`. Khi đó lệnh `sp_NghiViec` ở Tab 2 sẽ bị Block không thể sinh ra bản ghi mới cho tới khi Kế toán chốt sổ xong.
+*   **Danh sách các cách khắc phục:**
+    1.  Tăng mức độ cô lập lên `SERIALIZABLE`.
+    2.  Sử dụng Next-Key Locking với `SELECT ... FOR UPDATE` trong mức `REPEATABLE READ` của InnoDB.
 
----
+*   **Lựa chọn cách tốt nhất & Lý do:**
+    Cách tốt nhất là **Sử dụng Next-Key Locking (`SELECT ... FOR UPDATE`) trong `REPEATABLE READ`**.
+    Lý do: Mức `SERIALIZABLE` gây khóa đọc toàn cục làm treo hệ thống. InnoDB ở mức `REPEATABLE READ` hỗ trợ Next-Key Locking, chỉ cần gọi `SELECT * FROM BangLuong WHERE TrangThai='D' FOR UPDATE`, nó sẽ khóa chặt "khoảng không gian" (gap) điều kiện này. Nút "Thanh lý hợp đồng" của HR trên UI sẽ quay vòng vòng chờ (Block) cho tới khi kế toán chốt sổ xong.
+
+*   **Chi tiết Demo kết hợp UI & CSDL:**
+    **Bước 1: Tái hiện lỗi**
+    - **Trên UI (Kế toán):** Thấy danh sách 20 nhân viên. Bấm nút **"Chốt Lương"**.
+      *(Dưới DB hệ thống đếm số lượng: `SELECT COUNT(*) FROM BangLuong WHERE Thang = 5 AND TrangThai = 'D';`, sau đó bị `SLEEP(8)`).*
+    - **Trên UI (HR - Trong 8s Sleep):** Bấm nút **"Thanh lý hợp đồng"** cho nhân viên NV000099.
+      *(Dưới DB chạy: `INSERT INTO BangLuong (MaNV, Thang, Nam, LuongCoBan, TrangThai) VALUES ('NV000099', 5, 2025, 10000000, 'D'); COMMIT;`)*.
+    - **Kết quả trên UI (Kế toán):** Sau khi chờ loading xong, màn hình Kế toán hiện Toast: *"Thành công: Đã chốt 21 nhân viên"*. Dư ra 1 bóng ma.
+
+    **Bước 2: Triển khai khắc phục**
+    Sửa mã SQL trong `sp_ChotBangLuong` để áp dụng Next-Key Locking:
+    ```sql
+    START TRANSACTION;
+    -- Quét qua các dòng và khóa chặt (Lock Rows + Gap Lock)
+    SELECT * FROM BangLuong WHERE Thang = 5 AND TrangThai = 'D' FOR UPDATE;
+    
+    -- Xử lý chốt sổ
+    UPDATE BangLuong SET TrangThai = 'C' WHERE Thang = 5 AND TrangThai = 'D';
+    COMMIT;
+    ```
+    *(Sau khi fix, nếu HR bấm "Thanh lý hợp đồng" trong lúc Kế toán đang chốt lương, UI của HR sẽ hiển thị Loading chờ cho đến khi Kế toán làm xong, bảo đảm toàn vẹn dữ liệu).*
 
 ### 7. Deadlock (Khóa chết)
 
-- **Định nghĩa**: Hai (hoặc nhiều) giao dịch đang giữ khóa tài nguyên và chờ đợi tài nguyên mà bên kia đang giữ, dẫn đến một vòng lặp chờ đợi vô tận.
-- **Ngữ cảnh Demo**:
-  - TX1: Bắt đầu xử lý cho Nhân viên X -> Lấy Khóa cập nhật bảng `HopDong`. Đang SLEEP.
-  - TX2: Bắt đầu xử lý lương cho Nhân viên X -> Lấy Khóa cập nhật bảng `LuongCoBan`. Đang SLEEP.
-  - TX1 thức dậy: Cần cập nhật bảng `LuongCoBan` -> Bị Block (Chờ TX2 nhả khóa).
-  - TX2 thức dậy: Cần cập nhật bảng `HopDong` -> Bị Block (Chờ TX1 nhả khóa).
-    -> **Hậu quả**: MySQL phát hiện vòng lặp deadlock và buộc phải "giết" (kill) một trong hai transaction (kèm theo thông báo lỗi `Error 1213: Deadlock found`), transaction còn lại sẽ được tiếp tục.
-- **Cách khắc phục**:
-  1. **Quy tắc thứ tự khóa**: Luôn yêu cầu Backend/Stored Procedures phải truy cập các bảng theo một thứ tự nhất định, ví dụ luôn cập nhật `HopDong` trước rồi mới tới `LuongCoBan` trong mọi nghiệp vụ.
-  2. **Thời gian khóa cực ngắn**: Tối ưu index và cấu trúc truy vấn để khóa diễn ra nhanh nhất, giảm thời gian giao dịch.
-  3. **Xử lý ứng dụng (Retry)**: Bắt lỗi Deadlock ở phía Application Node.js (try...catch) và tự động thực thi lại transaction bị hủy sau vài phần nghìn giây.
+*   **Ngữ cảnh đặc trưng mang tính hệ thống:**
+    Giao dịch A (HR trên UI bấm nút **"Thăng chức"**) gọi `sp_DieuChuyenThangChuc`: thực hiện cập nhật chức vụ trong bảng `NhanVien`, sau đó nâng mức lương trong bảng `LuongCoBan`. 
+    Giao dịch B (HR khác bấm nút **"Kỷ luật - Hạ bậc"**) gọi `sp_TienThuongKyLuat`: thực hiện hạ mức lương trong bảng `LuongCoBan` trước, sau đó cập nhật điểm kỷ luật ở bảng `NhanVien` sau.
+    Nếu hai HR ấn nút cùng lúc trên cùng 1 nhân viên: Giao dịch A khóa `NhanVien` chờ `LuongCoBan`. Giao dịch B khóa `LuongCoBan` chờ `NhanVien`. Cả hai rơi vào trạng thái chờ nhau vô tận. MySQL sẽ "Kill" một giao dịch, khiến màn hình UI của 1 trong 2 HR văng lỗi Error 500 (Deadlock).
+
+*   **Danh sách các cách khắc phục:**
+    1.  Đồng nhất thứ tự lấy khóa (Consistent Lock Ordering) giữa mọi Giao tác và Stored Procedures.
+    2.  Tối ưu hóa các truy vấn bằng Index để thu nhỏ phạm vi quét khóa.
+    3.  Chia nhỏ giao dịch lớn thành các giao dịch nhỏ hơn để nhả khóa sớm.
+    4.  Cơ chế Deadlock Retry tại tầng Ứng Dụng (Node.js/Backend).
+
+*   **Lựa chọn cách tốt nhất & Lý do:**
+    Cách tốt nhất là **Đồng nhất thứ tự lấy khóa (Consistent Lock Ordering)** từ mức thiết kế Database.
+    Lý do: Đây là phương pháp phòng bệnh triệt để nhất. Nếu mọi luồng code (Stored Procedures) đều tuân thủ quy tắc lấy khóa theo thứ tự phân tầng từ bảng Master đến bảng Detail: "Luôn UPDATE `NhanVien` trước -> tới `HopDong` -> tới `LuongCoBan`", thì Deadlock chéo không bao giờ có cơ hội hình thành. Kết hợp bắt lỗi Retry ở tầng Node.js Backend để đảm bảo UX hoàn hảo cho người dùng.
+
+*   **Chi tiết Demo kết hợp UI & CSDL:**
+    **Bước 1: Tái hiện lỗi Deadlock**
+    - **Trên CSDL (Mô phỏng Giao dịch A - Thăng chức):**
+      ```sql
+      START TRANSACTION;
+      UPDATE NhanVien SET MaCV = 'CV0002' WHERE MaNV = 'NV000001'; -- Giữ khóa NhanVien
+      DO SLEEP(5); 
+      UPDATE LuongCoBan SET LuongCB = 40000000 WHERE MaNV = 'NV000001'; -- Bị kẹt chờ
+      COMMIT;
+      ```
+    - **Trên UI (Giao dịch B - Kỷ luật):** Trong thời gian 5s Sleep kia, HR khác vào màn hình Kỷ luật, bấm nút **"Xác nhận hạ lương"** cho cùng `NV000001`.
+      *(Dưới DB Backend gọi API xử lý ngược: Update `LuongCoBan` trước, Update `NhanVien` sau).*
+    - **Kết quả:** Ngay lập tức UI của tiến trình B báo lỗi đỏ chót: *"Hệ thống bận, Error 500: Lỗi 1213 Deadlock found"*. Transaction của tiến trình B bị văng và rollback, giao dịch A thì hoàn tất an toàn.
+
+    **Bước 2: Triển khai khắc phục**
+    Thiết lập bộ quy chuẩn "Quy tắc truy cập bảng HRPayroll":
+    *(Luật: NhanVien -> HopDong -> LuongCoBan -> BangLuong)*.
+    Sửa mã nguồn Backend/SP của thao tác Kỷ luật để tuân thủ luật lấy khóa này:
+    ```sql
+    START TRANSACTION;
+    -- Dù logic kỷ luật là đánh vào tiền lương, ta vẫn phải UPDATE bảng NhanVien TRƯỚC để lấy khóa đúng trật tự.
+    UPDATE NhanVien SET GhiChu = 'Bị kỷ luật' WHERE MaNV = 'NV000001'; 
+    UPDATE LuongCoBan SET LuongCB = 15000000 WHERE MaNV = 'NV000001'; 
+    COMMIT;
+    ```
+    *(Lúc này, nếu 2 người dùng ấn nút song song trên giao diện, Request sau sẽ chỉ đứng xếp hàng trật tự chờ Request trước hoàn tất ở vòng ngoài bảng NhanVien, hoàn toàn không xảy ra tình trạng khóa chéo văng lỗi).*
+
+---
 
 ---
 
