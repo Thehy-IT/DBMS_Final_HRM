@@ -28,7 +28,7 @@ Bản kế hoạch này phân chia nội dung báo cáo dự án Quản lý Nhâ
 
 ## 👨‍💻 Người 2: Logic Nghiệp vụ Cốt lõi (Stored Procedures & Functions)
 
-**Mục tiêu:** Trình bày cách hệ thống xử lý các quy trình tính toán phức tạp và các thao tác thay đổi dữ liệu hàng loạt một cách an toàn thông qua lập trình mySQL (hoặc PL/pgSQL/MySQL tùy DBMS).
+**Mục tiêu:** Trình bày cách hệ thống xử lý các quy trình tính toán phức tạp và các thao tác thay đổi dữ liệu hàng loạt một cách an toàn thông qua lập trình myưSQL (hoặc PL/pgSQL/MySQL tùy DBMS).
 
 **Nội dung chi tiết:**
 
