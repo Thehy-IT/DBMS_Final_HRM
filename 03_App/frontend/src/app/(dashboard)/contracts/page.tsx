@@ -101,8 +101,8 @@ export default function ContractListPage() {
       return false;
     }
     if (contractTypeFilter) {
-      const selectedType = contractTypesData?.find((t: any) => t.id === contractTypeFilter || t.name === contractTypeFilter);
-      if (contract.type !== contractTypeFilter && contract.type !== selectedType?.name && contract.type !== selectedType?.id) {
+      const selectedType = contractTypesData?.find((t: any) => String(t.id) === String(contractTypeFilter) || String(t.name) === String(contractTypeFilter));
+      if (String(contract.type) !== String(contractTypeFilter) && String(contract.type) !== String(selectedType?.name) && String(contract.type) !== String(selectedType?.id)) {
         return false;
       }
     }
@@ -234,7 +234,7 @@ export default function ContractListPage() {
           ) : (
             <table className="w-full text-left border-collapse min-w-[900px]">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-600">
+                <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-600 whitespace-nowrap">
                   <th className="px-6 py-3 w-10">
                     <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
                   </th>
@@ -249,7 +249,7 @@ export default function ContractListPage() {
               </thead>
               <tbody className="text-sm">
                 {paginatedContracts.map((contract) => (
-                  <tr key={contract.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                  <tr key={contract.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors whitespace-nowrap">
                     <td className="px-6 py-4">
                       <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
                     </td>
@@ -261,9 +261,12 @@ export default function ContractListPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div>{formatDate(contract.startDate)}</div>
-                      <div className="text-slate-500 text-xs">
-                        {contract.endDate ? `đến ${formatDate(contract.endDate)}` : "Không xác định"}
+                      <div className="flex items-center gap-2">
+                        <span>{formatDate(contract.startDate)}</span>
+                        <span className="text-slate-400">→</span>
+                        <span className={contract.endDate ? "" : "text-slate-500 italic"}>
+                          {contract.endDate ? formatDate(contract.endDate) : "Không xác định"}
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 font-medium">{formatMoney(contract.salary)}</td>

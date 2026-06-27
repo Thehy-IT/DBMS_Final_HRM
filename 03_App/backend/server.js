@@ -264,7 +264,7 @@ app.put('/v1/attendance/:id', requireHR, async (req, res) => {
 // 4. Lấy danh sách bảng lương
 app.get('/v1/payroll', async (req, res) => {
   try {
-    let query = 'SELECT bl.MaBL as id, bl.Thang as month, bl.Nam as year, bl.MaNV as empId, nv.HoTen as name, pb.TenPB as dept, bl.LuongCoBan as basicSalary, bl.SoNgayCong as workingDays, bl.HeSoTangCa as otHours, bl.TongPhuCap as allowance, bl.TongKhauTru as deduction, bl.ThuNhapThucLinh as netSalary, bl.TrangThai as status FROM BangLuong bl JOIN NhanVien nv ON bl.MaNV = nv.MaNV JOIN PhongBan pb ON nv.MaPB = pb.MaPB';
+    let query = 'SELECT bl.MaBL as id, bl.Thang as month, bl.Nam as year, bl.MaNV as empId, nv.HoTen as name, pb.TenPB as dept, bl.LuongCoBan as basicSalary, bl.SoNgayCong as workingDays, bl.HeSoTangCa as otHours, bl.TongPhuCap as allowance, bl.TongKhauTru as deduction, bl.ThuNhapGop as grossSalary, bl.BHXH_NLD as bhxh, bl.BHYT_NLD as bhyt, bl.BHTN_NLD as bhtn, bl.ThueTNCN as tax, bl.ThuNhapThucLinh as netSalary, bl.TrangThai as status FROM BangLuong bl JOIN NhanVien nv ON bl.MaNV = nv.MaNV JOIN PhongBan pb ON nv.MaPB = pb.MaPB';
     let params = [];
     if (req.user.role === 'EMPLOYEE') {
       query += ' WHERE bl.MaNV = ?';

@@ -4506,9 +4506,12 @@ DELETE FROM TaiKhoan WHERE TenDangNhap <> '';
 -- Passwords are '123456' hashed with bcrypt (salt rounds: 10)
 INSERT INTO TaiKhoan(TenDangNhap, MatKhau, Quyen, MaNV) VALUES
 ('admin', '$2b$10$DXTNmPgGuoZ30ZRh7Ixnae6TM./ShNkdraDqYYXEXq4qrgIcaZTY.', 'ADMIN', NULL),
-('hr', '$2b$10$DXTNmPgGuoZ30ZRh7Ixnae6TM./ShNkdraDqYYXEXq4qrgIcaZTY.', 'HR', 'NV000001'),
-('director', '$2b$10$DXTNmPgGuoZ30ZRh7Ixnae6TM./ShNkdraDqYYXEXq4qrgIcaZTY.', 'DIRECTOR', 'NV000002'),
+('hr1', '$2b$10$DXTNmPgGuoZ30ZRh7Ixnae6TM./ShNkdraDqYYXEXq4qrgIcaZTY.', 'HR', 'NV000001'),
+('hr2', '$2b$10$DXTNmPgGuoZ30ZRh7Ixnae6TM./ShNkdraDqYYXEXq4qrgIcaZTY.', 'HR', 'NV000004'),
+('director1', '$2b$10$DXTNmPgGuoZ30ZRh7Ixnae6TM./ShNkdraDqYYXEXq4qrgIcaZTY.', 'DIRECTOR', 'NV000002'),
+('director2', '$2b$10$DXTNmPgGuoZ30ZRh7Ixnae6TM./ShNkdraDqYYXEXq4qrgIcaZTY.', 'DIRECTOR', 'NV000005'),
 ('nhanvien', '$2b$10$DXTNmPgGuoZ30ZRh7Ixnae6TM./ShNkdraDqYYXEXq4qrgIcaZTY.', 'EMPLOYEE', 'NV000003');
+
 COMMIT;
 SELECT '§9 TaiKhoan hoàn tất' AS Info;
 

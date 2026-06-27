@@ -52,10 +52,15 @@ export default function ReportsPage() {
   const currentMonth = selectedMonth || (availableMonths.length > 0 ? availableMonths[0] : "");
 
   // --- UC-11: Báo cáo quỹ lương theo phòng ban ---
-  const payrollByDept = payrolls.filter(p => p.month === currentMonth).reduce((acc: any, curr) => {
+  const payrollByDept = payrolls.filter(p => String(p.month) === String(currentMonth)).reduce((acc: any, curr) => {
     const dept = curr.dept || 'Chưa phân bổ';
     if (!acc[dept]) acc[dept] = 0;
-    acc[dept] += (curr.netSalary || 0) + (curr.deduction || 0); // Tổng chi phí = Thực lĩnh + Khấu trừ
+    // Tổng chi phí = Lương gộp + Các khoản bảo hiểm doanh nghiệp đóng (ước tính 21.5% lương đóng BH)
+    const bhxh = Number(curr.bhxh) || 0;
+    const luongDongBH = bhxh > 0 ? (bhxh / 0.08) : 0;
+    const bhxhCty = luongDongBH * 0.215;
+    
+    acc[dept] += (Number(curr.grossSalary) || 0) + bhxhCty; 
     return acc;
   }, {});
 
@@ -65,11 +70,10 @@ export default function ReportsPage() {
   })).sort((a, b) => b['Chi phí lương'] - a['Chi phí lương']);
 
   // --- UC-12: Báo cáo thuế TNCN ---
-  // Giả định: Khoản khấu trừ (deduction) bao gồm Thuế TNCN (chiếm 60%) và BHXH (chiếm 40%).
   const taxByMonth = payrolls.reduce((acc: any, curr) => {
     const m = curr.month || 'Unknown';
     if (!acc[m]) acc[m] = 0;
-    acc[m] += ((curr.deduction || 0) * 0.6); // 60% of deduction assumed as PIT
+    acc[m] += (Number(curr.tax) || 0);
     return acc;
   }, {});
 
@@ -78,29 +82,35 @@ export default function ReportsPage() {
     'Thuế TNCN': taxByMonth[month]
   }));
 
-  const currentMonthTax = payrolls.filter(p => p.month === currentMonth).map(p => ({
+  const currentMonthTax = payrolls.filter(p => String(p.month) === String(currentMonth)).map(p => ({
     empId: p.empId,
     name: p.name,
     dept: p.dept,
-    income: (p.basicSalary || 0) + (p.allowance || 0) + ((p.otHours || 0) * 100000),
-    tax: (p.deduction || 0) * 0.6
+    income: Number(p.grossSalary) || 0,
+    tax: Number(p.tax) || 0
   })).filter(p => p.tax > 0).sort((a, b) => b.tax - a.tax);
 
   // --- UC-13: Báo cáo BHXH ---
-  // Giả định: 40% của deduction là BHXH NLĐ đóng. Công ty đóng thêm 21.5% trên basicSalary.
-  const insuranceList = payrolls.filter(p => p.month === currentMonth).map(p => {
-    const nldDong = (p.deduction || 0) * 0.4;
-    const ctyDong = (p.basicSalary || 0) * 0.215;
+  const insuranceList = payrolls.filter(p => String(p.month) === String(currentMonth)).map(p => {
+    const bhxh = Number(p.bhxh) || 0;
+    const bhyt = Number(p.bhyt) || 0;
+    const bhtn = Number(p.bhtn) || 0;
+    const nldDong = bhxh + bhyt + bhtn;
+    
+    // Tạm tính chi phí cty: BHXH(17.5%) + BHYT(3%) + BHTN(1%) = 21.5%
+    const luongDongBH = bhxh > 0 ? (bhxh / 0.08) : 0;
+    const ctyDong = luongDongBH * 0.215;
+
     return {
       empId: p.empId,
       name: p.name,
       dept: p.dept,
-      basicSalary: p.basicSalary || 0,
+      basicSalary: Number(p.basicSalary) || 0,
       nldDong,
       ctyDong,
       total: nldDong + ctyDong
     };
-  });
+  }).filter(p => p.total > 0);
 
   const totalNldDong = insuranceList.reduce((sum, item) => sum + item.nldDong, 0);
   const totalCtyDong = insuranceList.reduce((sum, item) => sum + item.ctyDong, 0);
@@ -109,13 +119,15 @@ export default function ReportsPage() {
   const trendByMonth = payrolls.reduce((acc: any, curr) => {
     const m = curr.month || 'Unknown';
     if (!acc[m]) acc[m] = { month: m, basic: 0, allowance: 0, overtime: 0, total: 0 };
-    const b = curr.basicSalary || 0;
-    const a = curr.allowance || 0;
-    const o = (curr.otHours || 0) * 100000;
+    const b = Number(curr.basicSalary) || 0;
+    const a = Number(curr.allowance) || 0;
+    const total = Number(curr.grossSalary) || 0;
+    const o = Math.max(0, total - b - a); // Tính tổng overtime + các khoản khác
+    
     acc[m].basic += b;
     acc[m].allowance += a;
     acc[m].overtime += o;
-    acc[m].total += (b + a + o);
+    acc[m].total += total;
     return acc;
   }, {});
 

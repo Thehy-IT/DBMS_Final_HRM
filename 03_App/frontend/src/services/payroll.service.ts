@@ -12,6 +12,11 @@ export interface Payroll {
   otHours: number;
   allowance: number;
   deduction: number;
+  grossSalary: number;
+  bhxh: number;
+  bhyt: number;
+  bhtn: number;
+  tax: number;
   netSalary: number;
   status: string;
 }
