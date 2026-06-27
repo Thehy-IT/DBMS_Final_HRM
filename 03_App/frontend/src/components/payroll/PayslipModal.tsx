@@ -22,6 +22,21 @@ export function PayslipModal({ isOpen, onClose, data }: PayslipModalProps) {
     window.print();
   };
 
+  const grossSalary = Number(data.grossSalary || 0);
+  const allowance = Number(data.allowance || 0);
+  const basicSalary = Number(data.basicSalary || 0);
+  const workingDays = Number(data.workingDays || 0);
+  
+  // Tính lương ngày công theo công thức chuẩn: (Lương cơ bản / 22) * Số ngày công
+  const luongNgayCong = Math.round((basicSalary / 22) * workingDays);
+  
+  // Lương tăng ca = Lương Gộp - Phụ cấp - Lương ngày công
+  // Đảm bảo không bị âm do làm tròn
+  const luongTangCa = Math.max(0, grossSalary - allowance - luongNgayCong);
+  
+  // Tổng khấu trừ = BHXH + BHYT + BHTN + Thuế TNCN + Các khoản trừ khác
+  const tongKhauTru = Number(data.bhxh || 0) + Number(data.bhyt || 0) + Number(data.bhtn || 0) + Number(data.tax || 0) + Number(data.deduction || 0);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
@@ -58,7 +73,7 @@ export function PayslipModal({ isOpen, onClose, data }: PayslipModalProps) {
             </div>
             <div className="space-y-2">
               <p className="text-sm"><span className="text-slate-500 font-medium w-24 inline-block">Ngày in:</span> <span>{new Date().toLocaleDateString('vi-VN')}</span></p>
-              <p className="text-sm"><span className="text-slate-500 font-medium w-24 inline-block">Lương CB:</span> <span className="font-semibold text-indigo-600">{formatMoney(data.basicSalary)}</span></p>
+              <p className="text-sm"><span className="text-slate-500 font-medium w-24 inline-block">Lương CB:</span> <span className="font-semibold text-indigo-600">{formatMoney(basicSalary)}</span></p>
             </div>
           </div>
 
@@ -74,23 +89,23 @@ export function PayslipModal({ isOpen, onClose, data }: PayslipModalProps) {
               <tbody className="divide-y divide-slate-100">
                 <tr>
                   <td className="px-4 py-3 text-slate-600">1. Lương ngày công</td>
-                  <td className="px-4 py-3 text-right text-slate-600">{data.workingDays} ngày</td>
-                  <td className="px-4 py-3 text-right font-medium">{formatMoney(data.basicSalary)}</td>
+                  <td className="px-4 py-3 text-right text-slate-600">{workingDays} ngày</td>
+                  <td className="px-4 py-3 text-right font-medium">{formatMoney(luongNgayCong)}</td>
                 </tr>
                 <tr>
                   <td className="px-4 py-3 text-slate-600">2. Lương tăng ca (OT)</td>
                   <td className="px-4 py-3 text-right text-slate-600">{data.otHours || 0} giờ</td>
-                  <td className="px-4 py-3 text-right font-medium">{formatMoney(0)}</td>
+                  <td className="px-4 py-3 text-right font-medium text-indigo-600">+{formatMoney(luongTangCa)}</td>
                 </tr>
                 <tr>
                   <td className="px-4 py-3 text-slate-600">3. Phụ cấp</td>
                   <td className="px-4 py-3 text-right text-slate-600">-</td>
-                  <td className="px-4 py-3 text-right font-medium text-emerald-600">+{formatMoney(data.allowance)}</td>
+                  <td className="px-4 py-3 text-right font-medium text-emerald-600">+{formatMoney(allowance)}</td>
                 </tr>
                 <tr>
                   <td className="px-4 py-3 text-slate-600">4. Khấu trừ (BHXH, Thuế...)</td>
                   <td className="px-4 py-3 text-right text-slate-600">-</td>
-                  <td className="px-4 py-3 text-right font-medium text-red-600">-{formatMoney(data.deduction)}</td>
+                  <td className="px-4 py-3 text-right font-medium text-red-600">-{formatMoney(tongKhauTru)}</td>
                 </tr>
               </tbody>
               <tfoot className="bg-slate-50 border-t border-slate-200">
