@@ -298,6 +298,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 
   #### Kịch bản 1: Tái hiện lỗi Dirty Read ban đầu (Trước khi sửa)
 
+
   1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
      ```env
      DEMO_DIRTY_READ=true

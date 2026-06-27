@@ -225,29 +225,31 @@ BEGIN
             SET v_cur_TongPhuCap     = 0;
             SET v_cur_PhuCapChiuThue = 0;
 
-            SELECT
-                IFNULL(SUM(
-                    ROUND(CASE lfl.LoaiGiaTri
-                        WHEN 'F' THEN COALESCE(nvfl.GiaTriOverride, lfl.GiaTri)
-                        WHEN 'P' THEN v_cur_LuongCB * COALESCE(nvfl.GiaTriOverride, lfl.GiaTri) / 100.0
-                        ELSE 0 END * v_cur_HeSoLuong, 0)
-                ), 0),
-                IFNULL(SUM(
-                    ROUND(CASE WHEN lfl.CoTinhThue = 1
-                         THEN CASE lfl.LoaiGiaTri
-                                WHEN 'F' THEN COALESCE(nvfl.GiaTriOverride, lfl.GiaTri)
-                                WHEN 'P' THEN v_cur_LuongCB * COALESCE(nvfl.GiaTriOverride, lfl.GiaTri) / 100.0
-                                ELSE 0 END
-                         ELSE 0 END * v_cur_HeSoLuong, 0)
-                ), 0)
-            INTO v_cur_TongPhuCap, v_cur_PhuCapChiuThue
-            FROM NhanVienPhucLoi nvfl
-            JOIN LoaiPhucLoi     lfl  ON nvfl.MaFL = lfl.MaFL
-            WHERE nvfl.MaNV     = v_cur_MaNV
-              AND nvfl.IsActive = 1
-              AND nvfl.NgayApDung  <= v_NgayCuoiThang
-              AND (nvfl.NgayKetThuc IS NULL OR nvfl.NgayKetThuc >= v_NgayDauThang)
-              AND lfl.IsActive = 1;
+            IF v_cur_NgayDiLam > 0 THEN
+                SELECT
+                    IFNULL(SUM(
+                        ROUND(CASE lfl.LoaiGiaTri
+                            WHEN 'F' THEN COALESCE(nvfl.GiaTriOverride, lfl.GiaTri)
+                            WHEN 'P' THEN v_cur_LuongCB * COALESCE(nvfl.GiaTriOverride, lfl.GiaTri) / 100.0
+                            ELSE 0 END * v_cur_HeSoLuong, 0)
+                    ), 0),
+                    IFNULL(SUM(
+                        ROUND(CASE WHEN lfl.CoTinhThue = 1
+                             THEN CASE lfl.LoaiGiaTri
+                                    WHEN 'F' THEN COALESCE(nvfl.GiaTriOverride, lfl.GiaTri)
+                                    WHEN 'P' THEN v_cur_LuongCB * COALESCE(nvfl.GiaTriOverride, lfl.GiaTri) / 100.0
+                                    ELSE 0 END
+                             ELSE 0 END * v_cur_HeSoLuong, 0)
+                    ), 0)
+                INTO v_cur_TongPhuCap, v_cur_PhuCapChiuThue
+                FROM NhanVienPhucLoi nvfl
+                JOIN LoaiPhucLoi     lfl  ON nvfl.MaFL = lfl.MaFL
+                WHERE nvfl.MaNV     = v_cur_MaNV
+                  AND nvfl.IsActive = 1
+                  AND nvfl.NgayApDung  <= v_NgayCuoiThang
+                  AND (nvfl.NgayKetThuc IS NULL OR nvfl.NgayKetThuc >= v_NgayDauThang)
+                  AND lfl.IsActive = 1;
+            END IF;
 
             -- ══ BƯỚC F — BẢO HIỂM & THUẾ
             -- LUẬT LĐ: Nghỉ không lương >= 14 ngày trong tháng -> Không tính đóng Bảo hiểm
