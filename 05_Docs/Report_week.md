@@ -245,20 +245,17 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 #### 6.2. Đọc dữ liệu rác (Dirty Read)
 
 * **Ngữ cảnh đặc trưng mang tính hệ thống:**
-  Kế toán trưởng đang mở Dashboard Báo Cáo Nhân Sự trên UI để xem tổng quỹ lương hiện hữu của toàn doanh nghiệp. Cùng thời điểm, hệ thống ngầm đang chạy Giao tác `sp_TiepNhanNhanSu` tiếp nhận 1 nhân sự cấp cao mới vào hệ thống với Lương Cơ Bản là 100 triệu. Việc `INSERT` nhân viên và Lương cơ bản đã diễn ra, nhưng khi đến phần tạo tài khoản đăng nhập thì hệ thống bị lỗi Email đã tồn tại. Giao tác `sp_TiepNhanNhanSu` bị `ROLLBACK`.
-  Thảm họa xảy ra khi Dashboard của Kế toán trưởng đọc đúng lúc bản ghi 100 triệu vừa `INSERT` xong nhưng chưa `ROLLBACK`. Kết quả báo cáo báo quỹ lương tăng ảo thêm 100 triệu dù nhân viên đó chưa từng gia nhập.
-
+  Chuyên viên Nhân sự (HR) đang mở Dashboard Báo Cáo Nhân Sự để xem tổng số lượng nhân viên hiện tại của toàn doanh nghiệp nhằm chốt báo cáo cuối tháng. Cùng thời điểm, hệ thống ngầm đang chạy Giao tác `sp_TiepNhanNhanSu` tiếp nhận 1 nhân sự cấp cao mới vào hệ thống. Việc `INSERT` nhân viên vào bảng `NhanVien` đã diễn ra, nhưng khi đến phần tạo tài khoản đăng nhập thì hệ thống bị lỗi (ví dụ: Email đã tồn tại). Giao tác `sp_TiepNhanNhanSu` lập tức bị `ROLLBACK`.
+  Thảm họa xảy ra khi Báo cáo của HR đọc đúng lúc bản ghi nhân viên vừa `INSERT` xong nhưng chưa `ROLLBACK`. Kết quả báo cáo báo tổng số nhân viên tăng ảo thêm 1 người dù nhân viên đó chưa từng gia nhập thành công.
 * **Danh sách các cách khắc phục:**
 
   1. Tăng mức độ cô lập (Isolation Level) lên `READ COMMITTED`.
   2. Tăng mức độ cô lập lên `REPEATABLE READ`.
   3. Tăng mức độ cô lập lên `SERIALIZABLE`.
-
 * **Lựa chọn cách tốt nhất & Lý do:**
   Cách tốt nhất là **`READ COMMITTED` (hoặc `REPEATABLE READ` vì InnoDB mặc định đã là REPEATABLE READ)**.
   Lý do: Để chống lại Dirty Read, chỉ cần `READ COMMITTED` là đủ. Ở mức này, giao dịch Báo cáo chỉ nhìn thấy những dữ liệu đã được `COMMIT` thành công, hoàn toàn loại bỏ được dữ liệu "rác" từ các transaction đang dở dang.
-
-* **Chi tiết Demo kết hợp UI & CSDL:**
+* **Chi tiết Demo kết hợp API & CSDL:**
   **Bước 1: Tái hiện lỗi**
 
   - **Trên CSDL (Giả lập Job Onboarding bị treo):**
@@ -266,14 +263,13 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
     START TRANSACTION;
     INSERT INTO NhanVien (MaNV, HoTen, GioiTinh, NgaySinh, CCCD, MaPB, MaCV, NgayVaoLam) 
     VALUES ('NV888888', 'Giám Đốc Mới', 'M', '1990-01-01', '012345678910', 'PB0001', 'CV0001', '2025-01-01');
-    INSERT INTO LuongCoBan (MaNV, LuongCB, LuongDongBH, NgayHieuLuc) 
-    VALUES ('NV888888', 100000000, 46800000, '2025-01-01');
+    -- Giả lập thêm các dữ liệu khác ...
     DO SLEEP(8); -- Giả lập đang xử lý bước tạo tài khoản gửi mail
     ROLLBACK; -- Giả lập bị lỗi cuối cùng
     ```
-  - **Trên UI (Kế toán trưởng - Trong 8s Sleep):** Nhấn nút **"Xuất Báo Cáo Quỹ Lương Tổng Quan"**.
-    *(Dưới DB API gọi báo cáo đang bị set cố tình lỗi:  `SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED; CALL sp_BaoCaoNhanSu_TongQuan();`)*.
-  - **Kết quả trên UI:** Biểu đồ hiển thị trên màn hình bị vọt lên thêm 100,000,000 đ từ `NV888888`. Sau 8s, nhân viên kia rollback biến mất, nhưng Kế toán trưởng đã xuất file Excel sai lệch.
+  - **Hành động của HR (Trong 8s Sleep):** Chuyên viên HR mở / tải lại (F5) trang **Tổng Quan (Dashboard)** trên giao diện UI để xem số liệu nhân sự.
+    *(Dưới Backend, API lấy danh sách nhân viên đang bị cấu hình cố tình lỗi: `SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;`)*.
+  - **Kết quả trả về:** Giao diện Dashboard hiển thị thẻ **Tổng nhân viên** vọt lên thêm 1 người (chính là `NV888888`). Nếu HR lấy số liệu này để nộp báo cáo, nó sẽ là một dữ liệu sai lệch hoàn toàn. Sau 8s, nhân viên kia rollback và biến mất khỏi hệ thống. Việc thẻ Tổng nhân viên bị nhảy số ảo này chính là minh chứng rõ ràng cho việc hệ thống đã đọc phải dữ liệu rác.
 
   **Bước 2: Triển khai khắc phục (Đã thực hiện hoàn thiện bằng Bật/Tắt qua `.env`)**
 
@@ -286,20 +282,19 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 
      * `true`: Thiết lập mức độ cô lập thành `READ UNCOMMITTED` (Tái hiện lỗi Dirty Read).
      * `false`: Thiết lập mức độ cô lập chuẩn `READ COMMITTED` (Khắc phục lỗi).
-
   2. **Xử lý tại API Backend ([server.js](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/server.js))**:
-     Hệ thống cung cấp sẵn 2 API để phục vụ việc Demo:
+     Hệ thống cung cấp sẵn API để phục vụ việc Demo:
 
      - **API Mô phỏng Giao dịch treo:** `POST /v1/demo/slow-onboarding`
-       (Thực hiện `INSERT` nhân viên mới lương 100tr, sau đó `SLEEP(10)` rồi `ROLLBACK`).
-     - **API Báo cáo:** `GET /v1/reports/general`
-       (Kiểm tra biến `DEMO_DIRTY_READ` để thay đổi lệnh `SET SESSION TRANSACTION ISOLATION LEVEL` và gọi `sp_BaoCaoNhanSu_TongQuan`).
+       (Thực hiện `INSERT` nhân viên mới, sau đó `SLEEP(10)` rồi `ROLLBACK`).
+     - **API Nhân sự (Dashboard):** `GET /v1/employees`
+       (Kiểm tra biến `DEMO_DIRTY_READ` để thay đổi lệnh `SET SESSION TRANSACTION ISOLATION LEVEL` khi lấy danh sách).
 
   ---
 
   ### HƯỚNG DẪN DEMO CHO GIẢNG VIÊN
 
-  Để giảng viên thấy rõ cả **lỗi dữ liệu rác** lẫn **cách khắc phục**, bạn có thể dùng công cụ như Postman, cURL hoặc trình duyệt để gọi trực tiếp các API trên:
+  Để giảng viên thấy rõ cả **lỗi dữ liệu rác** lẫn **cách khắc phục**, bạn có thể thao tác trực tiếp trên giao diện UI kết hợp Terminal:
 
   #### Kịch bản 1: Tái hiện lỗi Dirty Read ban đầu (Trước khi sửa)
 
@@ -307,15 +302,14 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
      ```env
      DEMO_DIRTY_READ=true
      ```
-  2. Khởi động lại Server Backend.
+  2. Khởi động lại Server Backend và mở sẵn trình duyệt ở trang Dashboard.
   3. Mở Terminal / Command Prompt hoặc Postman và gọi API giả lập giao dịch treo (Onboarding):
      ```bash
-     curl -X POST http://localhost:8080/v1/demo/slow-onboarding
+     curl.exe -X POST http://localhost:8080/v1/demo/slow-onboarding
      ```
-  4. Ngay lập tức (trong vòng 10 giây trước khi lệnh curl trên chạy xong), mở trình duyệt truy cập vào API Báo cáo:
-     **http://localhost:8080/v1/reports/general**
-  5. **Kết quả:** Giảng viên sẽ thấy số liệu báo cáo quỹ lương bị đội lên thêm 100,000,000đ từ nhân viên `NV888888`.
-  6. Sau 10 giây, tiến trình chậm ở bước 3 kết thúc và tự động ROLLBACK. Nếu F5 trình duyệt ở bước 4, dòng dữ liệu 100 triệu sẽ bốc hơi (Dirty Read).
+  4. Ngay lập tức (trong vòng 10 giây trước khi lệnh curl trên chạy xong), quay lại trình duyệt và **nhấn F5 (Tải lại trang)** Dashboard.
+  5. **Kết quả:** Giảng viên sẽ thấy biểu đồ và thẻ **`Tổng nhân viên`** tăng lên thêm 1 người. Việc chụp ảnh hoặc quay video khoảnh khắc này sẽ là minh chứng vật lý rõ ràng nhất cho thấy hệ thống đã cung cấp dữ liệu sai lệch cho báo cáo nhân sự.
+  6. Sau 10 giây, tiến trình chậm ở bước 3 kết thúc và tự động ROLLBACK. Nếu tiếp tục F5 trình duyệt ở bước 4, số lượng nhân viên sẽ tự động sụt giảm về mốc cũ (Dirty Read). Kết quả chớp nhoáng lấy được ở bước 5 chính là bằng chứng không thể chối cãi cho việc UI đã đọc phải dữ liệu rác.
 
   #### Kịch bản 2: Trình diễn tính năng Khắc phục (Isolation Level)
 
@@ -325,8 +319,8 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
      ```
   2. Khởi động lại Server Backend.
   3. Gọi lại lệnh API giả lập ở Bước 3 của kịch bản 1.
-  4. Ngay lập tức mở lại trình duyệt và truy cập: **http://localhost:8080/v1/reports/general**
-  5. **Kết quả:** Báo cáo trả về hoàn toàn chính xác. Mức độ cô lập `READ COMMITTED` đã chặn API Báo cáo khỏi việc quét qua dòng 100tr đang trong trạng thái `UNCOMMITTED`. Dữ liệu hiển thị không bị sai lệch dù đang có giao dịch chạy song song.
+  4. Ngay lập tức quay lại trình duyệt và **nhấn F5 (Tải lại trang)** Dashboard.
+  5. **Kết quả:** Dashboard trả về số lượng nhân viên hoàn toàn chính xác (không bị tăng). Mức độ cô lập `READ COMMITTED` đã chặn luồng đọc dữ liệu khỏi việc quét qua dòng dữ liệu nhân viên đang trong trạng thái `UNCOMMITTED`. Dữ liệu hiển thị (Tổng nhân viên) trên UI không bị sai lệch dù đang có giao dịch Onboarding chạy song song.
 
 #### 6.3. Không đọc lại được dữ liệu (Non-repeatable Read)
 
@@ -369,7 +363,6 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 
      * `true`: Thiết lập mức độ cô lập thành `READ COMMITTED` (Gây ra lỗi Non-repeatable Read do cho phép đọc lại bị sai lệch).
      * `false`: Thiết lập mức độ cô lập chuẩn `REPEATABLE READ` (Khắc phục triệt để lỗi).
-
   2. **Xử lý tại API Backend ([server.js](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/server.js))**:
      Hệ thống cung cấp sẵn 2 API để phục vụ việc Demo:
 
@@ -383,6 +376,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
   ### HƯỚNG DẪN DEMO CHO GIẢNG VIÊN (NON-REPEATABLE READ)
 
   #### Kịch bản 1: Tái hiện lỗi Non-repeatable Read ban đầu (Trước khi sửa)
+
 
   1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
      ```env
@@ -442,7 +436,6 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 
      * `true`: Không sử dụng `FOR UPDATE` (Tái hiện lỗi Bóng Ma trong môi trường REPEATABLE READ mặc định của MySQL vì MySQL không khóa Insert mới).
      * `false`: Gắn thêm lệnh `FOR UPDATE` vào cuối câu `SELECT` đếm số lượng. Kích hoạt Next-Key Locking khóa toàn bộ khoảng trống (Gap Lock), triệt tiêu lỗi.
-
   2. **Xử lý tại API Backend ([server.js](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/server.js))**:
      Hệ thống cung cấp sẵn 2 API để phục vụ việc Demo:
 
@@ -456,6 +449,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
   ### HƯỚNG DẪN DEMO CHO GIẢNG VIÊN (PHANTOM READ)
 
   #### Kịch bản 1: Tái hiện lỗi Bóng Ma ban đầu (Trước khi sửa)
+
 
   1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
      ```env
@@ -512,7 +506,6 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 
      * `true`: Tiến trình B cố tình đi ngược chuẩn, lấy khóa `LuongCoBan` trước rồi mới lấy khóa `NhanVien`, đụng độ với Tiến trình A sinh ra lỗi 1213 Deadlock.
      * `false`: Tiến trình B tuân thủ bộ chuẩn: Bắt buộc khóa `NhanVien` trước rồi mới khóa bảng con `LuongCoBan` sau.
-
   2. **Xử lý tại API Backend ([server.js](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/server.js))**:
      Hệ thống cung cấp sẵn 2 API để phục vụ việc Demo va chạm khóa chéo:
 
@@ -526,6 +519,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
   ### HƯỚNG DẪN DEMO CHO GIẢNG VIÊN (DEADLOCK)
 
   #### Kịch bản 1: Tái hiện lỗi Khóa Chết (Deadlock) ban đầu
+
 
   1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
      ```env

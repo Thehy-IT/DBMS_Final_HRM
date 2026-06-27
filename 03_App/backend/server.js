@@ -63,6 +63,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'hrpayroll_super_secret_key';
 
 // Middleware Authentication
 export const authenticateToken = (req, res, next) => {
+  // Cho phép truy cập công khai vào các API Demo (bỏ qua check Token)
+  if (req.originalUrl.includes('/v1/demo') || req.originalUrl.includes('/v1/reports/general')) {
+    return next();
+  }
+  
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Truy cập bị từ chối' });
@@ -179,18 +184,29 @@ app.get('/v1/roles/stats', requireAdmin, async (req, res) => {
 
 // 1. Lấy danh sách nhân viên
 app.get('/v1/employees', async (req, res) => {
+    let connection;
     try {
+        connection = await pool.getConnection();
+        const isDirtyReadDemo = process.env.DEMO_DIRTY_READ === 'true';
+        if (isDirtyReadDemo) {
+            await connection.query('SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;');
+        } else {
+            await connection.query('SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;');
+        }
+        
         let query = 'SELECT * FROM NhanVien';
         let params = [];
         if (req.user.role === 'EMPLOYEE') {
           query += ' WHERE MaNV = ?';
           params.push(req.user.empId);
         }
-        const [rows] = await pool.query(query, params);
+        const [rows] = await connection.query(query, params);
         res.json({ data: rows, meta: { total: rows.length, page: 1, lastPage: 1 } });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: err.message });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
@@ -1099,7 +1115,7 @@ app.get('/v1/reports/general', async (req, res) => {
   }
 });
 
-app.post('/v1/demo/slow-onboarding', async (req, res) => {
+app.all('/v1/demo/slow-onboarding', async (req, res) => {
   const connection = await pool.getConnection();
   try {
     await connection.query('START TRANSACTION;');
@@ -1110,10 +1126,6 @@ app.post('/v1/demo/slow-onboarding', async (req, res) => {
       await connection.query(`
         INSERT INTO NhanVien (MaNV, HoTen, GioiTinh, NgaySinh, CCCD, MaPB, MaCV, NgayVaoLam, Version) 
         VALUES ('NV888888', 'Giám Đốc Mới', 'M', '1990-01-01', '012345678910', 'PB0001', 'CV0001', '2025-01-01', 1)
-      `);
-      await connection.query(`
-        INSERT INTO LuongCoBan (MaNV, LuongCB, LuongDongBH, NgayHieuLuc) 
-        VALUES ('NV888888', 100000000, 46800000, '2025-01-01')
       `);
     }
 
