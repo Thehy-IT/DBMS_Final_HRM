@@ -202,6 +202,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
      Backend kiểm tra cấu hình `ENABLE_OPTIMISTIC_LOCK` để chạy truy vấn tương ứng.
 
      * Khi kích hoạt, câu lệnh UPDATE sẽ kiểm tra `Version`:
+
        ```sql
        UPDATE NhanVien 
        SET MaSoThue = '9999999999', Version = Version + 1
@@ -246,14 +247,17 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 * **Ngữ cảnh đặc trưng mang tính hệ thống:**
   Kế toán trưởng đang mở Dashboard Báo Cáo Nhân Sự trên UI để xem tổng quỹ lương hiện hữu của toàn doanh nghiệp. Cùng thời điểm, hệ thống ngầm đang chạy Giao tác `sp_TiepNhanNhanSu` tiếp nhận 1 nhân sự cấp cao mới vào hệ thống với Lương Cơ Bản là 100 triệu. Việc `INSERT` nhân viên và Lương cơ bản đã diễn ra, nhưng khi đến phần tạo tài khoản đăng nhập thì hệ thống bị lỗi Email đã tồn tại. Giao tác `sp_TiepNhanNhanSu` bị `ROLLBACK`.
   Thảm họa xảy ra khi Dashboard của Kế toán trưởng đọc đúng lúc bản ghi 100 triệu vừa `INSERT` xong nhưng chưa `ROLLBACK`. Kết quả báo cáo báo quỹ lương tăng ảo thêm 100 triệu dù nhân viên đó chưa từng gia nhập.
+
 * **Danh sách các cách khắc phục:**
 
   1. Tăng mức độ cô lập (Isolation Level) lên `READ COMMITTED`.
   2. Tăng mức độ cô lập lên `REPEATABLE READ`.
   3. Tăng mức độ cô lập lên `SERIALIZABLE`.
+
 * **Lựa chọn cách tốt nhất & Lý do:**
   Cách tốt nhất là **`READ COMMITTED` (hoặc `REPEATABLE READ` vì InnoDB mặc định đã là REPEATABLE READ)**.
   Lý do: Để chống lại Dirty Read, chỉ cần `READ COMMITTED` là đủ. Ở mức này, giao dịch Báo cáo chỉ nhìn thấy những dữ liệu đã được `COMMIT` thành công, hoàn toàn loại bỏ được dữ liệu "rác" từ các transaction đang dở dang.
+
 * **Chi tiết Demo kết hợp UI & CSDL:**
   **Bước 1: Tái hiện lỗi**
 
@@ -268,24 +272,27 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
     ROLLBACK; -- Giả lập bị lỗi cuối cùng
     ```
   - **Trên UI (Kế toán trưởng - Trong 8s Sleep):** Nhấn nút **"Xuất Báo Cáo Quỹ Lương Tổng Quan"**.
-    *(Dưới DB API gọi báo cáo đang bị set cố tình lỗi: `SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED; CALL sp_BaoCaoNhanSu_TongQuan();`)*.
+    *(Dưới DB API gọi báo cáo đang bị set cố tình lỗi:  `SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED; CALL sp_BaoCaoNhanSu_TongQuan();`)*.
   - **Kết quả trên UI:** Biểu đồ hiển thị trên màn hình bị vọt lên thêm 100,000,000 đ từ `NV888888`. Sau 8s, nhân viên kia rollback biến mất, nhưng Kế toán trưởng đã xuất file Excel sai lệch.
 
   **Bước 2: Triển khai khắc phục (Đã thực hiện hoàn thiện bằng Bật/Tắt qua `.env`)**
-  
+
   1. **Cấu hình môi trường (Bật/Tắt chế độ Isolation Level)**:
      Thêm biến môi trường trong file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env):
+
      ```env
      DEMO_DIRTY_READ=true
      ```
+
      * `true`: Thiết lập mức độ cô lập thành `READ UNCOMMITTED` (Tái hiện lỗi Dirty Read).
      * `false`: Thiết lập mức độ cô lập chuẩn `READ COMMITTED` (Khắc phục lỗi).
 
   2. **Xử lý tại API Backend ([server.js](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/server.js))**:
      Hệ thống cung cấp sẵn 2 API để phục vụ việc Demo:
-     - **API Mô phỏng Giao dịch treo:** `POST /v1/demo/slow-onboarding` 
+
+     - **API Mô phỏng Giao dịch treo:** `POST /v1/demo/slow-onboarding`
        (Thực hiện `INSERT` nhân viên mới lương 100tr, sau đó `SLEEP(10)` rồi `ROLLBACK`).
-     - **API Báo cáo:** `GET /v1/reports/general` 
+     - **API Báo cáo:** `GET /v1/reports/general`
        (Kiểm tra biến `DEMO_DIRTY_READ` để thay đổi lệnh `SET SESSION TRANSACTION ISOLATION LEVEL` và gọi `sp_BaoCaoNhanSu_TongQuan`).
 
   ---
@@ -295,6 +302,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
   Để giảng viên thấy rõ cả **lỗi dữ liệu rác** lẫn **cách khắc phục**, bạn có thể dùng công cụ như Postman, cURL hoặc trình duyệt để gọi trực tiếp các API trên:
 
   #### Kịch bản 1: Tái hiện lỗi Dirty Read ban đầu (Trước khi sửa)
+
   1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
      ```env
      DEMO_DIRTY_READ=true
@@ -304,12 +312,13 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
      ```bash
      curl -X POST http://localhost:8080/v1/demo/slow-onboarding
      ```
-  4. Ngay lập tức (trong vòng 10 giây trước khi lệnh curl trên chạy xong), mở trình duyệt truy cập vào API Báo cáo: 
+  4. Ngay lập tức (trong vòng 10 giây trước khi lệnh curl trên chạy xong), mở trình duyệt truy cập vào API Báo cáo:
      **http://localhost:8080/v1/reports/general**
   5. **Kết quả:** Giảng viên sẽ thấy số liệu báo cáo quỹ lương bị đội lên thêm 100,000,000đ từ nhân viên `NV888888`.
   6. Sau 10 giây, tiến trình chậm ở bước 3 kết thúc và tự động ROLLBACK. Nếu F5 trình duyệt ở bước 4, dòng dữ liệu 100 triệu sẽ bốc hơi (Dirty Read).
 
   #### Kịch bản 2: Trình diễn tính năng Khắc phục (Isolation Level)
+
   1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env), đổi cấu hình thành:
      ```env
      DEMO_DIRTY_READ=false
@@ -349,17 +358,58 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
   - **Trên UI (HR - Trong 8s Sleep):** Chuyên viên HR vào form "Hợp đồng & Lương", đổi Mức lương cơ bản của NV000001 thành 30.000.000đ và bấm nút **"Cập Nhật"**.
   - **Kết quả trên UI (Kế toán):** Khi tiến trình tính lương chạy xong, Kế toán mở trang "Phiếu Lương Cá Nhân" của NV000001. Hệ thống hiển thị: *Thu nhập đóng BHXH = 20tr, nhưng Thu nhập tính Thuế TNCN = 30tr*. Công thức hiển thị trên UI sai lệch hoàn toàn.
 
-  **Bước 2: Triển khai khắc phục**
-  Sửa cấu trúc gọi lệnh trong SP `sp_TinhLuong`:
+  **Bước 2: Triển khai khắc phục (Đã thực hiện hoàn thiện bằng Bật/Tắt qua `.env`)**
 
-  ```sql
-  -- Thay vì liên tục truy vấn SELECT bảng LuongCoBan ở mỗi bước
-  DECLARE v_LuongCoBan_Current DECIMAL(15,2);
-  -- Lấy snapshot một lần duy nhất tại thời điểm bắt đầu tính toán
-  SELECT LuongCB INTO v_LuongCoBan_Current 
-  FROM LuongCoBan WHERE MaNV = p_MaNV ORDER BY NgayHieuLuc DESC LIMIT 1;
-  -- Dùng biến v_LuongCoBan_Current để tính toán chung cho cả BHXH và Thuế
-  ```
+  1. **Cấu hình môi trường (Bật/Tắt chế độ Isolation Level)**:
+     Thêm biến môi trường trong file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env):
+
+     ```env
+     DEMO_NON_REPEATABLE_READ=true
+     ```
+
+     * `true`: Thiết lập mức độ cô lập thành `READ COMMITTED` (Gây ra lỗi Non-repeatable Read do cho phép đọc lại bị sai lệch).
+     * `false`: Thiết lập mức độ cô lập chuẩn `REPEATABLE READ` (Khắc phục triệt để lỗi).
+
+  2. **Xử lý tại API Backend ([server.js](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/server.js))**:
+     Hệ thống cung cấp sẵn 2 API để phục vụ việc Demo:
+
+     - **API Mô phỏng Tính lương (Có Sleep):** `GET /v1/demo/calculate-salary`
+       (Kiểm tra biến `DEMO_NON_REPEATABLE_READ` để thay đổi lệnh `SET SESSION TRANSACTION ISOLATION LEVEL`. API này sẽ lấy `LuongCB` lần 1, sau đó `SLEEP(10)` rồi lấy `LuongCB` lần 2 và đối chiếu).
+     - **API Mô phỏng Nhân sự Cập nhật lương:** `POST /v1/demo/update-salary`
+       (Thực hiện tăng lương `NV000001` lên thêm 10 triệu đồng ngay lập tức).
+
+  ---
+
+  ### HƯỚNG DẪN DEMO CHO GIẢNG VIÊN (NON-REPEATABLE READ)
+
+  #### Kịch bản 1: Tái hiện lỗi Non-repeatable Read ban đầu (Trước khi sửa)
+
+  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
+     ```env
+     DEMO_NON_REPEATABLE_READ=true
+     ```
+  2. Khởi động lại Server Backend.
+  3. Mở Terminal / Command Prompt hoặc Postman và gọi API giả lập Tính lương (Kế toán):
+     ```bash
+     curl -X GET http://localhost:8080/v1/demo/calculate-salary
+     ```
+  4. Ngay lập tức (trong vòng 10 giây trước khi lệnh curl trên chạy xong), mở 1 Terminal khác (đại diện cho HR) và gọi API Cập nhật lương:
+     ```bash
+     curl -X POST http://localhost:8080/v1/demo/update-salary
+     ```
+  5. **Kết quả:** Sau 10 giây, Terminal đầu tiên (Tính lương) sẽ trả về kết quả lỗi: `luongCbBhxh` và `luongCbTax` có giá trị chênh lệch nhau đúng 10 triệu, kèm dòng trạng thái: `"CẢNH BÁO: Đã xảy ra Non-repeatable Read!"`.
+
+  #### Kịch bản 2: Trình diễn tính năng Khắc phục (Isolation Level)
+
+  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env), đổi cấu hình thành:
+     ```env
+     DEMO_NON_REPEATABLE_READ=false
+     ```
+  2. Khởi động lại Server Backend.
+  3. Gọi lại lệnh API giả lập Tính lương (Bước 3 kịch bản 1).
+  4. Ngay lập tức gọi lại lệnh API Cập nhật lương (Bước 4 kịch bản 1).
+  5. **Kết quả:** Sau 10 giây, Terminal đầu tiên (Tính lương) sẽ trả về kết quả hoàn hảo: Hai biến `luongCbBhxh` và `luongCbTax` bằng nhau y đúc (đều giữ nguyên giá trị cũ), trạng thái báo: `"Dữ liệu nhất quán trong cùng giao dịch."`.
+     - Lý do: Mức độ cô lập `REPEATABLE READ` đảm bảo rằng trong cùng 1 Transaction, tất cả các lần `SELECT` trên cùng 1 bảng dữ liệu đều trả về bản snapshot ban đầu (dù bị can thiệp UPDATE từ bên ngoài). Lỗi Không đọc lại được dữ liệu (Non-repeatable Read) đã bị triệt tiêu hoàn toàn.
 
 #### 6.4. Bóng ma (Phantom Read)
 
@@ -381,20 +431,59 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
     *(Dưới DB chạy: `INSERT INTO BangLuong (MaNV, Thang, Nam, LuongCoBan, TrangThai) VALUES ('NV000099', 5, 2025, 10000000, 'D'); COMMIT;`)*.
   - **Kết quả trên UI (Kế toán):** Sau khi chờ loading xong, màn hình Kế toán hiện Toast: *"Thành công: Đã chốt 21 nhân viên"*. Dư ra 1 bóng ma.
 
-  **Bước 2: Triển khai khắc phục**
-  Sửa mã SQL trong `sp_ChotBangLuong` để áp dụng Next-Key Locking:
+  **Bước 2: Triển khai khắc phục (Đã thực hiện hoàn thiện bằng Bật/Tắt qua `.env`)**
 
-  ```sql
-  START TRANSACTION;
-  -- Quét qua các dòng và khóa chặt (Lock Rows + Gap Lock)
-  SELECT * FROM BangLuong WHERE Thang = 5 AND TrangThai = 'D' FOR UPDATE;
+  1. **Cấu hình môi trường (Bật/Tắt chế độ Gap/Next-Key Locking)**:
+     Thêm biến môi trường trong file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env):
 
-  -- Xử lý chốt sổ
-  UPDATE BangLuong SET TrangThai = 'C' WHERE Thang = 5 AND TrangThai = 'D';
-  COMMIT;
-  ```
+     ```env
+     DEMO_PHANTOM_READ=true
+     ```
 
-  *(Sau khi fix, nếu HR bấm "Thanh lý hợp đồng" trong lúc Kế toán đang chốt lương, UI của HR sẽ hiển thị Loading chờ cho đến khi Kế toán làm xong, bảo đảm toàn vẹn dữ liệu).*
+     * `true`: Không sử dụng `FOR UPDATE` (Tái hiện lỗi Bóng Ma trong môi trường REPEATABLE READ mặc định của MySQL vì MySQL không khóa Insert mới).
+     * `false`: Gắn thêm lệnh `FOR UPDATE` vào cuối câu `SELECT` đếm số lượng. Kích hoạt Next-Key Locking khóa toàn bộ khoảng trống (Gap Lock), triệt tiêu lỗi.
+
+  2. **Xử lý tại API Backend ([server.js](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/server.js))**:
+     Hệ thống cung cấp sẵn 2 API để phục vụ việc Demo:
+
+     - **API Mô phỏng Chốt Lương (Kế toán):** `GET /v1/demo/close-payroll`
+       (Sẽ Đếm số bảng lương Draft, sau đó `SLEEP(10)` mô phỏng đang xử lý, và cuối cùng `UPDATE` toàn bộ sang trạng thái Closed. Nếu biến cấu hình là false, sẽ tự động nối thêm `FOR UPDATE` khi SELECT).
+     - **API Mô phỏng Thanh lý hợp đồng (HR):** `POST /v1/demo/fire-employee`
+       (Lập tức `INSERT` một nhân viên mới `NV000099` kèm 1 bảng lương Draft đang dở dang vào tháng đang chốt).
+
+  ---
+
+  ### HƯỚNG DẪN DEMO CHO GIẢNG VIÊN (PHANTOM READ)
+
+  #### Kịch bản 1: Tái hiện lỗi Bóng Ma ban đầu (Trước khi sửa)
+
+  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
+     ```env
+     DEMO_PHANTOM_READ=true
+     ```
+  2. Khởi động lại Server Backend.
+  3. Mở Terminal / Command Prompt hoặc Postman và gọi API giả lập Chốt lương (Kế toán):
+     ```bash
+     curl -X GET http://localhost:8080/v1/demo/close-payroll
+     ```
+  4. Ngay lập tức (trong vòng 10 giây trước khi lệnh curl trên chạy xong), mở 1 Terminal khác (đại diện cho HR) và gọi API Thanh lý Hợp đồng:
+     ```bash
+     curl -X POST http://localhost:8080/v1/demo/fire-employee
+     ```
+  5. **Kết quả:** Sau 10 giây, Terminal đầu tiên (Chốt lương) sẽ trả về kết quả lỗi: `initial_draft_count` và `actually_closed_count` bị lệch nhau đúng 1 bản ghi, kèm trạng thái: `"CẢNH BÁO: Đã xảy ra Bóng ma (Phantom Read)! Dư ra 1 bản ghi."`.
+     - Lý do: Bản ghi của HR chèn vào thành công, và câu lệnh `UPDATE` ở cuối quy trình Kế toán đã vô tình quét trúng bản ghi đó và chốt luôn, biến nó thành Bóng Ma làm sai lệch tính toán ban đầu.
+
+  #### Kịch bản 2: Trình diễn tính năng Khắc phục (Next-Key Locking)
+
+  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env), đổi cấu hình thành:
+     ```env
+     DEMO_PHANTOM_READ=false
+     ```
+  2. Khởi động lại Server Backend.
+  3. Gọi lại lệnh API giả lập Chốt lương (Bước 3 kịch bản 1).
+  4. Ngay lập tức gọi lại lệnh API Thanh lý Hợp đồng (Bước 4 kịch bản 1).
+  5. **Kết quả:** Cửa sổ Terminal thứ hai (HR) sẽ bị "đứng hình" chờ đợi (Loading...) và không thể thêm bản ghi mới ngay lập tức. Sau 10 giây, Terminal đầu tiên (Chốt lương) trả về kết quả hoàn hảo: `"Tuyệt vời: Dữ liệu nhất quán, không có bóng ma lọt vào."`.
+     - Lý do: Cú pháp `SELECT ... FOR UPDATE` đã yêu cầu InnoDB thiết lập Next-Key Lock (kết hợp Record Lock và Gap Lock) trên vùng dữ liệu `Thang=5, Nam=2026, TrangThai=D`. Mọi nỗ lực `INSERT` vào vùng này từ các transaction khác đều bị "Block" cho đến khi giao dịch hiện tại hoàn thành!
 
 ### 7. Deadlock (Khóa chết)
 
@@ -412,34 +501,58 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
   Cách tốt nhất là **Đồng nhất thứ tự lấy khóa (Consistent Lock Ordering)** từ mức thiết kế Database.
   Lý do: Đây là phương pháp phòng bệnh triệt để nhất. Nếu mọi luồng code (Stored Procedures) đều tuân thủ quy tắc lấy khóa theo thứ tự phân tầng từ bảng Master đến bảng Detail: "Luôn UPDATE `NhanVien` trước -> tới `HopDong` -> tới `LuongCoBan`", thì Deadlock chéo không bao giờ có cơ hội hình thành. Kết hợp bắt lỗi Retry ở tầng Node.js Backend để đảm bảo UX hoàn hảo cho người dùng.
 * **Chi tiết Demo kết hợp UI & CSDL:**
-  **Bước 1: Tái hiện lỗi Deadlock**
+  **Bước 1 & Bước 2: Triển khai khắc phục (Đã thực hiện hoàn thiện bằng Bật/Tắt qua `.env`)**
 
-  - **Trên CSDL (Mô phỏng Giao dịch A - Thăng chức):**
-    ```sql
-    START TRANSACTION;
-    UPDATE NhanVien SET MaCV = 'CV0002' WHERE MaNV = 'NV000001'; -- Giữ khóa NhanVien
-    DO SLEEP(5); 
-    UPDATE LuongCoBan SET LuongCB = 40000000 WHERE MaNV = 'NV000001'; -- Bị kẹt chờ
-    COMMIT;
-    ```
-  - **Trên UI (Giao dịch B - Kỷ luật):** Trong thời gian 5s Sleep kia, HR khác vào màn hình Kỷ luật, bấm nút **"Xác nhận hạ lương"** cho cùng `NV000001`.
-    *(Dưới DB Backend gọi API xử lý ngược: Update `LuongCoBan` trước, Update `NhanVien` sau).*
-  - **Kết quả:** Ngay lập tức UI của tiến trình B báo lỗi đỏ chót: *"Hệ thống bận, Error 500: Lỗi 1213 Deadlock found"*. Transaction của tiến trình B bị văng và rollback, giao dịch A thì hoàn tất an toàn.
+  1. **Cấu hình môi trường (Bật/Tắt chế độ Lấy khóa ngược chiều)**:
+     Thêm biến môi trường trong file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env):
 
-  **Bước 2: Triển khai khắc phục**
-  Thiết lập bộ quy chuẩn "Quy tắc truy cập bảng HRPayroll":
-  *(Luật: NhanVien -> HopDong -> LuongCoBan -> BangLuong)*.
-  Sửa mã nguồn Backend/SP của thao tác Kỷ luật để tuân thủ luật lấy khóa này:
+     ```env
+     DEMO_DEADLOCK=true
+     ```
 
-  ```sql
-  START TRANSACTION;
-  -- Dù logic kỷ luật là đánh vào tiền lương, ta vẫn phải UPDATE bảng NhanVien TRƯỚC để lấy khóa đúng trật tự.
-  UPDATE NhanVien SET GhiChu = 'Bị kỷ luật' WHERE MaNV = 'NV000001'; 
-  UPDATE LuongCoBan SET LuongCB = 15000000 WHERE MaNV = 'NV000001'; 
-  COMMIT;
-  ```
+     * `true`: Tiến trình B cố tình đi ngược chuẩn, lấy khóa `LuongCoBan` trước rồi mới lấy khóa `NhanVien`, đụng độ với Tiến trình A sinh ra lỗi 1213 Deadlock.
+     * `false`: Tiến trình B tuân thủ bộ chuẩn: Bắt buộc khóa `NhanVien` trước rồi mới khóa bảng con `LuongCoBan` sau.
 
-  *(Lúc này, nếu 2 người dùng ấn nút song song trên giao diện, Request sau sẽ chỉ đứng xếp hàng trật tự chờ Request trước hoàn tất ở vòng ngoài bảng NhanVien, hoàn toàn không xảy ra tình trạng khóa chéo văng lỗi).*
+  2. **Xử lý tại API Backend ([server.js](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/server.js))**:
+     Hệ thống cung cấp sẵn 2 API để phục vụ việc Demo va chạm khóa chéo:
+
+     - **API Mô phỏng Thăng chức (Tiến trình A):** `POST /v1/demo/promote-employee`
+       (Luôn chạy chuẩn: Lấy khóa cập nhật `NhanVien`, ngủ 5 giây, sau đó lấy khóa cập nhật `LuongCoBan`).
+     - **API Mô phỏng Kỷ luật (Tiến trình B):** `POST /v1/demo/discipline-employee`
+       (Dựa vào biến môi trường để quyết định thứ tự truy vấn ngược chiều hay cùng chiều với Tiến trình A).
+
+  ---
+
+  ### HƯỚNG DẪN DEMO CHO GIẢNG VIÊN (DEADLOCK)
+
+  #### Kịch bản 1: Tái hiện lỗi Khóa Chết (Deadlock) ban đầu
+
+  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
+     ```env
+     DEMO_DEADLOCK=true
+     ```
+  2. Khởi động lại Server Backend.
+  3. Mở Terminal / Command Prompt hoặc Postman và gọi API giả lập Thăng chức (Tiến trình A):
+     ```bash
+     curl -X POST http://localhost:8080/v1/demo/promote-employee
+     ```
+  4. Ngay lập tức (trong vòng 5 giây trước khi lệnh curl trên chạy xong), mở 1 Terminal khác và gọi API Kỷ luật (Tiến trình B):
+     ```bash
+     curl -X POST http://localhost:8080/v1/demo/discipline-employee
+     ```
+  5. **Kết quả:** MySQL phát hiện ngay sự cố khóa chéo vòng tròn. Terminal 2 (Tiến trình B) lập tức bị ngắt và văng lỗi đỏ chót: `"Lỗi 1213: Deadlock found when trying to get lock; try restarting transaction"`. Terminal 1 (Tiến trình A) thì lại chạy mượt mà thành công.
+
+  #### Kịch bản 2: Trình diễn tính năng Khắc phục (Đồng nhất hướng lấy khóa)
+
+  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env), đổi cấu hình thành:
+     ```env
+     DEMO_DEADLOCK=false
+     ```
+  2. Khởi động lại Server Backend.
+  3. Gọi lại lệnh API giả lập Thăng chức (Bước 3 kịch bản 1).
+  4. Ngay lập tức gọi lại lệnh API Kỷ luật (Bước 4 kịch bản 1).
+  5. **Kết quả:** Lần này, cửa sổ Terminal thứ hai (Tiến trình B) sẽ **đứng yên chờ đợi (Loading)** chứ không văng lỗi nữa. Sau khoảng 5 giây, Tiến trình A xong, thì Tiến trình B mới được phép chạy vào khóa bảng `NhanVien`. Cả hai đều báo thành công.
+     - Lý do: Vì lúc này Tiến trình B tuân thủ luật lấy khóa "NhanVien trước, LuongCoBan sau", nên nó đã ngoan ngoãn đứng xếp hàng tại "cửa" bảng NhanVien chờ Tiến trình A làm xong toàn bộ thủ tục. Không còn khóa chéo (Deadlock) vì luồng đi của mọi transaction đều song song cùng một chiều!
 
 ---
 
