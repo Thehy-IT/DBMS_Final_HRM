@@ -33,7 +33,8 @@ const employeeSchema = z.object({
   SoNguoiPhuThuoc: z.coerce.number().min(0, "Không được nhỏ hơn 0").default(0),
   GhiChu: z.string().optional(),
   NgayNghiViec: z.string().optional().or(z.literal('')),
-  TrangThai: z.string()
+  TrangThai: z.string(),
+  Version: z.number().optional()
 });
 
 type EmployeeFormValues = z.infer<typeof employeeSchema>;
@@ -65,7 +66,8 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
     defaultValues: {
       MaNV: '', HoTen: '', GioiTinh: 'M', NgaySinh: '', CCCD: '', SoDienThoai: '', Email: '',
       DiaChi: '', MaPB: '', MaCV: '', NgayVaoLam: '', MaSoThue: '', SoTaiKhoanNH: '',
-      TenNganHang: '', SoNguoiPhuThuoc: 0, GhiChu: '', NgayNghiViec: '', TrangThai: 'A'
+      TenNganHang: '', SoNguoiPhuThuoc: 0, GhiChu: '', NgayNghiViec: '', TrangThai: 'A',
+      Version: 1
     }
   });
 
@@ -91,12 +93,14 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
         SoNguoiPhuThuoc: actualData.SoNguoiPhuThuoc || 0,
         GhiChu: actualData.GhiChu || '',
         NgayNghiViec: actualData.NgayNghiViec ? actualData.NgayNghiViec.split('T')[0] : '',
+        Version: actualData.Version || 1,
       });
     } else if (!employeeId && isOpen) {
       reset({
         MaNV: '', HoTen: '', GioiTinh: 'M', NgaySinh: '', CCCD: '', SoDienThoai: '', Email: '',
         DiaChi: '', MaPB: '', MaCV: '', NgayVaoLam: '', MaSoThue: '', SoTaiKhoanNH: '',
-        TenNganHang: '', SoNguoiPhuThuoc: 0, GhiChu: '', NgayNghiViec: '', TrangThai: 'A'
+        TenNganHang: '', SoNguoiPhuThuoc: 0, GhiChu: '', NgayNghiViec: '', TrangThai: 'A',
+        Version: 1
       });
     }
   }, [employeeData, employeeId, isOpen, reset]);

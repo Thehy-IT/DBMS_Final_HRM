@@ -160,7 +160,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 #### 6.1. Mất dữ liệu cập nhật (Lost Update)
 
 * **Ngữ cảnh đặc trưng mang tính hệ thống:**
-  Chuyên viên Nhân sự (HR) A thực hiện rà soát thông tin hồ sơ để chỉnh sửa Số Điện Thoại của nhân viên trên giao diện UI. Cùng thời điểm đó, HR B nhận được yêu cầu cập nhật Mã Số Thuế cá nhân cho cùng nhân viên này. Cả hai cùng tải form thông tin của nhân viên (Ví dụ: `NV000001`). HR A thực hiện lưu số điện thoại thành công. Tuy nhiên ngay sau đó 1 giây, HR B bấm lưu mã số thuế. Kết quả là toàn bộ thông tin của B lưu đè lên A do form UI của B gửi lên nguyên bộ dữ liệu cũ kèm mã số thuế mới, làm mất đi số điện thoại mà A vừa mới bỏ công sửa.
+  Chuyên viên Nhân sự (HR) A thực hiện rà soát thông tin hồ sơ để chỉnh sửa Số Điện Thoại của nhân viên trên giao diện UI. Cùng thời điểm đó, HR B nhận được yêu cầu cập nhật Mã Số Thuế cá nhân cho cùng nhân viên này. Cả hai cùng tải form thông tin của nhân viên (Ví dụ: `NV000008`). HR A thực hiện lưu số điện thoại thành công. Tuy nhiên ngay sau đó 1 giây, HR B bấm lưu mã số thuế. Kết quả là toàn bộ thông tin của B lưu đè lên A do form UI của B gửi lên nguyên bộ dữ liệu cũ kèm mã số thuế mới, làm mất đi số điện thoại mà A vừa mới bỏ công sửa.
 * **Danh sách các cách khắc phục:**
 
   1. **Khóa bi quan (Pessimistic Locking):** Sử dụng câu lệnh `SELECT ... FOR UPDATE` khi đọc dữ liệu để khóa bản ghi (Row-level Lock). Bất kỳ ai muốn lấy bản ghi đó để sửa đều phải chờ giao dịch hiện tại hoàn tất.
@@ -179,23 +179,67 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
     *(Dưới DB: `UPDATE NhanVien SET SoDienThoai = 'OLD_PHONE', MaSoThue = '99999999' WHERE MaNV = 'NV000008';`)*.
   - **Kết quả trên UI:** Tải lại trang (F5). Số điện thoại hiển thị lại số cũ, công sức của HR A đã bốc hơi hoàn toàn.
 
-  **Bước 2: Triển khai khắc phục**
-  Sửa cấu trúc bảng `NhanVien`, thêm cột phiên bản:
+  **Bước 2: Triển khai khắc phục (Bật/Tắt qua `.env`)**
 
-  ```sql
-  ALTER TABLE NhanVien ADD COLUMN Version INT NOT NULL DEFAULT 1;
-  ```
+  1. **Cập nhật Database Schema**:
+     Thêm cột `Version` vào bảng `NhanVien` bằng câu lệnh SQL:
 
-  Chỉnh sửa câu lệnh xử lý trong API Update (Backend Node.js) thành logic Optimistic Locking:
+     ```sql
+     ALTER TABLE NhanVien ADD COLUMN Version INT NOT NULL DEFAULT 1;
+     ```
 
-  ```sql
-  -- Backend nhận version = 1 từ UI gửi lên
-  UPDATE NhanVien 
-  SET MaSoThue = '9999999999', Version = Version + 1
-  WHERE MaNV = 'NV000008' AND Version = 1;
-  ```
+     *(Đã cập nhật trong file [01_create_tables.sql](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/02_Database/DDL/01_create_tables.sql) và chạy script `patch_db.js` thành công)*.
+  2. **Cấu hình môi trường (Bật/Tắt chế độ bảo vệ chống Lost Update)**:
+     Thêm biến môi trường trong file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env):
 
-  *(Nếu HR B ấn Lưu sau HR A, DB sẽ trả về `ROW_COUNT() = 0`. Backend trả mã 409 Conflict, UI sẽ hiện Popup: "Dữ liệu đã được cập nhật bởi một người khác. Vui lòng tải lại trang!")*.
+     ```env
+     ENABLE_OPTIMISTIC_LOCK=true
+     ```
+
+     * `true`: Kích hoạt cơ chế bảo vệ (Khóa lạc quan - Optimistic Locking).
+     * `false`: Tắt chế độ bảo vệ (Tái hiện lại lỗi mất dữ liệu cập nhật - Lost Update).
+  3. **Xử lý tại API Update Backend ([server.js](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/server.js))**:
+     Backend kiểm tra cấu hình `ENABLE_OPTIMISTIC_LOCK` để chạy truy vấn tương ứng.
+
+     * Khi kích hoạt, câu lệnh UPDATE sẽ kiểm tra `Version`:
+       ```sql
+       UPDATE NhanVien 
+       SET MaSoThue = '9999999999', Version = Version + 1
+       WHERE MaNV = 'NV000008' AND Version = 1;
+       ```
+
+       Nếu kết quả `affectedRows = 0`, trả về mã **409 Conflict** kèm thông báo lỗi.
+  4. **Xử lý phía Frontend (Next.js)**:
+     Frontend gửi kèm thuộc tính `Version` trong API PUT và tự động bắt lỗi `409` để hiển thị cảnh báo cho người dùng.
+
+  ---
+
+  ### HƯỚNG DẪN DEMO CHO GIẢNG VIÊN
+
+  Để giảng viên thấy rõ cả **lỗi mất dữ liệu** lẫn **cách khắc phục** mà bạn đã triển khai, bạn có thể thực hiện theo quy trình sau:
+
+  #### Kịch bản 1: Tái hiện lỗi Lost Update ban đầu (Trước khi sửa)
+
+
+  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
+     ```env
+     ENABLE_OPTIMISTIC_LOCK=false
+     ```
+  2. Khởi động lại Server Backend để nhận cấu hình mới.
+  3. Mở **2 trình duyệt** khác nhau (hoặc 1 Tab thường và 1 Tab ẩn danh) và cùng truy cập trang sửa hồ sơ của nhân viên `NV000008`. Lúc này, cả hai form đều có *Số điện thoại cũ, Mã số thuế cũ*.
+  4. **Ở Tab 1 (HR A):** Nhập Số điện thoại mới và ấn **Lưu**. Hệ thống báo thành công. (Bản ghi dưới DB lúc này đã đổi Số điện thoại mới nhưng Mã số thuế vẫn là cũ).
+  5. **Ở Tab 2 (HR B):** Nhập Mã số thuế mới (vẫn giữ Số điện thoại cũ ban đầu trên form của B) và ấn **Lưu**. Hệ thống báo thành công.
+  6. F5 tải lại trang. Giảng viên sẽ thấy **Số điện thoại mới mà HR A vừa sửa đã biến mất** (bị ghi đè bởi giá trị cũ trên form của B). Đây chính là lỗi Lost Update.
+
+  #### Kịch bản 2: Trình diễn tính năng Khắc phục (Khóa lạc quan)
+
+  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
+     ```env
+     ENABLE_OPTIMISTIC_LOCK=true
+     ```
+  2. Khởi động lại Server Backend.
+  3. Thực hiện lại y hệt các bước từ **3 đến 5** ở Kịch bản 1.
+  4. **Kết quả:** Khi HR B ở Tab 2 ấn **Lưu**, hệ thống sẽ chặn lại ngay lập tức và hiện thông báo lỗi: **"Dữ liệu đã được cập nhật bởi một người khác. Vui lòng tải lại trang!"**. Số điện thoại của HR A được bảo toàn nguyên vẹn. Giao diện được kiểm soát chặt chẽ.
 
 #### 6.2. Đọc dữ liệu rác (Dirty Read)
 

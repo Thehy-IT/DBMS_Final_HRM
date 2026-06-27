@@ -862,17 +862,53 @@ app.post('/v1/employees', requireHR, async (req, res) => {
 });
 
 app.put('/v1/employees/:id', requireHR, async (req, res) => {
-  const { HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi, MaPB, MaCV, NgayVaoLam, NgayNghiViec, MaSoThue, SoTaiKhoanNH, TenNganHang, SoNguoiPhuThuoc, GhiChu, TrangThai } = req.body;
+  const { HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi, MaPB, MaCV, NgayVaoLam, NgayNghiViec, MaSoThue, SoTaiKhoanNH, TenNganHang, SoNguoiPhuThuoc, GhiChu, TrangThai, Version } = req.body;
   try {
     const sanitizedMaSoThue = MaSoThue ? MaSoThue.trim() : null;
     const finalMaSoThue = sanitizedMaSoThue === '' ? null : sanitizedMaSoThue;
 
-    const query = `
-      UPDATE NhanVien 
-      SET HoTen=?, GioiTinh=?, NgaySinh=?, CCCD=?, SoDienThoai=?, Email=?, DiaChi=?, MaPB=?, MaCV=?, NgayVaoLam=?, NgayNghiViec=?, MaSoThue=?, SoTaiKhoanNH=?, TenNganHang=?, SoNguoiPhuThuoc=?, GhiChu=?, TrangThai=?
-      WHERE MaNV=?
-    `;
-    await pool.query(query, [HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi || null, MaPB, MaCV, NgayVaoLam, NgayNghiViec || null, finalMaSoThue, SoTaiKhoanNH || null, TenNganHang || null, SoNguoiPhuThuoc || 0, GhiChu || null, TrangThai || 'A', req.params.id]);
+    // Check toggle from environment variable
+    const enableOptimisticLock = process.env.ENABLE_OPTIMISTIC_LOCK === 'true';
+
+    let query;
+    let queryParams;
+
+    if (enableOptimisticLock) {
+      // Optimistic Locking active: increments version and checks matching version
+      query = `
+        UPDATE NhanVien 
+        SET HoTen=?, GioiTinh=?, NgaySinh=?, CCCD=?, SoDienThoai=?, Email=?, DiaChi=?, MaPB=?, MaCV=?, NgayVaoLam=?, NgayNghiViec=?, MaSoThue=?, SoTaiKhoanNH=?, TenNganHang=?, SoNguoiPhuThuoc=?, GhiChu=?, TrangThai=?, Version = Version + 1
+        WHERE MaNV=? AND Version=?
+      `;
+      queryParams = [
+        HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi || null, 
+        MaPB, MaCV, NgayVaoLam, NgayNghiViec || null, finalMaSoThue, 
+        SoTaiKhoanNH || null, TenNganHang || null, SoNguoiPhuThuoc || 0, 
+        GhiChu || null, TrangThai || 'A', 
+        req.params.id, Version || 1
+      ];
+    } else {
+      // Standard Update (Lost Update vulnerability active)
+      query = `
+        UPDATE NhanVien 
+        SET HoTen=?, GioiTinh=?, NgaySinh=?, CCCD=?, SoDienThoai=?, Email=?, DiaChi=?, MaPB=?, MaCV=?, NgayVaoLam=?, NgayNghiViec=?, MaSoThue=?, SoTaiKhoanNH=?, TenNganHang=?, SoNguoiPhuThuoc=?, GhiChu=?, TrangThai=?
+        WHERE MaNV=?
+      `;
+      queryParams = [
+        HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi || null, 
+        MaPB, MaCV, NgayVaoLam, NgayNghiViec || null, finalMaSoThue, 
+        SoTaiKhoanNH || null, TenNganHang || null, SoNguoiPhuThuoc || 0, 
+        GhiChu || null, TrangThai || 'A', 
+        req.params.id
+      ];
+    }
+
+    const [result] = await pool.query(query, queryParams);
+    
+    if (enableOptimisticLock && result.affectedRows === 0) {
+      return res.status(409).json({ error: 'Dữ liệu đã được cập nhật bởi một người khác. Vui lòng tải lại trang!' });
+    }
+    
     res.json({ message: 'Updated successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });

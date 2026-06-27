@@ -17,6 +17,7 @@ export interface Employee {
   GhiChu?: string;
   NgayNghiViec?: string;
   TrangThai?: string;
+  Version?: number;
 }
 
 export interface PaginatedResponse<T> {

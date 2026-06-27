@@ -1,5 +1,7 @@
-require('dotenv').config();
-const mysql = require('mysql2/promise');
+import dotenv from 'dotenv';
+import mysql from 'mysql2/promise';
+
+dotenv.config();
 
 async function run() {
   const pool = mysql.createPool({
@@ -20,6 +22,20 @@ async function run() {
           UNIQUE KEY UQ_DanhMucKhauTru_Ten (TenLKT)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
+
+    // Add Version column to NhanVien if it doesn't exist
+    try {
+      await pool.query(`
+        ALTER TABLE NhanVien ADD COLUMN Version INT NOT NULL DEFAULT 1;
+      `);
+      console.log("Success: Added Version column to NhanVien table");
+    } catch (columnErr) {
+      if (columnErr.code === 'ER_DUP_FIELDNAME') {
+        console.log("Info: Version column already exists on NhanVien table");
+      } else {
+        throw columnErr;
+      }
+    }
 
     // Insert some default data if empty
     const [rows] = await pool.query('SELECT COUNT(*) as cnt FROM DanhMucKhauTru');
