@@ -271,17 +271,53 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
     *(Dưới DB API gọi báo cáo đang bị set cố tình lỗi: `SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED; CALL sp_BaoCaoNhanSu_TongQuan();`)*.
   - **Kết quả trên UI:** Biểu đồ hiển thị trên màn hình bị vọt lên thêm 100,000,000 đ từ `NV888888`. Sau 8s, nhân viên kia rollback biến mất, nhưng Kế toán trưởng đã xuất file Excel sai lệch.
 
-  **Bước 2: Triển khai khắc phục**
-  Bọc chuẩn API gọi báo cáo ở tầng Backend bằng mức `READ COMMITTED`:
+  **Bước 2: Triển khai khắc phục (Đã thực hiện hoàn thiện bằng Bật/Tắt qua `.env`)**
+  
+  1. **Cấu hình môi trường (Bật/Tắt chế độ Isolation Level)**:
+     Thêm biến môi trường trong file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env):
+     ```env
+     DEMO_DIRTY_READ=true
+     ```
+     * `true`: Thiết lập mức độ cô lập thành `READ UNCOMMITTED` (Tái hiện lỗi Dirty Read).
+     * `false`: Thiết lập mức độ cô lập chuẩn `READ COMMITTED` (Khắc phục lỗi).
 
-  ```sql
-  SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-  START TRANSACTION;
-  CALL sp_BaoCaoNhanSu_TongQuan();
-  COMMIT;
-  ```
+  2. **Xử lý tại API Backend ([server.js](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/server.js))**:
+     Hệ thống cung cấp sẵn 2 API để phục vụ việc Demo:
+     - **API Mô phỏng Giao dịch treo:** `POST /v1/demo/slow-onboarding` 
+       (Thực hiện `INSERT` nhân viên mới lương 100tr, sau đó `SLEEP(10)` rồi `ROLLBACK`).
+     - **API Báo cáo:** `GET /v1/reports/general` 
+       (Kiểm tra biến `DEMO_DIRTY_READ` để thay đổi lệnh `SET SESSION TRANSACTION ISOLATION LEVEL` và gọi `sp_BaoCaoNhanSu_TongQuan`).
 
-  *(Lúc này, dù bấm nút Báo cáo trên UI vào giữa lúc Onboarding đang chạy, Biểu đồ vẫn không tính dòng 100tr đang `UNCOMMITTED`, dữ liệu hiển thị hoàn toàn chính xác).*
+  ---
+
+  ### HƯỚNG DẪN DEMO CHO GIẢNG VIÊN
+
+  Để giảng viên thấy rõ cả **lỗi dữ liệu rác** lẫn **cách khắc phục**, bạn có thể dùng công cụ như Postman, cURL hoặc trình duyệt để gọi trực tiếp các API trên:
+
+  #### Kịch bản 1: Tái hiện lỗi Dirty Read ban đầu (Trước khi sửa)
+  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
+     ```env
+     DEMO_DIRTY_READ=true
+     ```
+  2. Khởi động lại Server Backend.
+  3. Mở Terminal / Command Prompt hoặc Postman và gọi API giả lập giao dịch treo (Onboarding):
+     ```bash
+     curl -X POST http://localhost:8080/v1/demo/slow-onboarding
+     ```
+  4. Ngay lập tức (trong vòng 10 giây trước khi lệnh curl trên chạy xong), mở trình duyệt truy cập vào API Báo cáo: 
+     **http://localhost:8080/v1/reports/general**
+  5. **Kết quả:** Giảng viên sẽ thấy số liệu báo cáo quỹ lương bị đội lên thêm 100,000,000đ từ nhân viên `NV888888`.
+  6. Sau 10 giây, tiến trình chậm ở bước 3 kết thúc và tự động ROLLBACK. Nếu F5 trình duyệt ở bước 4, dòng dữ liệu 100 triệu sẽ bốc hơi (Dirty Read).
+
+  #### Kịch bản 2: Trình diễn tính năng Khắc phục (Isolation Level)
+  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env), đổi cấu hình thành:
+     ```env
+     DEMO_DIRTY_READ=false
+     ```
+  2. Khởi động lại Server Backend.
+  3. Gọi lại lệnh API giả lập ở Bước 3 của kịch bản 1.
+  4. Ngay lập tức mở lại trình duyệt và truy cập: **http://localhost:8080/v1/reports/general**
+  5. **Kết quả:** Báo cáo trả về hoàn toàn chính xác. Mức độ cô lập `READ COMMITTED` đã chặn API Báo cáo khỏi việc quét qua dòng 100tr đang trong trạng thái `UNCOMMITTED`. Dữ liệu hiển thị không bị sai lệch dù đang có giao dịch chạy song song.
 
 #### 6.3. Không đọc lại được dữ liệu (Non-repeatable Read)
 

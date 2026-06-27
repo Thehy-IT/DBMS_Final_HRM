@@ -1075,6 +1075,63 @@ app.get('/v1/system/settings', requireAdmin, async (req, res) => {
   }
 });
 
+// --- DEMO API DIRTY READ ---
+app.get('/v1/reports/general', async (req, res) => {
+  const isDirtyReadDemo = process.env.DEMO_DIRTY_READ === 'true';
+  const connection = await pool.getConnection();
+  try {
+    if (isDirtyReadDemo) {
+      await connection.query('SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;');
+    } else {
+      await connection.query('SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;');
+    }
+    await connection.query('START TRANSACTION;');
+    const [rows] = await connection.query('CALL sp_BaoCaoNhanSu_TongQuan(NULL);');
+    await connection.query('COMMIT;');
+    
+    // The result from stored procedure is an array of arrays (first element is result set)
+    res.json({ data: rows[0] });
+  } catch (error) {
+    await connection.query('ROLLBACK;');
+    res.status(500).json({ error: error.message });
+  } finally {
+    connection.release();
+  }
+});
+
+app.post('/v1/demo/slow-onboarding', async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.query('START TRANSACTION;');
+    
+    // Check if employee already exists to avoid duplicate errors on retry
+    const [existing] = await connection.query("SELECT MaNV FROM NhanVien WHERE MaNV = 'NV888888'");
+    if (existing.length === 0) {
+      await connection.query(`
+        INSERT INTO NhanVien (MaNV, HoTen, GioiTinh, NgaySinh, CCCD, MaPB, MaCV, NgayVaoLam, Version) 
+        VALUES ('NV888888', 'Giám Đốc Mới', 'M', '1990-01-01', '012345678910', 'PB0001', 'CV0001', '2025-01-01', 1)
+      `);
+      await connection.query(`
+        INSERT INTO LuongCoBan (MaNV, LuongCB, LuongDongBH, NgayHieuLuc) 
+        VALUES ('NV888888', 100000000, 46800000, '2025-01-01')
+      `);
+    }
+
+    // Sleep for 10 seconds to allow the user to make a dirty read
+    await connection.query('DO SLEEP(10);');
+    
+    // Simulate error -> Rollback
+    await connection.query('ROLLBACK;');
+    
+    res.json({ message: 'Simulated slow onboarding completed and rolled back successfully.' });
+  } catch (error) {
+    await connection.query('ROLLBACK;');
+    res.status(500).json({ error: error.message });
+  } finally {
+    connection.release();
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 HRM Backend API is running at http://localhost:${PORT}`);
 });
