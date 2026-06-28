@@ -326,22 +326,22 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 #### 6.3. Bóng ma (Phantom Read)
 
 * **Ngữ cảnh đặc trưng mang tính hệ thống:**
-  Kế toán cần chốt sổ toàn bộ nhân viên phòng IT. Kế toán vào màn hình UI "Chốt lương", thấy danh sách tổng là 20 người (trạng thái Draft). Kế toán bấm nút **"Chốt và Xuất Quỹ"** (hệ thống chạy ngầm `sp_ChotBangLuong`). Đột nhiên HR quyết định sa thải 1 nhân sự cấp dưới phòng IT, trên UI nhân sự bấm nút **"Thanh lý hợp đồng"**. Logic nghỉ việc lập tức sinh ra 1 bảng lương Draft dở dang cho những ngày làm việc cuối cùng. Tiến trình chốt quỹ của Kế toán chạy xong, thông báo UI trả về: "Đã chốt thành công 21 bản ghi". Bản ghi bóng ma (Phantom Row) này đã thâm nhập vào quỹ thanh toán ngoài dự toán của kế toán.
+  Kế toán cần chốt sổ toàn bộ 54 nhân viên trong tháng. HR1 vào màn hình UI "Quản lý Lương", thấy danh sách tổng là 54 người (trạng thái Chưa chốt - Draft). Kế toán bấm nút **"Xác nhận"** (Chốt bảng lương). Đột nhiên HR2 quyết định sa thải 1 nhân sự Bùi ngọc Hùng NV000006, trên giao diện Quản lý Nhân viên, HR chuyển trạng thái nhân viên này sang **"Nghỉ việc"** và lưu lại. Logic hệ thống lập tức tự động sinh ra 1 bảng lương Draft dở dang cho những ngày làm việc cuối cùng của nhân sự đó. Tiến trình chốt sổ của Kế toán kết thúc, hệ thống duyệt chốt luôn cả bản ghi Draft vừa mới sinh ra kia thay vì 54 bản ghi gốc ban đầu, thông báo UI trả về: "Đã chốt thành công 55 bản ghi" (hoặc báo lỗi sai lệch số lượng). Bản ghi bóng ma (Phantom Row) này đã thâm nhập vào quỹ thanh toán ngoài dự toán của kế toán.
 * **Danh sách các cách khắc phục:**
 
   1. Tăng mức độ cô lập lên `SERIALIZABLE`.
   2. Sử dụng Next-Key Locking với `SELECT ... FOR UPDATE` trong mức `REPEATABLE READ` của InnoDB.
 * **Lựa chọn cách tốt nhất & Lý do:**
   Cách tốt nhất là **Sử dụng Next-Key Locking (`SELECT ... FOR UPDATE`) trong `REPEATABLE READ`**.
-  Lý do: Mức `SERIALIZABLE` gây khóa đọc toàn cục làm treo hệ thống. InnoDB ở mức `REPEATABLE READ` hỗ trợ Next-Key Locking, chỉ cần gọi `SELECT * FROM BangLuong WHERE TrangThai='D' FOR UPDATE`, nó sẽ khóa chặt "khoảng không gian" (gap) điều kiện này. Nút "Thanh lý hợp đồng" của HR trên UI sẽ quay vòng vòng chờ (Block) cho tới khi kế toán chốt sổ xong.
+  Lý do: Mức `SERIALIZABLE` gây khóa đọc toàn cục làm treo hệ thống. InnoDB ở mức `REPEATABLE READ` hỗ trợ Next-Key Locking, chỉ cần gọi `SELECT * FROM BangLuong WHERE TrangThai='D' FOR UPDATE`, nó sẽ khóa chặt "khoảng không gian" (gap) điều kiện này. Thao tác Lưu thông tin nghỉ việc của HR trên UI sẽ quay vòng vòng chờ (Block) cho tới khi kế toán chốt sổ xong.
 * **Chi tiết Demo kết hợp UI & CSDL:**
   **Bước 1: Tái hiện lỗi**
 
-  - **Trên UI (Kế toán):** Thấy danh sách 20 nhân viên. Bấm nút **"Chốt Lương"**.
-    *(Dưới DB hệ thống đếm số lượng: `SELECT COUNT(*) FROM BangLuong WHERE Thang = 5 AND TrangThai = 'D';`, sau đó bị `SLEEP(8)`).*
-  - **Trên UI (HR - Trong 8s Sleep):** Bấm nút **"Thanh lý hợp đồng"** cho nhân viên NV000099.
-    *(Dưới DB chạy: `INSERT INTO BangLuong (MaNV, Thang, Nam, LuongCoBan, TrangThai) VALUES ('NV000099', 5, 2025, 10000000, 'D'); COMMIT;`)*.
-  - **Kết quả trên UI (Kế toán):** Sau khi chờ loading xong, màn hình Kế toán hiện Toast: *"Thành công: Đã chốt 21 nhân viên"*. Dư ra 1 bóng ma.
+  - **Trên UI (Kế toán):** Thấy danh sách 54 nhân viên. Bấm nút **"Xác nhận"**.
+    *(Dưới DB hệ thống đếm số lượng: `SELECT COUNT(*) FROM BangLuong WHERE Thang = 6 AND TrangThai = 'D';`, sau đó bị `SLEEP(10)`).*
+  - **Trên UI (HR - Trong 10s Sleep):** Chỉnh sửa nhân viên sang trạng thái Nghỉ việc và bấm **"Lưu thông tin"**.
+    *(Dưới DB chạy lệnh UPDATE trạng thái nhân viên, sau đó tự động kích hoạt `INSERT INTO BangLuong (...) VALUES (..., 'D'); COMMIT;`)*.
+  - **Kết quả trên UI (Kế toán):** Sau khi chờ loading xong, màn hình Kế toán hiện Alert cảnh báo lỗi: *"Kế toán ban đầu duyệt 54 bản ghi, nhưng hệ thống lại chốt thành công 55 bản ghi"*. Dư ra 1 bóng ma.
 
   **Bước 2: Triển khai khắc phục (Đã thực hiện hoàn thiện bằng Bật/Tắt qua `.env`)**
 
@@ -355,16 +355,18 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
      * `true`: Không sử dụng `FOR UPDATE` (Tái hiện lỗi Bóng Ma trong môi trường REPEATABLE READ mặc định của MySQL vì MySQL không khóa Insert mới).
      * `false`: Gắn thêm lệnh `FOR UPDATE` vào cuối câu `SELECT` đếm số lượng. Kích hoạt Next-Key Locking khóa toàn bộ khoảng trống (Gap Lock), triệt tiêu lỗi.
   2. **Xử lý tại API Backend ([server.js](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/server.js))**:
-     Hệ thống cung cấp sẵn 2 API để phục vụ việc Demo:
+     Hệ thống đã chèn trực tiếp logic theo dõi Bóng ma vào các luồng nghiệp vụ thực tế của Frontend:
 
-     - **API Mô phỏng Chốt Lương (Kế toán):** `GET /v1/demo/close-payroll`
-       (Sẽ Đếm số bảng lương Draft, sau đó `SLEEP(10)` mô phỏng đang xử lý, và cuối cùng `UPDATE` toàn bộ sang trạng thái Closed. Nếu biến cấu hình là false, sẽ tự động nối thêm `FOR UPDATE` khi SELECT).
-     - **API Mô phỏng Thanh lý hợp đồng (HR):** `POST /v1/demo/fire-employee`
-       (Lập tức `INSERT` một nhân viên mới `NV000099` kèm 1 bảng lương Draft đang dở dang vào tháng đang chốt).
+     - **API Xác nhận bảng lương (`PUT /v1/payroll/confirm`):**
+       (Đếm số bảng lương Draft hiện có, sau đó `SLEEP(10)` mô phỏng đang xử lý tổng hợp dữ liệu, và cuối cùng `UPDATE` toàn bộ sang trạng thái Closed 'C'. Nếu biến môi trường là false, hệ thống sẽ tự động nối thêm `FOR UPDATE` ở câu `SELECT COUNT`).
+     - **API Cập nhật nhân viên (`PUT /v1/employees/:id`):**
+       (Khi HR thay đổi trạng thái nhân sự thành 'T' (Nghỉ việc), hệ thống lập tức `INSERT` một bảng lương Draft 'D' dở dang vào tháng hiện hành của nhân sự đó).
 
   ---
 
   ### HƯỚNG DẪN DEMO CHO GIẢNG VIÊN (PHANTOM READ)
+
+  *Kịch bản này sử dụng trực tiếp các thao tác thực tế trên giao diện hệ thống (không dùng trang demo riêng) để cho thấy lỗi phát sinh như thế nào trong môi trường sản xuất thực tế.*
 
   #### Kịch bản 1: Tái hiện lỗi Bóng Ma ban đầu (Trước khi sửa)
 
@@ -374,16 +376,15 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
      DEMO_PHANTOM_READ=true
      ```
   2. Khởi động lại Server Backend.
-  3. Mở Terminal / Command Prompt hoặc Postman và gọi API giả lập Chốt lương (Kế toán):
-     ```bash
-     curl -X GET http://localhost:8080/v1/demo/close-payroll
-     ```
-  4. Ngay lập tức (trong vòng 10 giây trước khi lệnh curl trên chạy xong), mở 1 Terminal khác (đại diện cho HR) và gọi API Thanh lý Hợp đồng:
-     ```bash
-     curl -X POST http://localhost:8080/v1/demo/fire-employee
-     ```
-  5. **Kết quả:** Sau 10 giây, Terminal đầu tiên (Chốt lương) sẽ trả về kết quả lỗi: `initial_draft_count` và `actually_closed_count` bị lệch nhau đúng 1 bản ghi, kèm trạng thái: `"CẢNH BÁO: Đã xảy ra Bóng ma (Phantom Read)! Dư ra 1 bản ghi."`.
-     - Lý do: Bản ghi của HR chèn vào thành công, và câu lệnh `UPDATE` ở cuối quy trình Kế toán đã vô tình quét trúng bản ghi đó và chốt luôn, biến nó thành Bóng Ma làm sai lệch tính toán ban đầu.
+  3. Mở 2 Tab trình duyệt (tượng trưng cho 2 nhân sự đang làm việc đồng thời):
+     - **Tab 1 (hr1):** Vào trang Quản lý Lương (`http://localhost:3000/payroll`), chọn tháng hiện tại (đảm bảo đang có danh sách các bảng lương ở trạng thái **Chưa chốt**).
+     - **Tab 2 (HR2):** Vào trang Quản lý Nhân viên (`http://localhost:3000/employees`), chọn 1 nhân viên bất kỳ (VD: `NV000006`) và bấm **Sửa**. Ở form sửa, để sẵn trạng thái là **Nghỉ việc**.
+  4. Ở **Tab 1 (Kế toán)**, bấm nút **"Xác nhận"** (để duyệt chốt lương). Nút sẽ quay loading chờ 10 giây (do hệ thống mô phỏng độ trễ xử lý).
+  5. Ngay lập tức (trong vòng 10 giây đó), chuyển sang **Tab 2 (HR)** và bấm nút **"Lưu thông tin"** để cho nhân viên nghỉ việc.
+  6. **Kết quả:**
+     - Màn hình HR2 sẽ báo lưu thành công ngay lập tức.
+     - Sau đó khi Kế toán quay xong đủ 10s, màn hình Kế toán sẽ văng ra cảnh báo Alert: `"LỖI BÓNG MA (Phantom Read)! Kế toán ban đầu duyệt X bản ghi, nhưng hệ thống lại chốt thành công X+1 bản ghi. Dư ra 1 bóng ma!"`.
+     - Lý do: Khi HR báo nghỉ việc, hệ thống tự động sinh ra 1 bảng lương Draft (lương những ngày làm việc cuối). Câu lệnh `UPDATE` ở cuối quy trình của Kế toán đã vô tình quét trúng bản ghi Draft mới sinh đó và chốt luôn, biến nó thành Bóng Ma làm sai lệch số lượng Kế toán tính toán ban đầu.
 
   #### Kịch bản 2: Trình diễn tính năng Khắc phục (Next-Key Locking)
 
@@ -392,10 +393,12 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
      DEMO_PHANTOM_READ=false
      ```
   2. Khởi động lại Server Backend.
-  3. Gọi lại lệnh API giả lập Chốt lương (Bước 3 kịch bản 1).
-  4. Ngay lập tức gọi lại lệnh API Thanh lý Hợp đồng (Bước 4 kịch bản 1).
-  5. **Kết quả:** Cửa sổ Terminal thứ hai (HR) sẽ bị "đứng hình" chờ đợi (Loading...) và không thể thêm bản ghi mới ngay lập tức. Sau 10 giây, Terminal đầu tiên (Chốt lương) trả về kết quả hoàn hảo: `"Tuyệt vời: Dữ liệu nhất quán, không có bóng ma lọt vào."`.
-     - Lý do: Cú pháp `SELECT ... FOR UPDATE` đã yêu cầu InnoDB thiết lập Next-Key Lock (kết hợp Record Lock và Gap Lock) trên vùng dữ liệu `Thang=5, Nam=2026, TrangThai=D`. Mọi nỗ lực `INSERT` vào vùng này từ các transaction khác đều bị "Block" cho đến khi giao dịch hiện tại hoàn thành!
+  3. Lặp lại thao tác chuẩn bị ở Bước 3 của kịch bản 1.
+  4. Bấm nút **"Xác nhận"** bên Kế toán, và ngay lập tức bấm **"Lưu thông tin"** bên HR.
+  5. **Kết quả:**
+     - Lần này, thao tác Lưu thông tin của HR sẽ bị "đứng hình" chờ đợi (Loading...) và không thể lưu ngay lập tức.
+     - Sau 10 giây, Kế toán chạy xong và hiện thông báo: `"Xác nhận thành công X bảng lương."` (không có lỗi). Ngay sau khi Kế toán nhận thông báo, giao dịch của HR mới được nhả khóa và lưu thành công.
+     - Lý do: Cú pháp `SELECT ... FOR UPDATE` đã yêu cầu InnoDB thiết lập Next-Key Lock (kết hợp Record Lock và Gap Lock) trên vùng dữ liệu `Thang=..., Nam=..., TrangThai=D`. Mọi nỗ lực `INSERT` vào vùng này từ các giao dịch khác (như thao tác tạo Draft lương nghỉ việc của HR) đều bị "Block" cho đến khi giao dịch của Kế toán hoàn thành!
 
 #### 6.4. Không đọc lại được dữ liệu (Non-repeatable Read)
 

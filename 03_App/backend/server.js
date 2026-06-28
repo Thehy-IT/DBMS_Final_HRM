@@ -323,14 +323,47 @@ app.post('/v1/payroll/calculate', requireHR, async (req, res) => {
 
 app.put('/v1/payroll/confirm', requireHR, async (req, res) => {
   const { month, year } = req.body;
+  const isPhantomReadDemo = process.env.DEMO_PHANTOM_READ === 'true';
+  const connection = await pool.getConnection();
+
   try {
-    await pool.query(
+    // Luôn đưa về REPEATABLE READ để tái hiện lỗi đúng bản chất
+    await connection.query('SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;');
+    await connection.query('START TRANSACTION;');
+
+    // 1. Đếm số lượng bảng lương nháp hiện tại
+    let countQuery = "SELECT COUNT(*) as count FROM BangLuong WHERE Thang = ? AND Nam = ? AND TrangThai = 'D'";
+    if (!isPhantomReadDemo) {
+      countQuery += " FOR UPDATE"; // Khắc phục bằng Next-Key Lock
+    }
+    const [rows] = await connection.query(countQuery, [month, year]);
+    const initialCount = rows[0].count;
+
+    // Giả lập hệ thống đang chạy chốt sổ báo cáo mất 10 giây
+    await connection.query('DO SLEEP(10);');
+
+    // 2. Chốt toàn bộ
+    const [updateResult] = await connection.query(
       `UPDATE BangLuong SET TrangThai = 'C', NgayXacNhan = NOW() WHERE Thang = ? AND Nam = ? AND TrangThai = 'D'`,
       [month, year]
     );
-    res.json({ message: 'Xác nhận bảng lương thành công' });
+
+    await connection.query('COMMIT;');
+
+    const affectedRows = updateResult.affectedRows;
+    if (affectedRows > initialCount) {
+      res.status(409).json({ 
+        error: `LỖI BÓNG MA (Phantom Read)! Kế toán ban đầu duyệt ${initialCount} bản ghi, nhưng hệ thống lại chốt thành công ${affectedRows} bản ghi. Dư ra ${affectedRows - initialCount} bóng ma!`,
+        phantom_read: true
+      });
+    } else {
+      res.json({ message: `Xác nhận thành công ${affectedRows} bảng lương.` });
+    }
   } catch (err) {
+    await connection.query('ROLLBACK;');
     res.status(500).json({ error: err.message });
+  } finally {
+    connection.release();
   }
 });
 
@@ -962,6 +995,40 @@ app.put('/v1/employees/:id', requireHR, async (req, res) => {
       return res.status(409).json({ error: 'Dữ liệu đã được cập nhật bởi một người khác. Vui lòng tải lại trang!' });
     }
     
+    // [PHẦN MÔ PHỎNG LỖI ĐỒNG THỜI - BÓNG MA] 
+    // Nếu HR cho nhân viên nghỉ việc (TrangThai = 'T'), tự động sinh ra 1 bảng lương Draft Bóng Ma
+    if (TrangThai === 'T') {
+      try {
+        // Tìm tháng/năm mà Kế toán đang chốt (có bản nháp) để chèn vào cho khớp
+        const [drafts] = await pool.query(`SELECT Thang, Nam FROM BangLuong WHERE TrangThai = 'D' ORDER BY Nam DESC, Thang DESC LIMIT 1`);
+        if (drafts.length > 0) {
+          const targetMonth = drafts[0].Thang;
+          const targetYear = drafts[0].Nam;
+          
+          // Lấy thông tin phòng ban để tạo Bóng ma hợp lệ (tránh lỗi Foreign Key)
+          const [emp] = await pool.query(`SELECT GioiTinh, NgaySinh, MaPB, MaCV FROM NhanVien WHERE MaNV = ?`, [req.params.id]);
+          if (emp.length > 0) {
+            const ghostId = 'NV999999';
+            await pool.query(`
+              INSERT IGNORE INTO NhanVien (MaNV, HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi, MaPB, MaCV, NgayVaoLam, TrangThai) 
+              VALUES (?, 'Nhân viên Bóng Ma', ?, ?, '000000000000', '0000000000', 'ghost@test.com', 'Dia Chi', ?, ?, '2020-01-01', 'T')
+            `, [ghostId, emp[0].GioiTinh, emp[0].NgaySinh, emp[0].MaPB, emp[0].MaCV]);
+            
+            // Xóa bản nháp cũ của Bóng ma (nếu có từ lần demo trước) để đảm bảo Count chắc chắn tăng thêm 1
+            await pool.query(`DELETE FROM BangLuong WHERE MaNV = ? AND Thang = ? AND Nam = ?`, [ghostId, targetMonth, targetYear]);
+            
+            // Chèn 1 bản ghi Draft mới toanh cho Bóng ma đúng vào tháng đang chốt
+            await pool.query(`
+              INSERT INTO BangLuong (MaNV, Thang, Nam, LuongCoBan, SoNgayCong, TrangThai) 
+              VALUES (?, ?, ?, 10000000, 10, 'D')
+            `, [ghostId, targetMonth, targetYear]);
+          }
+        }
+      } catch (e) {
+        console.error("Lỗi khi giả lập Bóng Ma:", e);
+      }
+    }
+
     res.json({ message: 'Updated successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });

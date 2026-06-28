@@ -52,9 +52,19 @@ export default function PayrollPage() {
       const [y, m] = month.split('-');
       return payrollService.confirmPayroll(parseInt(m), parseInt(y));
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['payroll'] });
-      alert("Đã xác nhận bảng lương!");
+      // If our custom backend returned a specific success message (e.g. including affected rows), use it
+      if (data && data.message) {
+        alert(data.message);
+      } else {
+        alert("Đã xác nhận bảng lương!");
+      }
+    },
+    onError: (error: any) => {
+      // Alert the exact error from our phantom read simulator
+      const msg = error.response?.data?.error || error.message;
+      alert(msg);
     }
   });
 
@@ -235,7 +245,7 @@ export default function PayrollPage() {
             ) : (
               <table className="w-full text-left border-collapse min-w-[700px]">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-600">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-600 whitespace-nowrap">
                     <th className="px-6 py-3">Tháng</th>
                     <th className="px-6 py-3">Lương Cơ Bản</th>
                     <th className="px-6 py-3">Ngày Công / Tăng Ca</th>
@@ -246,12 +256,12 @@ export default function PayrollPage() {
                 </thead>
                 <tbody className="text-sm divide-y divide-slate-100">
                   {paginatedPayrolls.map((record) => (
-                    <tr key={record.id} className="hover:bg-slate-50 transition-colors">
+                    <tr key={record.id} className="hover:bg-slate-50 transition-colors whitespace-nowrap">
                       <td className="px-6 py-4 font-medium text-slate-900">{record.month}</td>
                       <td className="px-6 py-4 text-slate-600">{formatMoney(record.basicSalary)}</td>
                       <td className="px-6 py-4">
-                        <div>{record.workingDays} ngày</div>
-                        {record.otHours > 0 && <div className="text-xs text-indigo-600">{formatOtHours(record.otHours)} OT</div>}
+                        <span>{record.workingDays} ngày</span>
+                        {record.otHours > 0 && <span className="text-xs text-indigo-600 ml-2 border-l border-slate-300 pl-2">{formatOtHours(record.otHours)} OT</span>}
                       </td>
                       <td className="px-6 py-4 font-mono font-medium text-emerald-600 text-lg">
                         {formatMoney(record.netSalary)}
@@ -398,14 +408,14 @@ export default function PayrollPage() {
               <p>Không tìm thấy bảng lương nào.</p>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse min-w-[1200px]">
+              <table className="w-full text-left border-collapse min-w-[1200px]">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-600">
+                <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-600 whitespace-nowrap">
                   <th className="px-6 py-3 w-10">
                     <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
                   </th>
                   <th className="px-6 py-3">Mã NV</th>
-                  <th className="px-6 py-3">Họ Tên</th>
+                  <th className="px-6 py-3">Họ Tên & Phòng Ban</th>
                   <th className="px-6 py-3 text-right">Lương CB</th>
                   <th className="px-6 py-3 text-right">Công</th>
                   <th className="px-6 py-3 text-right">Tăng ca</th>
@@ -418,14 +428,14 @@ export default function PayrollPage() {
               </thead>
               <tbody className="text-sm">
                 {paginatedPayrolls.map((record) => (
-                  <tr key={record.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                  <tr key={record.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors whitespace-nowrap">
                     <td className="px-6 py-4">
                       <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
                     </td>
                     <td className="px-6 py-4 font-medium text-slate-900">{record.empId}</td>
-                    <td className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">
-                      {record.name}
-                      <div className="text-xs text-slate-500 font-normal">{deptMap[record.dept] || record.dept}</div>
+                    <td className="px-6 py-4 font-medium text-slate-900">
+                      <span>{record.name}</span>
+                      <span className="text-xs text-slate-500 font-normal ml-2 border-l border-slate-300 pl-2">{deptMap[record.dept] || record.dept}</span>
                     </td>
                     <td className="px-6 py-4 text-right font-medium">{formatMoney(record.basicSalary)}</td>
                     <td className="px-6 py-4 text-right">{record.workingDays}đ</td>
