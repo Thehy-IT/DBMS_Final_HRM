@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
 import jwt from 'jsonwebtoken';
@@ -17,18 +18,27 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// ── Performance: Gzip compression cho tất cả responses
+app.use(compression());
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+
+// Tắt header X-Powered-By để giảm bandwidth và ẩn thông tin server
+app.disable('x-powered-by');
 
 // Database connection pool
+// connectionLimit tăng lên 25 để đủ chỗ cho cả traffic thực + demo SLEEP
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'HRPayrollDB',
     waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
+    connectionLimit: 25,      // tăng từ 10 → 25 (đủ cho demo + load thực)
+    queueLimit: 50,           // max request xếp hàng chờ connection
+    connectTimeout: 10000,    // 10s connection timeout
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'hrpayroll_super_secret_key';
@@ -183,6 +193,8 @@ app.get('/v1/roles/stats', requireAdmin, async (req, res) => {
 });
 
 // 1. Lấy danh sách nhân viên
+// Hỗ trợ pagination: ?page=1&limit=50&search=...
+// Khi không có ?page, trả toàn bộ (dùng cho Dashboard stats)
 app.get('/v1/employees', async (req, res) => {
     let connection;
     try {
@@ -193,15 +205,46 @@ app.get('/v1/employees', async (req, res) => {
         } else {
             await connection.query('SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;');
         }
-        
-        let query = 'SELECT * FROM NhanVien';
+
+        const hasPagination = req.query.page !== undefined;
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(parseInt(req.query.limit) || 50, 500);
+        const offset = (page - 1) * limit;
+        const search = req.query.search?.trim();
+        const deptFilter = req.query.department;
+        const statusFilter = req.query.status;
+
+        let where = [];
         let params = [];
+
         if (req.user.role === 'EMPLOYEE') {
-          query += ' WHERE MaNV = ?';
-          params.push(req.user.empId);
+            where.push('MaNV = ?');
+            params.push(req.user.empId);
+        } else {
+            if (search) {
+                where.push('(HoTen LIKE ? OR MaNV LIKE ? OR Email LIKE ?)');
+                const s = `%${search}%`;
+                params.push(s, s, s);
+            }
+            if (deptFilter) { where.push('MaPB = ?'); params.push(deptFilter); }
+            if (statusFilter) { where.push('TrangThai = ?'); params.push(statusFilter); }
         }
+
+        const whereClause = where.length > 0 ? ' WHERE ' + where.join(' AND ') : '';
+        let query = 'SELECT * FROM NhanVien' + whereClause + ' ORDER BY MaNV';
+
+        let total = null;
+        if (hasPagination) {
+            const [countRows] = await connection.query(
+                'SELECT COUNT(*) as cnt FROM NhanVien' + whereClause, params
+            );
+            total = countRows[0].cnt;
+            query += ` LIMIT ${limit} OFFSET ${offset}`;
+        }
+
         const [rows] = await connection.query(query, params);
-        res.json({ data: rows, meta: { total: rows.length, page: 1, lastPage: 1 } });
+        const lastPage = total !== null ? Math.ceil(total / limit) : 1;
+        res.json({ data: rows, meta: { total: total ?? rows.length, page, lastPage } });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: err.message });
@@ -228,16 +271,42 @@ app.get('/v1/contracts', async (req, res) => {
 });
 
 // 3. Lấy danh sách chấm công
+// Hỗ trợ pagination: ?page=1&limit=50&from=2026-05-01&to=2026-05-31
 app.get('/v1/attendance', async (req, res) => {
   try {
-    let query = 'SELECT cc.MaCC as id, cc.MaNV as empId, nv.HoTen as name, DATE_FORMAT(cc.NgayCham, "%Y-%m-%d") as date, cc.GioVao as checkIn, cc.GioRa as checkOut, cc.TrangThai as status, cc.GhiChu as notes FROM ChamCong cc JOIN NhanVien nv ON cc.MaNV = nv.MaNV';
+    const hasPagination = req.query.page !== undefined;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+    const offset = (page - 1) * limit;
+
+    const baseSelect = `SELECT cc.MaCC as id, cc.MaNV as empId, nv.HoTen as name,
+      DATE_FORMAT(cc.NgayCham, "%Y-%m-%d") as date,
+      cc.GioVao as checkIn, cc.GioRa as checkOut, cc.TrangThai as status, cc.GhiChu as notes
+      FROM ChamCong cc JOIN NhanVien nv ON cc.MaNV = nv.MaNV`;
+
+    let where = [];
     let params = [];
+
     if (req.user.role === 'EMPLOYEE') {
-      query += ' WHERE cc.MaNV = ?';
-      params.push(req.user.empId);
+      where.push('cc.MaNV = ?'); params.push(req.user.empId);
     }
+    if (req.query.empId) { where.push('cc.MaNV = ?'); params.push(req.query.empId); }
+    if (req.query.from)  { where.push('cc.NgayCham >= ?'); params.push(req.query.from); }
+    if (req.query.to)    { where.push('cc.NgayCham <= ?'); params.push(req.query.to); }
+    if (req.query.status){ where.push('cc.TrangThai = ?'); params.push(req.query.status); }
+
+    const whereClause = where.length > 0 ? ' WHERE ' + where.join(' AND ') : '';
+    let query = baseSelect + whereClause + ' ORDER BY cc.NgayCham DESC, cc.MaNV';
+
+    let total = null;
+    if (hasPagination) {
+      const [cnt] = await pool.query('SELECT COUNT(*) as cnt FROM ChamCong cc JOIN NhanVien nv ON cc.MaNV = nv.MaNV' + whereClause, params);
+      total = cnt[0].cnt;
+      query += ` LIMIT ${limit} OFFSET ${offset}`;
+    }
+
     const [rows] = await pool.query(query, params);
-    res.json({ data: rows });
+    res.json({ data: rows, meta: { total: total ?? rows.length, page, lastPage: total !== null ? Math.ceil(total / limit) : 1 } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -278,16 +347,47 @@ app.put('/v1/attendance/:id', requireHR, async (req, res) => {
 });
 
 // 4. Lấy danh sách bảng lương
+// Hỗ trợ pagination: ?page=1&limit=50&month=5&year=2026
 app.get('/v1/payroll', async (req, res) => {
   try {
-    let query = 'SELECT bl.MaBL as id, bl.Thang as month, bl.Nam as year, bl.MaNV as empId, nv.HoTen as name, pb.TenPB as dept, bl.LuongCoBan as basicSalary, bl.SoNgayCong as workingDays, bl.HeSoTangCa as otHours, bl.TongPhuCap as allowance, bl.TongKhauTru as deduction, bl.ThuNhapGop as grossSalary, bl.BHXH_NLD as bhxh, bl.BHYT_NLD as bhyt, bl.BHTN_NLD as bhtn, bl.ThueTNCN as tax, bl.ThuNhapThucLinh as netSalary, bl.TrangThai as status FROM BangLuong bl JOIN NhanVien nv ON bl.MaNV = nv.MaNV JOIN PhongBan pb ON nv.MaPB = pb.MaPB';
+    const hasPagination = req.query.page !== undefined;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(parseInt(req.query.limit) || 50, 500);
+    const offset = (page - 1) * limit;
+
+    const baseSelect = `SELECT bl.MaBL as id, bl.Thang as month, bl.Nam as year, bl.MaNV as empId,
+      nv.HoTen as name, pb.TenPB as dept, bl.LuongCoBan as basicSalary,
+      bl.SoNgayCong as workingDays, bl.HeSoTangCa as otHours, bl.TongPhuCap as allowance,
+      bl.TongKhauTru as deduction, bl.ThuNhapGop as grossSalary, bl.BHXH_NLD as bhxh,
+      bl.BHYT_NLD as bhyt, bl.BHTN_NLD as bhtn, bl.ThueTNCN as tax,
+      bl.ThuNhapThucLinh as netSalary, bl.TrangThai as status
+      FROM BangLuong bl
+      JOIN NhanVien nv ON bl.MaNV = nv.MaNV
+      JOIN PhongBan pb ON nv.MaPB = pb.MaPB`;
+
+    let where = [];
     let params = [];
+
     if (req.user.role === 'EMPLOYEE') {
-      query += ' WHERE bl.MaNV = ?';
+      where.push('bl.MaNV = ?');
       params.push(req.user.empId);
     }
+    if (req.query.month) { where.push('bl.Thang = ?'); params.push(req.query.month); }
+    if (req.query.year)  { where.push('bl.Nam = ?');   params.push(req.query.year); }
+    if (req.query.status){ where.push('bl.TrangThai = ?'); params.push(req.query.status); }
+
+    const whereClause = where.length > 0 ? ' WHERE ' + where.join(' AND ') : '';
+    let query = baseSelect + whereClause + ' ORDER BY bl.Nam DESC, bl.Thang DESC, nv.HoTen';
+
+    let total = null;
+    if (hasPagination) {
+      const [cnt] = await pool.query('SELECT COUNT(*) as cnt FROM BangLuong bl JOIN NhanVien nv ON bl.MaNV = nv.MaNV' + whereClause, params);
+      total = cnt[0].cnt;
+      query += ` LIMIT ${limit} OFFSET ${offset}`;
+    }
+
     const [rows] = await pool.query(query, params);
-    res.json({ data: rows });
+    res.json({ data: rows, meta: { total: total ?? rows.length, page, lastPage: total !== null ? Math.ceil(total / limit) : 1 } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -425,6 +525,7 @@ app.put('/v1/leaves/:id/approve', requireHR, async (req, res) => {
 });
 
 // --- MASTER DATA API ---
+// Cache-Control: private, max-age=300 — master data ít thay đổi, cache 5 phút phía client
 app.get('/v1/departments', async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -434,6 +535,7 @@ app.get('/v1/departments', async (req, res) => {
         pb.* 
       FROM PhongBan pb
     `);
+    res.set('Cache-Control', 'private, max-age=300');
     res.json({ data: rows });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -493,6 +595,7 @@ app.get('/v1/positions', async (req, res) => {
         cv.* 
       FROM ChucVu cv
     `);
+    res.set('Cache-Control', 'private, max-age=300');
     res.json({ data: rows });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -552,6 +655,7 @@ app.get('/v1/contract-types', async (req, res) => {
         hd.* 
       FROM LoaiHopDong hd
     `);
+    res.set('Cache-Control', 'private, max-age=300');
     res.json({ data: rows });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -611,6 +715,7 @@ app.get('/v1/benefit-types', async (req, res) => {
         fl.* 
       FROM LoaiPhucLoi fl
     `);
+    res.set('Cache-Control', 'private, max-age=300');
     res.json({ data: rows });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -721,16 +826,15 @@ app.delete('/v1/deduction-types/:id', requireAdmin, async (req, res) => {
 });
 
 // --- Helper: Recalculate Payroll ---
-async function recalculatePayrollIfPossible(empId) {
-  if (!empId) return;
+// QUAN TRỌNG: Hàm này là FIRE-AND-FORGET — KHÔNG await để tránh block response.
+// Gọi bằng: recalculatePayrollIfPossible(empId).catch(...) — trả response ngay.
+function recalculatePayrollIfPossible(empId) {
+  if (!empId) return Promise.resolve();
   const date = new Date();
   const month = date.getMonth() + 1;
   const year = date.getFullYear();
-  try {
-    await pool.query(`CALL sp_TinhLuong(?, ?, ?, 1, 0)`, [month, year, empId]);
-  } catch (err) {
-    console.log(`Note: Không thể tự động tính lại lương cho NV ${empId}: ${err.message}`);
-  }
+  return pool.query(`CALL sp_TinhLuong(?, ?, ?, 1, 0)`, [month, year, empId])
+    .catch(err => console.log(`[Async Recalc] NV ${empId}: ${err.message}`));
 }
 
 // --- Employee Benefits ---
@@ -756,8 +860,8 @@ app.post('/v1/employee-benefits', requireHR, async (req, res) => {
       'INSERT INTO NhanVienPhucLoi (MaNV, MaFL, GiaTriOverride, NgayApDung, NgayKetThuc, GhiChu) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE GiaTriOverride=?, NgayKetThuc=?, GhiChu=?, IsActive=1',
       [MaNV, MaFL, GiaTriOverride || null, NgayApDung, NgayKetThuc || null, GhiChu || null, GiaTriOverride || null, NgayKetThuc || null, GhiChu || null]
     );
-    // Tự động tính lại lương (nếu chưa chốt) để đồng bộ hệ thống
-    await recalculatePayrollIfPossible(MaNV);
+    // Fire-and-forget: tính lại lương nền, không block response
+    recalculatePayrollIfPossible(MaNV);
     res.json({ message: 'Lưu phúc lợi thành công' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -768,8 +872,8 @@ app.delete('/v1/employee-benefits/:empId/:maFL/:ngayApDung', requireHR, async (r
   try {
     await pool.query('DELETE FROM NhanVienPhucLoi WHERE MaNV=? AND MaFL=? AND NgayApDung=?', 
       [req.params.empId, req.params.maFL, req.params.ngayApDung]);
-    // Tự động tính lại lương
-    await recalculatePayrollIfPossible(req.params.empId);
+    // Fire-and-forget: tính lại lương nền, không block response
+    recalculatePayrollIfPossible(req.params.empId);
     res.json({ message: 'Xóa thành công' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -793,8 +897,8 @@ app.post('/v1/deductions', requireHR, async (req, res) => {
       'INSERT INTO KhauTru (MaNV, LoaiKhauTru, GiaTri, NgayPhatSinh, GhiChu, NguoiDuyet) VALUES (?, ?, ?, ?, ?, ?)',
       [MaNV, LoaiKhauTru, GiaTri, NgayPhatSinh || new Date(), GhiChu || null, req.user.username]
     );
-    // Tự động tính lại lương
-    await recalculatePayrollIfPossible(MaNV);
+    // Fire-and-forget: không block response
+    recalculatePayrollIfPossible(MaNV);
     res.json({ message: 'Thêm khấu trừ thành công' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -809,9 +913,8 @@ app.delete('/v1/deductions/:id', requireHR, async (req, res) => {
     
     await pool.query('DELETE FROM KhauTru WHERE MaKT=?', [req.params.id]);
     
-    if (empId) {
-      await recalculatePayrollIfPossible(empId);
-    }
+    // Fire-and-forget: không block response
+    if (empId) recalculatePayrollIfPossible(empId);
     res.json({ message: 'Xóa thành công' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -821,6 +924,7 @@ app.delete('/v1/deductions/:id', requireHR, async (req, res) => {
 app.get('/v1/leave-types', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT MaLoaiNghi as id, TenLoaiNghi as name FROM LoaiNghiPhep');
+    res.set('Cache-Control', 'private, max-age=300');
     res.json({ data: rows });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -5,22 +5,36 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // Timeout 15s: tránh request treo vô thời hạn
+  timeout: 15000,
 });
 
+// Cache token trong module scope để tránh JSON.parse localStorage mỗi request
+let _cachedToken: string | null = null;
+
+/**
+ * Xóa cache token — gọi khi logout hoặc nhận 401
+ */
+export const clearTokenCache = () => { _cachedToken = null; };
+
 api.interceptors.request.use((config) => {
-  let token = null;
-  if (typeof window !== 'undefined') {
-    const authStorage = localStorage.getItem('auth-storage');
-    if (authStorage) {
-      try {
+  if (typeof window === 'undefined') return config;
+
+  // Dùng cache trước, chỉ parse localStorage khi chưa có
+  if (!_cachedToken) {
+    try {
+      const authStorage = localStorage.getItem('auth-storage');
+      if (authStorage) {
         const parsed = JSON.parse(authStorage);
-        token = parsed?.state?.token;
-      } catch {}
+        _cachedToken = parsed?.state?.token ?? null;
+      }
+    } catch {
+      _cachedToken = null;
     }
   }
-  
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
+
+  if (_cachedToken && config.headers) {
+    config.headers.Authorization = `Bearer ${_cachedToken}`;
   }
   return config;
 });
@@ -30,7 +44,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        // Clear invalid token
+        clearTokenCache();
         localStorage.removeItem('auth-storage');
         window.location.href = '/login';
       }

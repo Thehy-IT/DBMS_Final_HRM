@@ -8,7 +8,6 @@ import {
   BedDouble, 
   CircleDollarSign,
   Clock,
-  Loader2,
   ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,6 +24,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid
 } from 'recharts';
 import { formatMoney } from "@/lib/utils";
+import { StatGridSkeleton, ChartCardSkeleton, TableRowsSkeleton } from "@/components/ui/Skeleton";
 
 export default function DashboardPage() {
   const [warningPage, setWarningPage] = useState(1);
@@ -33,12 +33,19 @@ export default function DashboardPage() {
   const { data: leaveData, isLoading: leaveLoading } = useQuery({ queryKey: ['leaves'], queryFn: () => leaveService.getLeaves() });
   const { data: payrollData, isLoading: payrollLoading } = useQuery({ queryKey: ['payroll'], queryFn: () => payrollService.getPayroll() });
   const { data: attendanceData, isLoading: attendanceLoading } = useQuery({ queryKey: ['attendance'], queryFn: () => attendanceService.getAttendance() });
-  const { data: deptData, isLoading: deptLoading } = useQuery({ queryKey: ['departments'], queryFn: () => masterDataService.getDepartments() });
+  // Departments ít thay đổi → staleTime riêng 10 phút, không refetch khi navigate
+  const { data: deptData, isLoading: deptLoading } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => masterDataService.getDepartments(),
+    staleTime: 10 * 60 * 1000,
+  });
 
-  const { user } = useAuthStore();
-  const isEmployee = user?.role === 'EMPLOYEE';
-
-  const isLoading = empLoading || contractLoading || leaveLoading || payrollLoading || attendanceLoading || deptLoading;
+  // isLoading chỉ dùng cho Employee view (data cá nhân)
+  const isPersonalDataLoading = empLoading || leaveLoading || attendanceLoading || payrollLoading || contractLoading;
+  // Stats cần employees + departments
+  const isStatsLoading = empLoading || deptLoading;
+  // Charts cần payroll + departments
+  const isChartsLoading = payrollLoading || deptLoading;
 
   const employees = empData?.data || [];
   const contracts = contractData?.data || [];
@@ -99,16 +106,34 @@ export default function DashboardPage() {
     amount: payrollByDept[key]
   }));
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[50vh] text-slate-500">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mb-4" />
-        <p>Đang tải dữ liệu tổng quan...</p>
-      </div>
-    );
-  }
+  const { user } = useAuthStore();
+  const isEmployee = user?.role === 'EMPLOYEE';
 
+  // Employee self-service view
   if (isEmployee) {
+    if (isPersonalDataLoading) {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <div className="h-7 w-48 animate-pulse bg-slate-200 rounded" />
+              <div className="h-4 w-64 animate-pulse bg-slate-200 rounded" />
+            </div>
+          </div>
+          <StatGridSkeleton count={4} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-200 bg-slate-50"><div className="h-5 w-32 animate-pulse bg-slate-200 rounded" /></div>
+              <table className="w-full"><tbody><TableRowsSkeleton rows={5} cols={4} /></tbody></table>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-200 bg-slate-50"><div className="h-5 w-32 animate-pulse bg-slate-200 rounded" /></div>
+              <table className="w-full"><tbody><TableRowsSkeleton rows={5} cols={3} /></tbody></table>
+            </div>
+          </div>
+        </div>
+      );
+    }
     const myLeaves = leaves.filter(l => (l as any).empId === user?.empId || l.empName === user?.username || l.empName === user?.empId);
     const myAttendances = attendances.filter(a => a.empId === user?.empId);
     const myPayrolls = payrolls.filter((p: any) => p.empId === user?.empId).sort((a: any, b: any) => {
@@ -261,31 +286,43 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {stats.map((stat, i) => (
-          <div key={i} className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
-            <div>
-              <p className="text-sm font-medium text-slate-500 mb-1">{stat.title}</p>
-              <h3 className="text-2xl font-bold text-slate-900">{stat.value}</h3>
-              <p className={cn("text-xs mt-1 font-medium", 
-                stat.changeType === 'positive' ? "text-emerald-600" :
-                stat.changeType === 'negative' ? "text-amber-600" :
-                "text-slate-500"
-              )}>
-                {stat.change}
-              </p>
+      {isStatsLoading ? (
+        <StatGridSkeleton count={5} />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {stats.map((stat, i) => (
+            <div key={i} className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
+              <div>
+                <p className="text-sm font-medium text-slate-500 mb-1">{stat.title}</p>
+                <h3 className="text-2xl font-bold text-slate-900">{stat.value}</h3>
+                <p className={cn("text-xs mt-1 font-medium", 
+                  stat.changeType === 'positive' ? "text-emerald-600" :
+                  stat.changeType === 'negative' ? "text-amber-600" :
+                  "text-slate-500"
+                )}>
+                  {stat.change}
+                </p>
+              </div>
+              <div className={cn("w-12 h-12 rounded-full flex items-center justify-center", stat.color)}>
+                <stat.icon className="w-6 h-6" />
+              </div>
             </div>
-            <div className={cn("w-12 h-12 rounded-full flex items-center justify-center", stat.color)}>
-              <stat.icon className="w-6 h-6" />
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+      {/* Charts — skeleton riêng */}
+      {isChartsLoading ? (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+          <ChartCardSkeleton />
+          <ChartCardSkeleton />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
         {/* Phân bổ nhân sự Card */}
         <div className="relative overflow-hidden bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-500 p-7 group flex flex-col">
           <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -z-10 opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
+
           
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -426,8 +463,10 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
+      {/* Contracts warning table — skeleton riêng */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
           <h3 className="text-lg font-semibold text-slate-800">Cảnh báo: Hợp đồng sắp/đã hết hạn</h3>

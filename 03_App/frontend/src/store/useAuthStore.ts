@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { clearTokenCache } from '@/lib/axios';
 
 type User = {
   username: string;
@@ -20,10 +21,15 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       user: null,
       login: (token, user) => set({ token, user }),
-      logout: () => set({ token: null, user: null }),
+      logout: () => {
+        // Xóa token cache trong axios module để request tiếp theo không dùng token cũ
+        clearTokenCache();
+        set({ token: null, user: null });
+      },
     }),
     {
       name: 'auth-storage',
     }
   )
 );
+
