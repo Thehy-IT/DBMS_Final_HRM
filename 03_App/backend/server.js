@@ -296,11 +296,28 @@ app.get('/v1/payroll', async (req, res) => {
 
 app.post('/v1/payroll/calculate', requireHR, async (req, res) => {
   const { month, year } = req.body;
+  const isNonRepeatableReadDemo = process.env.DEMO_NON_REPEATABLE_READ === 'true';
+  const connection = await pool.getConnection();
+  
   try {
-    await pool.query(`CALL sp_TinhLuong(?, ?, NULL, 1, 0)`, [month, year]);
+    if (isNonRepeatableReadDemo) {
+        await connection.query('SET @demo_non_repeatable_read = 1;');
+        // Bắt buộc hạ mức cô lập xuống READ COMMITTED để Non-repeatable Read có thể xảy ra
+        await connection.query('SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;');
+    } else {
+        await connection.query('SET @demo_non_repeatable_read = 0;');
+        // Sử dụng mức mặc định (REPEATABLE READ) hoặc vẫn giữ READ COMMITTED
+        // vì sp_TinhLuong chuẩn đã tự snapshot qua biến nên không bị lỗi dù ở READ COMMITTED.
+    }
+
+    await connection.query(`CALL sp_TinhLuong(?, ?, NULL, 1, 0)`, [month, year]);
     res.json({ message: 'Tính lương hoàn tất' });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  } finally {
+    // Reset để không ảnh hưởng connection pool
+    await connection.query('SET @demo_non_repeatable_read = 0;');
+    connection.release();
   }
 });
 
@@ -825,16 +842,36 @@ app.post('/v1/contracts', requireHR, async (req, res) => {
 
 app.put('/v1/contracts/:id', requireHR, async (req, res) => {
   const { empId, typeId, startDate, endDate, salary, status, VungLuong } = req.body;
+  const connection = await pool.getConnection();
   try {
+    await connection.beginTransaction();
+
+    // Lấy lương cơ bản hiện tại của Hợp đồng
+    const [oldContract] = await connection.query('SELECT LuongCoBan FROM HopDong WHERE MaHD=?', [req.params.id]);
+    
+    // Cập nhật Hợp đồng
     const query = `
       UPDATE HopDong 
       SET MaNV=?, MaLoaiHD=?, NgayBatDau=?, NgayKetThuc=?, LuongCoBan=?, VungLuong=?, TrangThai=?
       WHERE MaHD=?
     `;
-    await pool.query(query, [empId, typeId, startDate, endDate || null, salary, VungLuong || 1, status || 'A', req.params.id]);
+    await connection.query(query, [empId, typeId, startDate, endDate || null, salary, VungLuong || 1, status || 'A', req.params.id]);
+
+    // Nếu lương thay đổi, cập nhật luôn vào bảng LuongCoBan để đồng bộ (sp_TinhLuong đọc từ đây)
+    if (oldContract.length > 0 && oldContract[0].LuongCoBan != salary) {
+      await connection.query(`
+        INSERT INTO LuongCoBan (MaNV, LuongCB, LuongDongBH, NgayHieuLuc, LyDo, NguoiDuyet) 
+        VALUES (?, ?, ?, CURDATE(), 'Cập nhật từ Hợp Đồng', 'HR')
+      `, [empId, salary, Math.min(salary, 46800000)]);
+    }
+
+    await connection.commit();
     res.json({ message: 'Updated successfully' });
   } catch (err) {
+    await connection.rollback();
     res.status(500).json({ error: err.message });
+  } finally {
+    connection.release();
   }
 });
 
@@ -1144,73 +1181,8 @@ app.all('/v1/demo/slow-onboarding', async (req, res) => {
   }
 });
 
-// --- DEMO API NON-REPEATABLE READ ---
-app.get('/v1/demo/calculate-salary', async (req, res) => {
-  const isNonRepeatableReadDemo = process.env.DEMO_NON_REPEATABLE_READ === 'true';
-  const connection = await pool.getConnection();
-  try {
-    if (isNonRepeatableReadDemo) {
-      // READ COMMITTED allows Non-repeatable Reads
-      await connection.query('SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;');
-    } else {
-      // REPEATABLE READ prevents Non-repeatable Reads
-      await connection.query('SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;');
-    }
-    
-    await connection.query('START TRANSACTION;');
-    
-    // Đọc lương lần 1 (để tính BHXH)
-    const [rows1] = await connection.query(`
-      SELECT LuongCB FROM LuongCoBan WHERE MaNV = 'NV000001' ORDER BY NgayHieuLuc DESC LIMIT 1;
-    `);
-    const luongCbBhxh = rows1[0]?.LuongCB;
 
-    // Chờ 10s (để nhân sự có thời gian can thiệp đổi lương)
-    await connection.query('DO SLEEP(10);');
 
-    // Đọc lương lần 2 (để tính Thuế TNCN)
-    const [rows2] = await connection.query(`
-      SELECT LuongCB FROM LuongCoBan WHERE MaNV = 'NV000001' ORDER BY NgayHieuLuc DESC LIMIT 1;
-    `);
-    const luongCbTax = rows2[0]?.LuongCB;
-    
-    await connection.query('COMMIT;');
-
-    res.json({
-      isolation_level: isNonRepeatableReadDemo ? 'READ COMMITTED' : 'REPEATABLE READ',
-      luongCbBhxh: luongCbBhxh,
-      luongCbTax: luongCbTax,
-      status: luongCbBhxh === luongCbTax 
-        ? 'Dữ liệu nhất quán trong cùng giao dịch.' 
-        : 'CẢNH BÁO: Đã xảy ra Non-repeatable Read!'
-    });
-  } catch (error) {
-    await connection.query('ROLLBACK;');
-    res.status(500).json({ error: error.message });
-  } finally {
-    connection.release();
-  }
-});
-
-app.post('/v1/demo/update-salary', async (req, res) => {
-  const connection = await pool.getConnection();
-  try {
-    await connection.query('START TRANSACTION;');
-    // Tăng lương thêm 10 triệu
-    await connection.query(`
-      UPDATE LuongCoBan 
-      SET LuongCB = LuongCB + 10000000 
-      WHERE MaNV = 'NV000001'
-    `);
-    await connection.query('COMMIT;');
-    res.json({ message: 'Salary updated successfully (+10M).' });
-  } catch (error) {
-    await connection.query('ROLLBACK;');
-    res.status(500).json({ error: error.message });
-  } finally {
-    connection.release();
-  }
-});
 
 // --- DEMO API PHANTOM READ ---
 app.get('/v1/demo/close-payroll', async (req, res) => {

@@ -103,9 +103,53 @@ export function PayslipModal({ isOpen, onClose, data }: PayslipModalProps) {
                   <td className="px-4 py-3 text-right font-medium text-emerald-600">+{formatMoney(allowance)}</td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-3 text-slate-600">4. Khấu trừ (BHXH, Thuế...)</td>
-                  <td className="px-4 py-3 text-right text-slate-600">-</td>
-                  <td className="px-4 py-3 text-right font-medium text-red-600">-{formatMoney(tongKhauTru)}</td>
+                  <td className="px-4 py-3 font-medium text-slate-700 bg-slate-50/50" colSpan={3}>4. Các khoản khấu trừ</td>
+                </tr>
+                {Number(data.bhxh) > 0 && (
+                  <tr>
+                    <td className="px-4 py-2 pl-8 text-slate-600 text-sm border-l-2 border-slate-200">BHXH (8%)</td>
+                    <td className="px-4 py-2 text-right text-slate-600">-</td>
+                    <td className="px-4 py-2 text-right text-red-600 font-medium">-{formatMoney(Number(data.bhxh))}</td>
+                  </tr>
+                )}
+                {Number(data.bhyt) > 0 && (
+                  <tr>
+                    <td className="px-4 py-2 pl-8 text-slate-600 text-sm border-l-2 border-slate-200">BHYT (1.5%)</td>
+                    <td className="px-4 py-2 text-right text-slate-600">-</td>
+                    <td className="px-4 py-2 text-right text-red-600 font-medium">-{formatMoney(Number(data.bhyt))}</td>
+                  </tr>
+                )}
+                {Number(data.bhtn) > 0 && (
+                  <tr>
+                    <td className="px-4 py-2 pl-8 text-slate-600 text-sm border-l-2 border-slate-200">BHTN (1%)</td>
+                    <td className="px-4 py-2 text-right text-slate-600">-</td>
+                    <td className="px-4 py-2 text-right text-red-600 font-medium">-{formatMoney(Number(data.bhtn))}</td>
+                  </tr>
+                )}
+                {Number(data.tax) > 0 && (
+                  <tr>
+                    <td className="px-4 py-2 pl-8 text-slate-600 text-sm border-l-2 border-slate-200">Thuế TNCN</td>
+                    <td className="px-4 py-2 text-right text-slate-600">-</td>
+                    <td className="px-4 py-2 text-right text-red-600 font-medium">-{formatMoney(Number(data.tax))}</td>
+                  </tr>
+                )}
+                {Number(data.deduction) > 0 && (
+                  <tr>
+                    <td className="px-4 py-2 pl-8 text-slate-600 text-sm border-l-2 border-slate-200">Khấu trừ khác</td>
+                    <td className="px-4 py-2 text-right text-slate-600">-</td>
+                    <td className="px-4 py-2 text-right text-red-600 font-medium">-{formatMoney(Number(data.deduction))}</td>
+                  </tr>
+                )}
+                {tongKhauTru === 0 && (
+                  <tr>
+                    <td className="px-4 py-2 pl-8 text-slate-500 text-sm italic border-l-2 border-slate-200">Không có phát sinh khấu trừ</td>
+                    <td className="px-4 py-2 text-right text-slate-600">-</td>
+                    <td className="px-4 py-2 text-right text-slate-600">0 ₫</td>
+                  </tr>
+                )}
+                <tr className="bg-red-50/30">
+                  <td className="px-4 py-2 text-slate-700 font-medium text-right" colSpan={2}>Tổng cộng khấu trừ:</td>
+                  <td className="px-4 py-2 text-right text-red-700 font-bold">-{formatMoney(tongKhauTru)}</td>
                 </tr>
               </tbody>
               <tfoot className="bg-slate-50 border-t border-slate-200">

@@ -323,93 +323,10 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
   4. Ngay lập tức quay lại trình duyệt và **nhấn F5 (Tải lại trang)** Dashboard.
   5. **Kết quả:** Dashboard trả về số lượng nhân viên hoàn toàn chính xác (không bị tăng). Mức độ cô lập `READ COMMITTED` đã chặn luồng đọc dữ liệu khỏi việc quét qua dòng dữ liệu nhân viên đang trong trạng thái `UNCOMMITTED`. Dữ liệu hiển thị (Tổng nhân viên) trên UI không bị sai lệch dù đang có giao dịch Onboarding chạy song song.
 
-#### 6.3. Không đọc lại được dữ liệu (Non-repeatable Read)
+#### 6.3. Bóng ma (Phantom Read)
 
 * **Ngữ cảnh đặc trưng mang tính hệ thống:**
-  Kế toán ấn nút "Tính lương tháng 5" trên UI, hệ thống chạy `sp_TinhLuong` là một đường ống rất dài. Giả sử tiến trình đang xử lý tính lương cho `NV000001`. Bước 2: đọc `LuongCoBan` ra (hiện là 20 triệu) để đóng làm trần tính BHXH. Máy chủ xử lý tác vụ bị nghẽn nên ngưng lại vài giây (SLEEP). Lúc này, Nhân sự HR nhấn nút "Duyệt thăng chức" trên UI, nâng lương cơ bản của `NV000001` lên 30 triệu, thực hiện `UPDATE` và `COMMIT` thành công. Tiến trình `sp_TinhLuong` tiếp tục chạy đến bước 6: Tính Thuế TNCN, nó lại thực hiện `SELECT LuongCB` và thu được 30 triệu.
-  Hậu quả: Tiền BHXH (8%) bị trừ ở mức 20 triệu, nhưng Thuế TNCN (thuế suất cao) bị tính cấn trừ dựa trên thu nhập 30 triệu. Cùng 1 kỳ lương nhưng công thức đọc 2 mức lương khác nhau.
-* **Danh sách các cách khắc phục:**
-
-  1. Tăng mức độ cô lập lên `REPEATABLE READ`.
-  2. Sử dụng biến cục bộ tạm thời để lưu trữ thay vì truy vấn `SELECT` lại từ bảng dữ liệu vật lý.
-  3. Tăng mức độ cô lập lên `SERIALIZABLE`.
-* **Lựa chọn cách tốt nhất & Lý do:**
-  Cách tốt nhất là **Kết hợp dùng biến tạm trong thủ tục lưu trữ VÀ thiết lập cô lập `REPEATABLE READ`**.
-  Lý do: Lưu giá trị `LuongCoBan` vào một biến cục bộ ngay từ đầu (`DECLARE v_LuongCB DECIMAL(15,2);`) vừa triệt tiêu lỗi, vừa tăng tốc độ xử lý SP vì không cần Query bảng lại.
-* **Chi tiết Demo kết hợp UI & CSDL:**
-  **Bước 1: Tái hiện lỗi**
-
-  - **Trên CSDL (Kế toán chạy Tính Lương):**
-    ```sql
-    SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-    START TRANSACTION;
-    -- Đọc lương lần 1 để tính BHXH (ra 20tr)
-    SELECT LuongCB INTO @luongCB_BHXH FROM LuongCoBan WHERE MaNV = 'NV000001' ORDER BY NgayHieuLuc DESC LIMIT 1;
-    DO SLEEP(8); -- Gặp độ trễ
-    -- Đọc lương lần 2 để tính Thuế TNCN (sau 8s sẽ đọc ra 30tr vì HR can thiệp)
-    SELECT LuongCB INTO @luongCB_Thue FROM LuongCoBan WHERE MaNV = 'NV000001' ORDER BY NgayHieuLuc DESC LIMIT 1;
-    COMMIT;
-    ```
-  - **Trên UI (HR - Trong 8s Sleep):** Chuyên viên HR vào form "Hợp đồng & Lương", đổi Mức lương cơ bản của NV000001 thành 30.000.000đ và bấm nút **"Cập Nhật"**.
-  - **Kết quả trên UI (Kế toán):** Khi tiến trình tính lương chạy xong, Kế toán mở trang "Phiếu Lương Cá Nhân" của NV000001. Hệ thống hiển thị: *Thu nhập đóng BHXH = 20tr, nhưng Thu nhập tính Thuế TNCN = 30tr*. Công thức hiển thị trên UI sai lệch hoàn toàn.
-
-  **Bước 2: Triển khai khắc phục (Đã thực hiện hoàn thiện bằng Bật/Tắt qua `.env`)**
-
-  1. **Cấu hình môi trường (Bật/Tắt chế độ Isolation Level)**:
-     Thêm biến môi trường trong file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env):
-
-     ```env
-     DEMO_NON_REPEATABLE_READ=true
-     ```
-
-     * `true`: Thiết lập mức độ cô lập thành `READ COMMITTED` (Gây ra lỗi Non-repeatable Read do cho phép đọc lại bị sai lệch).
-     * `false`: Thiết lập mức độ cô lập chuẩn `REPEATABLE READ` (Khắc phục triệt để lỗi).
-  2. **Xử lý tại API Backend ([server.js](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/server.js))**:
-     Hệ thống cung cấp sẵn 2 API để phục vụ việc Demo:
-
-     - **API Mô phỏng Tính lương (Có Sleep):** `GET /v1/demo/calculate-salary`
-       (Kiểm tra biến `DEMO_NON_REPEATABLE_READ` để thay đổi lệnh `SET SESSION TRANSACTION ISOLATION LEVEL`. API này sẽ lấy `LuongCB` lần 1, sau đó `SLEEP(10)` rồi lấy `LuongCB` lần 2 và đối chiếu).
-     - **API Mô phỏng Nhân sự Cập nhật lương:** `POST /v1/demo/update-salary`
-       (Thực hiện tăng lương `NV000001` lên thêm 10 triệu đồng ngay lập tức).
-
-  ---
-
-  ### HƯỚNG DẪN DEMO CHO GIẢNG VIÊN (NON-REPEATABLE READ)
-
-  #### Kịch bản 1: Tái hiện lỗi Non-repeatable Read ban đầu (Trước khi sửa)
-
-
-  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
-     ```env
-     DEMO_NON_REPEATABLE_READ=true
-     ```
-  2. Khởi động lại Server Backend.
-  3. Mở Terminal / Command Prompt hoặc Postman và gọi API giả lập Tính lương (Kế toán):
-     ```bash
-     curl -X GET http://localhost:8080/v1/demo/calculate-salary
-     ```
-  4. Ngay lập tức (trong vòng 10 giây trước khi lệnh curl trên chạy xong), mở 1 Terminal khác (đại diện cho HR) và gọi API Cập nhật lương:
-     ```bash
-     curl -X POST http://localhost:8080/v1/demo/update-salary
-     ```
-  5. **Kết quả:** Sau 10 giây, Terminal đầu tiên (Tính lương) sẽ trả về kết quả lỗi: `luongCbBhxh` và `luongCbTax` có giá trị chênh lệch nhau đúng 10 triệu, kèm dòng trạng thái: `"CẢNH BÁO: Đã xảy ra Non-repeatable Read!"`.
-
-  #### Kịch bản 2: Trình diễn tính năng Khắc phục (Isolation Level)
-
-  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env), đổi cấu hình thành:
-     ```env
-     DEMO_NON_REPEATABLE_READ=false
-     ```
-  2. Khởi động lại Server Backend.
-  3. Gọi lại lệnh API giả lập Tính lương (Bước 3 kịch bản 1).
-  4. Ngay lập tức gọi lại lệnh API Cập nhật lương (Bước 4 kịch bản 1).
-  5. **Kết quả:** Sau 10 giây, Terminal đầu tiên (Tính lương) sẽ trả về kết quả hoàn hảo: Hai biến `luongCbBhxh` và `luongCbTax` bằng nhau y đúc (đều giữ nguyên giá trị cũ), trạng thái báo: `"Dữ liệu nhất quán trong cùng giao dịch."`.
-     - Lý do: Mức độ cô lập `REPEATABLE READ` đảm bảo rằng trong cùng 1 Transaction, tất cả các lần `SELECT` trên cùng 1 bảng dữ liệu đều trả về bản snapshot ban đầu (dù bị can thiệp UPDATE từ bên ngoài). Lỗi Không đọc lại được dữ liệu (Non-repeatable Read) đã bị triệt tiêu hoàn toàn.
-
-#### 6.4. Bóng ma (Phantom Read)
-
-* **Ngữ cảnh đặc trưng mang tính hệ thống:**
-  Kế toán Lương cần chốt sổ toàn bộ nhân viên phòng IT. Kế toán vào màn hình UI "Chốt lương", thấy danh sách tổng là 20 người (trạng thái Draft). Kế toán bấm nút **"Chốt và Xuất Quỹ"** (hệ thống chạy ngầm `sp_ChotBangLuong`). Đột nhiên HR quyết định sa thải 1 nhân sự cấp dưới phòng IT, trên UI nhân sự bấm nút **"Thanh lý hợp đồng"**. Logic nghỉ việc lập tức sinh ra 1 bảng lương Draft dở dang cho những ngày làm việc cuối cùng. Tiến trình chốt quỹ của Kế toán chạy xong, thông báo UI trả về: "Đã chốt thành công 21 bản ghi". Bản ghi bóng ma (Phantom Row) này đã thâm nhập vào quỹ thanh toán ngoài dự toán của kế toán.
+  Kế toán cần chốt sổ toàn bộ nhân viên phòng IT. Kế toán vào màn hình UI "Chốt lương", thấy danh sách tổng là 20 người (trạng thái Draft). Kế toán bấm nút **"Chốt và Xuất Quỹ"** (hệ thống chạy ngầm `sp_ChotBangLuong`). Đột nhiên HR quyết định sa thải 1 nhân sự cấp dưới phòng IT, trên UI nhân sự bấm nút **"Thanh lý hợp đồng"**. Logic nghỉ việc lập tức sinh ra 1 bảng lương Draft dở dang cho những ngày làm việc cuối cùng. Tiến trình chốt quỹ của Kế toán chạy xong, thông báo UI trả về: "Đã chốt thành công 21 bản ghi". Bản ghi bóng ma (Phantom Row) này đã thâm nhập vào quỹ thanh toán ngoài dự toán của kế toán.
 * **Danh sách các cách khắc phục:**
 
   1. Tăng mức độ cô lập lên `SERIALIZABLE`.
@@ -479,6 +396,57 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
   4. Ngay lập tức gọi lại lệnh API Thanh lý Hợp đồng (Bước 4 kịch bản 1).
   5. **Kết quả:** Cửa sổ Terminal thứ hai (HR) sẽ bị "đứng hình" chờ đợi (Loading...) và không thể thêm bản ghi mới ngay lập tức. Sau 10 giây, Terminal đầu tiên (Chốt lương) trả về kết quả hoàn hảo: `"Tuyệt vời: Dữ liệu nhất quán, không có bóng ma lọt vào."`.
      - Lý do: Cú pháp `SELECT ... FOR UPDATE` đã yêu cầu InnoDB thiết lập Next-Key Lock (kết hợp Record Lock và Gap Lock) trên vùng dữ liệu `Thang=5, Nam=2026, TrangThai=D`. Mọi nỗ lực `INSERT` vào vùng này từ các transaction khác đều bị "Block" cho đến khi giao dịch hiện tại hoàn thành!
+
+#### 6.4. Không đọc lại được dữ liệu (Non-repeatable Read)
+
+* **Ngữ cảnh đặc trưng mang tính hệ thống:**
+  Trong hệ thống Tính lương, hr2 vào màn hình UI **"Bảng Lương"** (`/payroll`) và bấm nút **"Tính Lương"**. Tiến trình tính lương dưới Database (`sp_TinhLuong`) bắt đầu chạy. Nó sẽ thực hiện 2 bước độc lập:
+
+  - Lần đọc 1: Lấy mức lương cơ bản hiện tại của nhân viên (VD: 70 triệu) để tính ra mức đóng Bảo Hiểm (BHXH).
+  - Lần đọc 2 (Sau một khoảng thời gian xử lý các phép toán phức tạp): Lấy lại mức lương cơ bản để tính Tổng thu nhập và Thuế TNCN.
+
+  Ngay trong khoảng thời gian giữa 2 lần đọc đó, một chuyên viên Nhân sự (HR) quyết định **chỉnh sửa Lương cơ bản trực tiếp** dưới Database của nhân viên đó từ 70 triệu lên 80 triệu (để vượt qua cơ chế chặn sửa của Trigger).
+  Hậu quả của Non-repeatable Read: Khi quá trình tính lương hoàn tất, Phiếu lương sinh ra sẽ hiển thị Lương Cơ Bản là 80 triệu (Lần đọc 2), nhưng số tiền đóng Bảo hiểm lại tính trên mức 70 triệu (Lần đọc 1). Kế toán nhìn vào bảng lương trên giao diện sẽ thấy ngay một bút toán "sai bét" rành rành (Ví dụ: 8% của 30 triệu phải là 6.4 triệu, nhưng hệ thống lại hiện 5.6 triệu).
+* **Danh sách các cách khắc phục:**
+
+  1. **Khóa bi quan (Pessimistic Locking) bằng `SELECT ... FOR UPDATE`**: Khi đọc Lương Cơ Bản ở Lần 1, ta khóa luôn bản ghi đó. HR muốn sửa lương sẽ bị treo chờ cho đến khi quá trình tính lương hoàn tất. Tuy nhiên, quá trình tính lương thường mất rất lâu, việc khóa này có thể làm tê liệt mọi thao tác liên quan đến nhân sự.
+  2. **Tăng mức độ cô lập lên `REPEATABLE READ`**: Đảm bảo mọi lần `SELECT` trong cùng một giao dịch (transaction) đều đọc từ một bản ghi Snapshot nhất quán tại thời điểm bắt đầu giao dịch. Tuy nhiên có thể tốn kém bộ nhớ.
+  3. **Tối ưu logic Code (Sử dụng biến cục bộ - Local Variable Snapshot)**: Thay vì đọc lại Database nhiều lần, ta chỉ đọc giá trị Lương Cơ Bản **MỘT LẦN DUY NHẤT** ở đầu Stored Procedure, gán vào một biến cục bộ (`SET v_cur_LuongCB = ...`), và dùng biến này cho toàn bộ các công thức tính toán về sau.
+* **Lựa chọn cách tốt nhất & Lý do:**
+  Cách tốt nhất thực tiễn là **Sử dụng biến cục bộ (Local Variable Snapshot)**.
+  Lý do: Đây là giải pháp xử lý triệt để ở tầng Application/Procedure Logic. Không cần thay đổi mức độ cô lập (Isolation level), không tốn chi phí khóa (Locking) làm nghẽn hệ thống. Dữ liệu trong suốt một quá trình tính toán dài được đảm bảo tính nhất quán nội tại hoàn hảo.
+* **Chi tiết Demo kết hợp UI & CSDL (Sử dụng cách Cập nhật trực tiếp):**
+
+  **Bước 1: Tái hiện lỗi (Bất nhất dữ liệu)**
+
+  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
+     ```env
+     DEMO_NON_REPEATABLE_READ=true
+     ```
+  2. Khởi động lại Server Backend. Đảm bảo nhân viên `NV000001` đang có lương cơ bản là `70,000,000`.
+  3. Mở giao diện UI (Kế toán) và công cụ MySQL Workbench (HR):
+     - **Trên UI (Kế toán)**: Vào màn hình **"Bảng Lương"** (`/payroll`), chọn tháng hiện tại và ấn nút **"Tính Lương"**. Hệ thống sẽ bắt đầu xoay (Loading) do đã được giả lập thời gian trễ 15 giây.
+     - **Trên MySQL Workbench (HR)**: Ngay lập tức (trong 15s đó), mở tab Query mới và chạy lệnh UPDATE trực tiếp để thay đổi lương mà không bị vướng Trigger lịch sử lương:
+       ```sql
+       UPDATE LuongCoBan 
+       SET LuongCB = 80000000 
+       WHERE MaNV = 'NV000001' AND NgayHetHieuLuc IS NULL;
+       ```
+  4. **Kết quả trên UI**: Sau 15 giây, quá trình tính lương trên UI hoàn tất. Kế toán tải lại trang Bảng lương hoặc xem chi tiết Phiếu lương của `NV000001`. Giảng viên sẽ thấy rõ ràng:
+     - Cột **Lương Cơ Bản**: `80,000,000 ₫` (Đã nhận mức lương mới).
+     - Cột **BHXH NLD (8%)**: `5,600,000 ₫` (Hệ thống tính sai, vì tính dựa trên lương 70tr cũ).
+       Đây là minh chứng trực quan nhất cho thấy sự bất nhất (Non-repeatable read) trong cùng một chu trình xử lý!
+
+  **Bước 2: Trình diễn tính năng Khắc phục (Sử dụng biến Snapshot)**
+
+  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
+     ```env
+     DEMO_NON_REPEATABLE_READ=false
+     ```
+  2. Khởi động lại Server Backend. Đổi lại Lương nhân viên `NV000001` về `70,000,000` (Bằng cách tương tự trên Workbench: `UPDATE LuongCoBan SET LuongCB = 70000000 WHERE MaNV = 'NV000001' AND NgayHetHieuLuc IS NULL;`).
+  3. Thực hiện lại y hệt **Bước 3** ở trên (Kế toán bấm Tính lương trên UI -> HR chạy lệnh UPDATE lên 80tr trong Workbench).
+  4. **Kết quả**: Khi xem lại bảng lương trên UI, toàn bộ mức lương, BHXH và thuế đều được tính toán nhất quán dựa trên mức lương `70,000,000` (giá trị Snapshot ở thời điểm bắt đầu tính lương). Dù lệnh UPDATE 80tr của HR thành công ở giữa quá trình, mức lương 80tr này sẽ không làm xáo trộn phép tính hiện tại mà chỉ được áp dụng vào kỳ tính lương tháng sau. Không còn lỗi bất đồng bộ!
+     *(Ghi chú kỹ thuật: Ở chế độ chuẩn `false`, `sp_TinhLuong.sql` được tối ưu hoá chỉ SELECT Lương 1 lần duy nhất đầu thủ tục, xoá bỏ điểm yếu đọc 2 lần sinh ra sai lệch).*
 
 ### 7. Deadlock (Khóa chết)
 

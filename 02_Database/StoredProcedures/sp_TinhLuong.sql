@@ -205,6 +205,24 @@ BEGIN
               AND (lcb.NgayHetHieuLuc IS NULL OR lcb.NgayHetHieuLuc >= v_NgayDauThang)
             ORDER BY lcb.NgayHieuLuc DESC
             LIMIT 1;
+
+            -- [DEMO INJECTION] MÔ PHỎNG LỖI NON-REPEATABLE READ 
+            IF @demo_non_repeatable_read = 1 AND v_cur_MaNV = 'NV000001' THEN
+                -- Tạm dừng 15 giây để HR kịp sang màn hình Hợp đồng đổi lương
+                DO SLEEP(15);
+                
+                -- Lấy lại Lương cơ bản TỪ DATABASE một lần nữa cho các tính toán sau
+                -- (Cố tình vi phạm nguyên tắc sử dụng biến snapshot ban đầu, tạo ra Non-repeatable Read)
+                SELECT lcb.LuongCB
+                INTO v_cur_LuongCB
+                FROM LuongCoBan lcb
+                WHERE lcb.MaNV        = v_cur_MaNV
+                  AND lcb.NgayHieuLuc <= v_NgayCuoiThang
+                  AND (lcb.NgayHetHieuLuc IS NULL OR lcb.NgayHetHieuLuc >= v_NgayDauThang)
+                ORDER BY lcb.NgayHieuLuc DESC
+                LIMIT 1;
+            END IF;
+            -- [/DEMO INJECTION]
             
             SET v_done = FALSE;
 
