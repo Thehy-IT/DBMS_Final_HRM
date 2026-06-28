@@ -875,33 +875,67 @@ app.post('/v1/contracts', requireHR, async (req, res) => {
 
 app.put('/v1/contracts/:id', requireHR, async (req, res) => {
   const { empId, typeId, startDate, endDate, salary, status, VungLuong } = req.body;
+  const isDeadlockDemo = process.env.DEMO_DEADLOCK === 'true';
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
 
-    // Lấy lương cơ bản hiện tại của Hợp đồng
-    const [oldContract] = await connection.query('SELECT LuongCoBan FROM HopDong WHERE MaHD=?', [req.params.id]);
-    
-    // Cập nhật Hợp đồng
-    const query = `
-      UPDATE HopDong 
-      SET MaNV=?, MaLoaiHD=?, NgayBatDau=?, NgayKetThuc=?, LuongCoBan=?, VungLuong=?, TrangThai=?
-      WHERE MaHD=?
-    `;
-    await connection.query(query, [empId, typeId, startDate, endDate || null, salary, VungLuong || 1, status || 'A', req.params.id]);
-
-    // Nếu lương thay đổi, cập nhật luôn vào bảng LuongCoBan để đồng bộ (sp_TinhLuong đọc từ đây)
-    if (oldContract.length > 0 && oldContract[0].LuongCoBan != salary) {
+    if (isDeadlockDemo) {
+      // [MÔ PHỎNG LỖI ĐỒNG THỜI - KHÓA CHẾT / DEADLOCK]
+      // Tiến trình B: Khóa LuongCoBan -> Ngủ 5s -> Khóa NhanVien
+      
+      // 1. Khóa LuongCoBan (bằng cách UPDATE bản ghi hiện tại để tránh lỗi Trigger)
       await connection.query(`
-        INSERT INTO LuongCoBan (MaNV, LuongCB, LuongDongBH, NgayHieuLuc, LyDo, NguoiDuyet) 
-        VALUES (?, ?, ?, CURDATE(), 'Cập nhật từ Hợp Đồng', 'HR')
-      `, [empId, salary, Math.min(salary, 46800000)]);
+        UPDATE LuongCoBan 
+        SET NguoiDuyet = 'HR - Đang sửa hợp đồng'
+        WHERE MaNV = ? AND NgayHetHieuLuc IS NULL
+      `, [empId]);
+      
+      // Ngủ 5 giây đợi Tiến trình A khóa NhanVien
+      await connection.query('DO SLEEP(5);');
+
+      // 2. Khóa NhanVien (Gây Deadlock vì A đang giữ khóa NhanVien và đòi khóa LuongCoBan)
+      await connection.query("UPDATE NhanVien SET GhiChu = 'Cập nhật hợp đồng mới' WHERE MaNV = ?", [empId]);
+
+      // 3. Cập nhật Hợp đồng
+      const query = `
+        UPDATE HopDong 
+        SET MaNV=?, MaLoaiHD=?, NgayBatDau=?, NgayKetThuc=?, LuongCoBan=?, VungLuong=?, TrangThai=?
+        WHERE MaHD=?
+      `;
+      await connection.query(query, [empId, typeId, startDate, endDate || null, salary, VungLuong || 1, status || 'A', req.params.id]);
+
+    } else {
+      // Lấy lương cơ bản hiện tại của Hợp đồng
+      const [oldContract] = await connection.query('SELECT LuongCoBan FROM HopDong WHERE MaHD=?', [req.params.id]);
+      
+      // Cập nhật Hợp đồng (Khóa HopDong)
+      const query = `
+        UPDATE HopDong 
+        SET MaNV=?, MaLoaiHD=?, NgayBatDau=?, NgayKetThuc=?, LuongCoBan=?, VungLuong=?, TrangThai=?
+        WHERE MaHD=?
+      `;
+      await connection.query(query, [empId, typeId, startDate, endDate || null, salary, VungLuong || 1, status || 'A', req.params.id]);
+
+      // Nếu lương thay đổi, cập nhật luôn vào bảng LuongCoBan để đồng bộ (Khóa LuongCoBan)
+      if (oldContract.length > 0 && oldContract[0].LuongCoBan != salary) {
+        // Đóng mức lương cũ
+        await connection.query(`UPDATE LuongCoBan SET NgayHetHieuLuc = CURDATE() - INTERVAL 1 DAY WHERE MaNV = ? AND NgayHetHieuLuc IS NULL`, [empId]);
+        // Thêm mức lương mới
+        await connection.query(`
+          INSERT INTO LuongCoBan (MaNV, LuongCB, LuongDongBH, NgayHieuLuc, LyDo, NguoiDuyet) 
+          VALUES (?, ?, ?, CURDATE(), 'Cập nhật từ Hợp Đồng', 'HR')
+        `, [empId, salary, Math.min(salary, 46800000)]);
+      }
     }
 
     await connection.commit();
     res.json({ message: 'Updated successfully' });
   } catch (err) {
     await connection.rollback();
+    if (err.code === 'ER_LOCK_DEADLOCK') {
+      return res.status(500).json({ error: 'LỖI KHÓA CHẾT (DEADLOCK)! Hai giao dịch tự khóa chéo lẫn nhau. MySQL đã phát hiện và tự động hủy giao dịch này (Rollback) để hệ thống không bị treo cứng.' });
+    }
     res.status(500).json({ error: err.message });
   } finally {
     connection.release();
@@ -949,7 +983,11 @@ app.post('/v1/employees', requireHR, async (req, res) => {
 
 app.put('/v1/employees/:id', requireHR, async (req, res) => {
   const { HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi, MaPB, MaCV, NgayVaoLam, NgayNghiViec, MaSoThue, SoTaiKhoanNH, TenNganHang, SoNguoiPhuThuoc, GhiChu, TrangThai, Version } = req.body;
+  const isDeadlockDemo = process.env.DEMO_DEADLOCK === 'true';
+  const connection = await pool.getConnection();
   try {
+    await connection.beginTransaction();
+
     const sanitizedMaSoThue = MaSoThue ? MaSoThue.trim() : null;
     const finalMaSoThue = sanitizedMaSoThue === '' ? null : sanitizedMaSoThue;
 
@@ -960,7 +998,6 @@ app.put('/v1/employees/:id', requireHR, async (req, res) => {
     let queryParams;
 
     if (enableOptimisticLock) {
-      // Optimistic Locking active: increments version and checks matching version
       query = `
         UPDATE NhanVien 
         SET HoTen=?, GioiTinh=?, NgaySinh=?, CCCD=?, SoDienThoai=?, Email=?, DiaChi=?, MaPB=?, MaCV=?, NgayVaoLam=?, NgayNghiViec=?, MaSoThue=?, SoTaiKhoanNH=?, TenNganHang=?, SoNguoiPhuThuoc=?, GhiChu=?, TrangThai=?, Version = Version + 1
@@ -974,7 +1011,6 @@ app.put('/v1/employees/:id', requireHR, async (req, res) => {
         req.params.id, Version || 1
       ];
     } else {
-      // Standard Update (Lost Update vulnerability active)
       query = `
         UPDATE NhanVien 
         SET HoTen=?, GioiTinh=?, NgaySinh=?, CCCD=?, SoDienThoai=?, Email=?, DiaChi=?, MaPB=?, MaCV=?, NgayVaoLam=?, NgayNghiViec=?, MaSoThue=?, SoTaiKhoanNH=?, TenNganHang=?, SoNguoiPhuThuoc=?, GhiChu=?, TrangThai=?
@@ -989,36 +1025,43 @@ app.put('/v1/employees/:id', requireHR, async (req, res) => {
       ];
     }
 
-    const [result] = await pool.query(query, queryParams);
+    // Tiến trình A: Khóa NhanVien
+    const [result] = await connection.query(query, queryParams);
     
     if (enableOptimisticLock && result.affectedRows === 0) {
+      await connection.rollback();
+      connection.release();
       return res.status(409).json({ error: 'Dữ liệu đã được cập nhật bởi một người khác. Vui lòng tải lại trang!' });
+    }
+
+    // [MÔ PHỎNG LỖI ĐỒNG THỜI - KHÓA CHẾT / DEADLOCK]
+    if (isDeadlockDemo) {
+      // Tiến trình A: Ngủ 5s -> Khóa LuongCoBan
+      await connection.query('DO SLEEP(5);');
+      
+      // Khóa LuongCoBan (Gây Deadlock vì B đang giữ khóa LuongCoBan và đòi khóa NhanVien)
+      await connection.query("UPDATE LuongCoBan SET LyDo = 'Cập nhật do thay đổi thông tin' WHERE MaNV = ? AND NgayHetHieuLuc IS NULL", [req.params.id]);
     }
     
     // [PHẦN MÔ PHỎNG LỖI ĐỒNG THỜI - BÓNG MA] 
-    // Nếu HR cho nhân viên nghỉ việc (TrangThai = 'T'), tự động sinh ra 1 bảng lương Draft Bóng Ma
     if (TrangThai === 'T') {
       try {
-        // Tìm tháng/năm mà Kế toán đang chốt (có bản nháp) để chèn vào cho khớp
-        const [drafts] = await pool.query(`SELECT Thang, Nam FROM BangLuong WHERE TrangThai = 'D' ORDER BY Nam DESC, Thang DESC LIMIT 1`);
+        const [drafts] = await connection.query(`SELECT Thang, Nam FROM BangLuong WHERE TrangThai = 'D' ORDER BY Nam DESC, Thang DESC LIMIT 1`);
         if (drafts.length > 0) {
           const targetMonth = drafts[0].Thang;
           const targetYear = drafts[0].Nam;
           
-          // Lấy thông tin phòng ban để tạo Bóng ma hợp lệ (tránh lỗi Foreign Key)
-          const [emp] = await pool.query(`SELECT GioiTinh, NgaySinh, MaPB, MaCV FROM NhanVien WHERE MaNV = ?`, [req.params.id]);
+          const [emp] = await connection.query(`SELECT GioiTinh, NgaySinh, MaPB, MaCV FROM NhanVien WHERE MaNV = ?`, [req.params.id]);
           if (emp.length > 0) {
             const ghostId = 'NV999999';
-            await pool.query(`
+            await connection.query(`
               INSERT IGNORE INTO NhanVien (MaNV, HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi, MaPB, MaCV, NgayVaoLam, TrangThai) 
               VALUES (?, 'Nhân viên Bóng Ma', ?, ?, '000000000000', '0000000000', 'ghost@test.com', 'Dia Chi', ?, ?, '2020-01-01', 'T')
             `, [ghostId, emp[0].GioiTinh, emp[0].NgaySinh, emp[0].MaPB, emp[0].MaCV]);
             
-            // Xóa bản nháp cũ của Bóng ma (nếu có từ lần demo trước) để đảm bảo Count chắc chắn tăng thêm 1
-            await pool.query(`DELETE FROM BangLuong WHERE MaNV = ? AND Thang = ? AND Nam = ?`, [ghostId, targetMonth, targetYear]);
+            await connection.query(`DELETE FROM BangLuong WHERE MaNV = ? AND Thang = ? AND Nam = ?`, [ghostId, targetMonth, targetYear]);
             
-            // Chèn 1 bản ghi Draft mới toanh cho Bóng ma đúng vào tháng đang chốt
-            await pool.query(`
+            await connection.query(`
               INSERT INTO BangLuong (MaNV, Thang, Nam, LuongCoBan, SoNgayCong, TrangThai) 
               VALUES (?, ?, ?, 10000000, 10, 'D')
             `, [ghostId, targetMonth, targetYear]);
@@ -1029,9 +1072,16 @@ app.put('/v1/employees/:id', requireHR, async (req, res) => {
       }
     }
 
+    await connection.commit();
     res.json({ message: 'Updated successfully' });
   } catch (err) {
+    await connection.rollback();
+    if (err.code === 'ER_LOCK_DEADLOCK') {
+      return res.status(500).json({ error: 'LỖI KHÓA CHẾT (DEADLOCK)! Hai giao dịch tự khóa chéo lẫn nhau. MySQL đã phát hiện và tự động hủy giao dịch này (Rollback) để hệ thống không bị treo cứng.' });
+    }
     res.status(500).json({ error: err.message });
+  } finally {
+    connection.release();
   }
 });
 

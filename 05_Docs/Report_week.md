@@ -454,9 +454,11 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 ### 7. Deadlock (Khóa chết)
 
 * **Ngữ cảnh đặc trưng mang tính hệ thống:**
-  Giao dịch A (HR trên UI bấm nút **"Thăng chức"**) gọi `sp_DieuChuyenThangChuc`: thực hiện cập nhật chức vụ trong bảng `NhanVien`, sau đó nâng mức lương trong bảng `LuongCoBan`.
-  Giao dịch B (HR khác bấm nút **"Kỷ luật - Hạ bậc"**) gọi `sp_TienThuongKyLuat`: thực hiện hạ mức lương trong bảng `LuongCoBan` trước, sau đó cập nhật điểm kỷ luật ở bảng `NhanVien` sau.
-  Nếu hai HR ấn nút cùng lúc trên cùng 1 nhân viên: Giao dịch A khóa `NhanVien` chờ `LuongCoBan`. Giao dịch B khóa `LuongCoBan` chờ `NhanVien`. Cả hai rơi vào trạng thái chờ nhau vô tận. MySQL sẽ "Kill" một giao dịch, khiến màn hình UI của 1 trong 2 HR văng lỗi Error 500 (Deadlock).
+  Trong thực tế, hai chuyên viên nhân sự (HR) có thể làm việc trên cùng một nhân sự tại cùng một thời điểm:
+
+  - **Giao dịch A (HR 1 - Sửa Hồ Sơ Nhân Viên):** Trên giao diện "Quản lý nhân viên", HR 1 đang cập nhật thông tin cá nhân của `NV000006`. Quá trình lưu sẽ thực hiện cập nhật bảng `NhanVien`, sau đó thực hiện một tác vụ đồng bộ đòi hỏi cập nhật thông tin liên đới ở bảng `LuongCoBan`. (Trình tự: Khóa `NhanVien` -> Khóa `LuongCoBan`).
+  - **Giao dịch B (HR 2 - Sửa Hợp Đồng / Tăng Lương):** Trên giao diện "Quản lý Hợp đồng", HR 2 đang điều chỉnh mức lương cơ bản mới cho `NV000006`. Quá trình lưu sẽ ưu tiên ghi nhận bảng `LuongCoBan` trước, sau đó hệ thống cố gắng ghi một cờ chú thích vào bảng `NhanVien`. (Trình tự: Khóa `LuongCoBan` -> Khóa `NhanVien`).
+    Nếu hai HR cùng ấn nút **Lưu** cùng lúc trên cùng 1 nhân viên: Giao dịch A khóa `NhanVien` chờ `LuongCoBan`. Giao dịch B khóa `LuongCoBan` chờ `NhanVien`. Cả hai rơi vào trạng thái chờ nhau vô tận. MySQL sẽ tự động "Kill" một giao dịch (Rollback) để cứu vãn hệ thống, khiến 1 trong 2 HR nhận được thông báo lỗi 500 (Deadlock).
 * **Danh sách các cách khắc phục:**
 
   1. Đồng nhất thứ tự lấy khóa (Consistent Lock Ordering) giữa mọi Giao tác và Stored Procedures.
@@ -464,8 +466,8 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
   3. Chia nhỏ giao dịch lớn thành các giao dịch nhỏ hơn để nhả khóa sớm.
   4. Cơ chế Deadlock Retry tại tầng Ứng Dụng (Node.js/Backend).
 * **Lựa chọn cách tốt nhất & Lý do:**
-  Cách tốt nhất là **Đồng nhất thứ tự lấy khóa (Consistent Lock Ordering)** từ mức thiết kế Database.
-  Lý do: Đây là phương pháp phòng bệnh triệt để nhất. Nếu mọi luồng code (Stored Procedures) đều tuân thủ quy tắc lấy khóa theo thứ tự phân tầng từ bảng Master đến bảng Detail: "Luôn UPDATE `NhanVien` trước -> tới `HopDong` -> tới `LuongCoBan`", thì Deadlock chéo không bao giờ có cơ hội hình thành. Kết hợp bắt lỗi Retry ở tầng Node.js Backend để đảm bảo UX hoàn hảo cho người dùng.
+  Cách tốt nhất là **Đồng nhất thứ tự lấy khóa (Consistent Lock Ordering)** từ mức thiết kế Database và luồng truy vấn Backend.
+  Lý do: Đây là phương pháp phòng bệnh triệt để nhất. Nếu mọi luồng code đều tuân thủ quy tắc lấy khóa theo thứ tự phân tầng từ bảng Master đến bảng Detail: "Luôn Khóa/UPDATE `NhanVien` trước -> tới `HopDong` -> tới `LuongCoBan`", thì Deadlock chéo không bao giờ có cơ hội hình thành. Kết hợp bắt lỗi `ER_LOCK_DEADLOCK` ở tầng Node.js Backend để đảm bảo UX, báo lỗi rõ ràng nếu có bất ngờ xảy ra thay vì làm sập ứng dụng.
 * **Chi tiết Demo kết hợp UI & CSDL:**
   **Bước 1 & Bước 2: Triển khai khắc phục (Đã thực hiện hoàn thiện bằng Bật/Tắt qua `.env`)**
 
@@ -476,21 +478,19 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
      DEMO_DEADLOCK=true
      ```
 
-     * `true`: Tiến trình B cố tình đi ngược chuẩn, lấy khóa `LuongCoBan` trước rồi mới lấy khóa `NhanVien`, đụng độ với Tiến trình A sinh ra lỗi 1213 Deadlock.
-     * `false`: Tiến trình B tuân thủ bộ chuẩn: Bắt buộc khóa `NhanVien` trước rồi mới khóa bảng con `LuongCoBan` sau.
+     * `true`: Bật mô phỏng Deadlock. Tiến trình Sửa Hợp Đồng cố tình đi ngược chuẩn, lấy khóa `LuongCoBan` trước rồi mới lấy khóa `NhanVien`, đồng thời áp dụng `DO SLEEP(5)` để cố tình tạo độ trễ va chạm với Tiến trình Sửa Nhân Viên.
+     * `false`: Tiến trình tuân thủ bộ chuẩn: Sửa Hợp đồng chỉ tập trung cập nhật `HopDong` và `LuongCoBan` đúng luồng, không sinh ra vòng lặp ngược ngạo khóa `NhanVien`.
   2. **Xử lý tại API Backend ([server.js](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/server.js))**:
-     Hệ thống cung cấp sẵn 2 API để phục vụ việc Demo va chạm khóa chéo:
+     Hệ thống xử lý trực tiếp vào 2 API vận hành thật của UI:
 
-     - **API Mô phỏng Thăng chức (Tiến trình A):** `POST /v1/demo/promote-employee`
-       (Luôn chạy chuẩn: Lấy khóa cập nhật `NhanVien`, ngủ 5 giây, sau đó lấy khóa cập nhật `LuongCoBan`).
-     - **API Mô phỏng Kỷ luật (Tiến trình B):** `POST /v1/demo/discipline-employee`
-       (Dựa vào biến môi trường để quyết định thứ tự truy vấn ngược chiều hay cùng chiều với Tiến trình A).
+     - `PUT /v1/employees/:id` (Tiến trình A)
+     - `PUT /v1/contracts/:id` (Tiến trình B)
 
   ---
 
-  ### HƯỚNG DẪN DEMO CHO GIẢNG VIÊN (DEADLOCK)
+  ### HƯỚNG DẪN DEMO CHO GIẢNG VIÊN (DEADLOCK) TRỰC QUAN TRÊN UI
 
-  #### Kịch bản 1: Tái hiện lỗi Khóa Chết (Deadlock) ban đầu
+  #### Kịch bản 1: Tái hiện lỗi Khóa Chết (Deadlock) qua tương tác người dùng
 
 
   1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
@@ -498,27 +498,23 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
      DEMO_DEADLOCK=true
      ```
   2. Khởi động lại Server Backend.
-  3. Mở Terminal / Command Prompt hoặc Postman và gọi API giả lập Thăng chức (Tiến trình A):
-     ```bash
-     curl -X POST http://localhost:8080/v1/demo/promote-employee
-     ```
-  4. Ngay lập tức (trong vòng 5 giây trước khi lệnh curl trên chạy xong), mở 1 Terminal khác và gọi API Kỷ luật (Tiến trình B):
-     ```bash
-     curl -X POST http://localhost:8080/v1/demo/discipline-employee
-     ```
-  5. **Kết quả:** MySQL phát hiện ngay sự cố khóa chéo vòng tròn. Terminal 2 (Tiến trình B) lập tức bị ngắt và văng lỗi đỏ chót: `"Lỗi 1213: Deadlock found when trying to get lock; try restarting transaction"`. Terminal 1 (Tiến trình A) thì lại chạy mượt mà thành công.
+  3. Mở **Tab 1 (Giao diện Quản lý Nhân Viên)**, bấm nút **Sửa** (Edit) nhân viên `NV000006`. Đổi ghi chú hoặc địa chỉ. Đừng bấm lưu vội.
+  4. Mở **Tab 2 (Giao diện Quản lý Hợp Đồng)**, tìm hợp đồng của `NV000006`, bấm **Sửa**, điền lại một con số Lương cơ bản mới bất kỳ. Đừng bấm lưu vội.
+  5. **Thực thi đồng thời:**
+     - Mở Tab 1 (Nhân viên), bấm nút **Lưu**. (Lúc này hệ thống đã khóa thành công bảng `NhanVien` và đang sleep chờ).
+     - Ngay lập tức (trong vòng dưới 5 giây), chuyển sang Tab 2 (Hợp Đồng) và bấm nút **Lưu**.
+  6. **Kết quả trên UI:** Cả hai tab sẽ quay xoay (loading). Hết thời gian chờ 5 giây của DB, một trong hai tab sẽ hiển thị báo lỗi Pop-up/Toast màu đỏ: `"LỖI KHÓA CHẾT (DEADLOCK)! Hai giao dịch tự khóa chéo lẫn nhau. MySQL đã phát hiện và tự động hủy giao dịch này..."`. Tab còn lại sẽ báo Thành công. Giao diện trực quan cho thấy hệ thống đã bóc tách và ngăn chặn sập server thành công!
 
-  #### Kịch bản 2: Trình diễn tính năng Khắc phục (Đồng nhất hướng lấy khóa)
+  #### Kịch bản 2: Trình diễn tính năng Khắc phục (Đồng nhất hướng lấy khóa chuẩn)
 
   1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env), đổi cấu hình thành:
      ```env
      DEMO_DEADLOCK=false
      ```
   2. Khởi động lại Server Backend.
-  3. Gọi lại lệnh API giả lập Thăng chức (Bước 3 kịch bản 1).
-  4. Ngay lập tức gọi lại lệnh API Kỷ luật (Bước 4 kịch bản 1).
-  5. **Kết quả:** Lần này, cửa sổ Terminal thứ hai (Tiến trình B) sẽ **đứng yên chờ đợi (Loading)** chứ không văng lỗi nữa. Sau khoảng 5 giây, Tiến trình A xong, thì Tiến trình B mới được phép chạy vào khóa bảng `NhanVien`. Cả hai đều báo thành công.
-     - Lý do: Vì lúc này Tiến trình B tuân thủ luật lấy khóa "NhanVien trước, LuongCoBan sau", nên nó đã ngoan ngoãn đứng xếp hàng tại "cửa" bảng NhanVien chờ Tiến trình A làm xong toàn bộ thủ tục. Không còn khóa chéo (Deadlock) vì luồng đi của mọi transaction đều song song cùng một chiều!
+  3. Cài đặt lại **Tab 1** và **Tab 2** như bước 3, 4 ở Kịch bản 1.
+  4. Lặp lại thao tác ấn **Lưu** nhanh ở Tab 1 rồi sang Tab 2.
+  5. **Kết quả:** Lần này hệ thống Backend tuân thủ luật lấy khóa một chiều (`HopDong` -> `LuongCoBan`), không vòng ngược lại sửa `NhanVien`. Do đó, vòng lặp Deadlock bị phá vỡ. Cả hai tab sẽ đều xử lý trơn tru và hiện thông báo **"Lưu thành công"**. Không hề xảy ra tranh chấp dẫn đến bị ngắt tiến trình!
 
 ---
 
