@@ -23,7 +23,7 @@ api.interceptors.request.use((config) => {
   // Dùng cache trước, chỉ parse localStorage khi chưa có
   if (!_cachedToken) {
     try {
-      const authStorage = localStorage.getItem('auth-storage');
+      const authStorage = sessionStorage.getItem('auth-storage');
       if (authStorage) {
         const parsed = JSON.parse(authStorage);
         _cachedToken = parsed?.state?.token ?? null;
@@ -45,7 +45,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
         clearTokenCache();
-        localStorage.removeItem('auth-storage');
+        sessionStorage.removeItem('auth-storage');
         window.location.href = '/login';
       }
     }
