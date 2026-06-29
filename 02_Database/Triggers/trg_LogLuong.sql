@@ -118,7 +118,7 @@ BEGIN
             NEW.TongKhauTru  <> OLD.TongKhauTru
         ) THEN
             SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'trg_BangLuong_BeforeUpdate: Không thể sửa số liệu bảng lương đã XÁC NHẬN. Chỉ cho phép chuyển trạng thái C→P hoặc P→L.';
+            SET MESSAGE_TEXT = 'Khong the sua so lieu BangLuong da XAC NHAN. Chi cho phep C->P hoac P->L.';
         END IF;
     END IF;
 END$$

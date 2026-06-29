@@ -27,7 +27,7 @@ BEGIN
            OR NEW.ThuNhapThucLinh != OLD.ThuNhapThucLinh
            OR NEW.ThueTNCN != OLD.ThueTNCN THEN
             SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'LỖI KIỂM TOÁN: Không thể thay đổi số liệu tài chính của Bảng Lương đã được Thanh Toán (P) hoặc Khóa (L)!';
+            SET MESSAGE_TEXT = 'Khong the sua so lieu tai chinh BangLuong da Thanh Toan (P) hoac Khoa (L)!';
         END IF;
     END IF;
 END$$
@@ -43,7 +43,7 @@ FOR EACH ROW
 BEGIN
     IF OLD.TrangThai IN ('P', 'L') THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'LỖI KIỂM TOÁN: Tuyệt đối không được phép xóa Bảng Lương đã được Thanh Toán (P) hoặc Khóa (L) khỏi hệ thống!';
+        SET MESSAGE_TEXT = 'Khong duoc phep xoa BangLuong da Thanh Toan (P) hoac Khoa (L)!';
     END IF;
 END$$
 DELIMITER ;

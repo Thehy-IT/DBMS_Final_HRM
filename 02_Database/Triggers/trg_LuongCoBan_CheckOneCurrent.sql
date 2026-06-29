@@ -20,7 +20,7 @@ BEGIN
               AND NgayHetHieuLuc IS NULL
         ) THEN
             SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'trg_LuongCoBan_CheckOneCurrent: Nhân viên đã có mức lương đang áp dụng. Vui lòng đóng mức lương cũ trước (set NgayHetHieuLuc).';
+            SET MESSAGE_TEXT = 'Nhân viên đã có mức lương đang áp dụng. Vui lòng đóng mức lương cũ trước (set NgayHetHieuLuc).';
         END IF;
     END IF;
 END$$
@@ -42,7 +42,7 @@ BEGIN
               AND MaLCB <> OLD.MaLCB
         ) THEN
             SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'trg_LuongCoBan_CheckOneCurrent_Update: Nhân viên đã có mức lương đang áp dụng khác. Không thể chuyển trạng thái dòng này thành đang áp dụng.';
+            SET MESSAGE_TEXT = 'Nhân viên đã có mức lương đang áp dụng khac. Khong the chuyen dong nay thanh dang ap dung.';
         END IF;
     END IF;
 END$$
