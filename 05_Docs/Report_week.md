@@ -160,7 +160,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 #### 6.1. Mất dữ liệu cập nhật (Lost Update)
 
 * **Ngữ cảnh đặc trưng mang tính hệ thống:**
-  Chuyên viên Nhân sự (HR) A thực hiện rà soát thông tin hồ sơ để chỉnh sửa Số Điện Thoại của nhân viên trên giao diện UI. Cùng thời điểm đó, HR B nhận được yêu cầu cập nhật Mã Số Thuế cá nhân cho cùng nhân viên này. Cả hai cùng tải form thông tin của nhân viên (Ví dụ: `NV000008`). HR A thực hiện lưu số điện thoại thành công. Tuy nhiên ngay sau đó 1 giây, HR B bấm lưu mã số thuế. Kết quả là toàn bộ thông tin của B lưu đè lên A do form UI của B gửi lên nguyên bộ dữ liệu cũ kèm mã số thuế mới, làm mất đi số điện thoại mà A vừa mới bỏ công sửa.
+  Chuyên viên Nhân sự (HR1 thực hiện rà soát thông tin hồ sơ để chỉnh sửa Số Điện Thoại của nhân viênNV000006 trên giao diện UI. Cùng thời điểm đó, HR2 nhận được yêu cầu cập nhật Mã Số Thuế cá nhân cho cùng nhân viên này. Cả hai cùng tải form thông tin của nhân viên NV000006. HR1 thực hiện lưu số điện thoại thành công. Tuy nhiên ngay sau đó 1 giây, HR2 bấm lưu mã số thuế. Kết quả là toàn bộ thông tin của HR2 lưu đè lên HR1 do form UI của HR2 gửi lên nguyên bộ dữ liệu cũ kèm mã số thuế mới, làm mất đi số điện thoại mà HR1 vừa mới bỏ công sửa.
 * **Danh sách các cách khắc phục:**
 
   1. **Khóa bi quan (Pessimistic Locking):** Sử dụng câu lệnh `SELECT ... FOR UPDATE` khi đọc dữ liệu để khóa bản ghi (Row-level Lock). Bất kỳ ai muốn lấy bản ghi đó để sửa đều phải chờ giao dịch hiện tại hoàn tất.
@@ -172,11 +172,11 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 * **Chi tiết Demo kết hợp UI & CSDL:**
   **Bước 1: Tái hiện lỗi**
 
-  - **Trên UI (Cửa sổ 1 - HR A) & (Cửa sổ 2 - HR B):** Cả hai đăng nhập bằng 2 tài khoản khác nhau, cùng mở trang "Chỉnh sửa hồ sơ nhân viên NV000008". Cả 2 form lúc này đều hiện *Số điện thoại cũ, Mã số thuế cũ*.
-  - **Thao tác UI (HR A):** Nhập số điện thoại mới `0987654321` và ấn nút **Lưu**. Toast message hiện "Thành công".
-    *(Dưới DB: `UPDATE NhanVien SET SoDienThoai = '0987654321', MaSoThue = 'OLD_TAX' WHERE MaNV = 'NV000008';`)*.
+  - **Trên UI (Cửa sổ 1 - HR1) & (Cửa sổ 2 - HR1):** Cả hai đăng nhập bằng 2 tài khoản khác nhau, cùng mở trang "Chỉnh sửa hồ sơ nhân viên NV000006". Cả 2 form lúc này đều hiện *Số điện thoại cũ, Mã số thuế cũ*.
+  - **Thao tác UI (HR1):** Nhập số điện thoại mới `0987654321` và ấn nút **Lưu**. Toast message hiện "Thành công".
+    *(Dưới DB: `UPDATE NhanVien SET SoDienThoai = '0987654321', MaSoThue = 'OLD_TAX' WHERE MaNV = 'NV000006';`)*.
   - **Thao tác UI (HR B - Sau 2 giây):** Nhập mã số thuế mới 9999999999 (vẫn để nguyên số ĐT cũ trên form) và ấn nút **Lưu**. Toast message hiện "Thành công".
-    *(Dưới DB: `UPDATE NhanVien SET SoDienThoai = 'OLD_PHONE', MaSoThue = '99999999' WHERE MaNV = 'NV000008';`)*.
+    *(Dưới DB: `UPDATE NhanVien SET SoDienThoai = 'OLD_PHONE', MaSoThue = '99999999' WHERE MaNV = 'NV000006';`)*.
   - **Kết quả trên UI:** Tải lại trang (F5). Số điện thoại hiển thị lại số cũ, công sức của HR A đã bốc hơi hoàn toàn.
 
   **Bước 2: Triển khai khắc phục (Bật/Tắt qua `.env`)**
@@ -228,8 +228,8 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
      ```
   2. Khởi động lại Server Backend để nhận cấu hình mới.
   3. Mở **2 trình duyệt** khác nhau (hoặc 1 Tab thường và 1 Tab ẩn danh) và cùng truy cập trang sửa hồ sơ của nhân viên `NV000008`. Lúc này, cả hai form đều có *Số điện thoại cũ, Mã số thuế cũ*.
-  4. **Ở Tab 1 (HR A):** Nhập Số điện thoại mới và ấn **Lưu**. Hệ thống báo thành công. (Bản ghi dưới DB lúc này đã đổi Số điện thoại mới nhưng Mã số thuế vẫn là cũ).
-  5. **Ở Tab 2 (HR B):** Nhập Mã số thuế mới (vẫn giữ Số điện thoại cũ ban đầu trên form của B) và ấn **Lưu**. Hệ thống báo thành công.
+  4. **Ở Tab 1 (HR1):** Nhập Số điện thoại mới và ấn **Lưu**. Hệ thống báo thành công. (Bản ghi dưới DB lúc này đã đổi Số điện thoại mới nhưng Mã số thuế vẫn là cũ).
+  5. **Ở Tab 2 (HR2):** Nhập Mã số thuế mới (vẫn giữ Số điện thoại cũ ban đầu trên form của B) và ấn **Lưu**. Hệ thống báo thành công.
   6. F5 tải lại trang. Giảng viên sẽ thấy **Số điện thoại mới mà HR A vừa sửa đã biến mất** (bị ghi đè bởi giá trị cũ trên form của B). Đây chính là lỗi Lost Update.
 
   #### Kịch bản 2: Trình diễn tính năng Khắc phục (Khóa lạc quan)
@@ -245,8 +245,8 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 #### 6.2. Đọc dữ liệu rác (Dirty Read)
 
 * **Ngữ cảnh đặc trưng mang tính hệ thống:**
-  Chuyên viên Nhân sự (HR) đang mở Dashboard Báo Cáo Nhân Sự để xem tổng số lượng nhân viên hiện tại của toàn doanh nghiệp nhằm chốt báo cáo cuối tháng. Cùng thời điểm, hệ thống ngầm đang chạy Giao tác `sp_TiepNhanNhanSu` tiếp nhận 1 nhân sự cấp cao mới vào hệ thống. Việc `INSERT` nhân viên vào bảng `NhanVien` đã diễn ra, nhưng khi đến phần tạo tài khoản đăng nhập thì hệ thống bị lỗi (ví dụ: Email đã tồn tại). Giao tác `sp_TiepNhanNhanSu` lập tức bị `ROLLBACK`.
-  Thảm họa xảy ra khi Báo cáo của HR đọc đúng lúc bản ghi nhân viên vừa `INSERT` xong nhưng chưa `ROLLBACK`. Kết quả báo cáo báo tổng số nhân viên tăng ảo thêm 1 người dù nhân viên đó chưa từng gia nhập thành công.
+  Chuyên viên HR1 đang mở Dashboard Báo Cáo Nhân Sự để xem tổng số lượng nhân viên hiện tại của toàn doanh nghiệp nhằm chốt báo cáo cuối tháng. Cùng thời điểm, hệ thống ngầm đang chạy Giao tác `sp_TiepNhanNhanSu` tiếp nhận 1 nhân sự cấp cao mới vào hệ thống. Việc `INSERT` nhân viên vào bảng `NhanVien` đã diễn ra, nhưng khi đến phần tạo tài khoản đăng nhập thì hệ thống bị lỗi (ví dụ: Email đã tồn tại). Giao tác `sp_TiepNhanNhanSu` lập tức bị `ROLLBACK`.
+  Thảm họa xảy ra khi Báo cáo của HR1 đọc đúng lúc bản ghi nhân viên vừa `INSERT` xong nhưng chưa `ROLLBACK`. Kết quả báo cáo báo tổng số nhân viên tăng ảo thêm 1 người dù nhân viên đó chưa từng gia nhập thành công.
 * **Danh sách các cách khắc phục:**
 
   1. Tăng mức độ cô lập (Isolation Level) lên `READ COMMITTED`.
@@ -326,7 +326,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 #### 6.3. Bóng ma (Phantom Read)
 
 * **Ngữ cảnh đặc trưng mang tính hệ thống:**
-  Kế toán cần chốt sổ toàn bộ 54 nhân viên trong tháng. HR1 vào màn hình UI "Quản lý Lương", thấy danh sách tổng là 54 người (trạng thái Chưa chốt - Draft). Kế toán bấm nút **"Xác nhận"** (Chốt bảng lương). Đột nhiên HR2 quyết định sa thải 1 nhân sự Bùi ngọc Hùng NV000006, trên giao diện Quản lý Nhân viên, HR chuyển trạng thái nhân viên này sang **"Nghỉ việc"** và lưu lại. Logic hệ thống lập tức tự động sinh ra 1 bảng lương Draft dở dang cho những ngày làm việc cuối cùng của nhân sự đó. Tiến trình chốt sổ của Kế toán kết thúc, hệ thống duyệt chốt luôn cả bản ghi Draft vừa mới sinh ra kia thay vì 54 bản ghi gốc ban đầu, thông báo UI trả về: "Đã chốt thành công 55 bản ghi" (hoặc báo lỗi sai lệch số lượng). Bản ghi bóng ma (Phantom Row) này đã thâm nhập vào quỹ thanh toán ngoài dự toán của kế toán.
+  HR1 cần chốt sổ toàn bộ 54 nhân viên trong tháng. HR1 vào màn hình UI "Quản lý Lương", thấy danh sách tổng là 54 người (trạng thái Chưa chốt - Draft). Kế toán bấm nút **"Xác nhận"** (Chốt bảng lương). Đột nhiên HR2 quyết định sa thải 1 nhân sự Bùi ngọc Hùng NV000006, trên giao diện Quản lý Nhân viên, HR2 chuyển trạng thái nhân viên này sang **"Nghỉ việc"** và lưu lại. Logic hệ thống lập tức tự động sinh ra 1 bảng lương Draft dở dang cho những ngày làm việc cuối cùng của nhân sự đó. Tiến trình chốt sổ của Kế toán kết thúc, hệ thống duyệt chốt luôn cả bản ghi Draft vừa mới sinh ra kia thay vì 54 bản ghi gốc ban đầu, thông báo UI trả về: "Đã chốt thành công 55 bản ghi" (hoặc báo lỗi sai lệch số lượng). Bản ghi bóng ma (Phantom Row) này đã thâm nhập vào quỹ thanh toán ngoài dự toán của kế toán.
 * **Danh sách các cách khắc phục:**
 
   1. Tăng mức độ cô lập lên `SERIALIZABLE`.
@@ -337,11 +337,11 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 * **Chi tiết Demo kết hợp UI & CSDL:**
   **Bước 1: Tái hiện lỗi**
 
-  - **Trên UI (Kế toán):** Thấy danh sách 54 nhân viên. Bấm nút **"Xác nhận"**.
+  - **Trên UI (hr1):** Thấy danh sách 54 nhân viên. Bấm nút **"Xác nhận"**.
     *(Dưới DB hệ thống đếm số lượng: `SELECT COUNT(*) FROM BangLuong WHERE Thang = 6 AND TrangThai = 'D';`, sau đó bị `SLEEP(10)`).*
-  - **Trên UI (HR - Trong 10s Sleep):** Chỉnh sửa nhân viên sang trạng thái Nghỉ việc và bấm **"Lưu thông tin"**.
+  - **Trên UI (HR2 - Trong 10s Sleep):** Chỉnh sửa nhân viên sang trạng thái Nghỉ việc và bấm **"Lưu thông tin"**.
     *(Dưới DB chạy lệnh UPDATE trạng thái nhân viên, sau đó tự động kích hoạt `INSERT INTO BangLuong (...) VALUES (..., 'D'); COMMIT;`)*.
-  - **Kết quả trên UI (Kế toán):** Sau khi chờ loading xong, màn hình Kế toán hiện Alert cảnh báo lỗi: *"Kế toán ban đầu duyệt 54 bản ghi, nhưng hệ thống lại chốt thành công 55 bản ghi"*. Dư ra 1 bóng ma.
+  - **Kết quả trên UI:** Sau khi chờ loading xong, màn hình Kế toán hiện Alert cảnh báo lỗi: *"Kế toán ban đầu duyệt 54 bản ghi, nhưng hệ thống lại chốt thành công 55 bản ghi"*. Dư ra 1 bóng ma.
 
   **Bước 2: Triển khai khắc phục (Đã thực hiện hoàn thiện bằng Bật/Tắt qua `.env`)**
 
