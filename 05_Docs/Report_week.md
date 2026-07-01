@@ -507,3 +507,51 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 3. Cài đặt lại **Tab 1** và **Tab 2** như bước 3, 4 ở Kịch bản 1.
 4. Lặp lại thao tác ấn **Lưu** nhanh ở Tab 1 rồi sang Tab 2.
 5. **Kết quả:** Lần này hệ thống Backend tuân thủ luật lấy khóa một chiều (`HopDong` -> `LuongCoBan`), không vòng ngược lại sửa `NhanVien`. Do đó, vòng lặp Deadlock bị phá vỡ. Cả hai tab sẽ đều xử lý trơn tru và hiện thông báo **"Lưu thành công"**. Không hề xảy ra tranh chấp dẫn đến bị ngắt tiến trình!
+
+---
+
+### 8. Lưu ý
+
+#### 8.1. Quy định mức Lương tối thiểu vùng trong dự án
+Bảng lương cơ bản tối thiểu được cấu hình bằng các ràng buộc dữ liệu (`CHECK CONSTRAINTS`) dưới Database để tránh nhập sai quy định pháp luật:
+* **Vùng 1:** Lương cơ bản tối thiểu từ **`4,960,000` VNĐ** (Áp dụng các khu vực đô thị đặc biệt như TP. Hồ Chí Minh, Hà Nội...).
+* **Vùng 2:** Lương cơ bản tối thiểu từ **`4,410,000` VNĐ** (Áp dụng các khu vực ngoại thành, thành phố trực thuộc tỉnh...).
+* **Vùng 3:** Lương cơ bản tối thiểu từ **`3,860,000` VNĐ** (Áp dụng các khu vực thị xã, huyện...).
+* **Vùng 4:** Lương cơ bản tối thiểu từ **`3,450,000` VNĐ** (Áp dụng các khu vực nông thôn, vùng sâu vùng xa...).
+
+#### 8.2. Ý nghĩa các ký hiệu/mã trạng thái trong dự án
+* **Trạng thái Nhân Viên (`NhanVien.TrangThai`):**
+  * `A` (Active): Đang làm việc / Hoạt động.
+  * `I` (Inactive): Nghỉ việc.
+  * `P` (Probation): Thử việc.
+  * `T` (Temporary): Tạm hoãn hợp đồng (Sử dụng đặc biệt trong logic mô phỏng lỗi Bóng Ma).
+* **Trạng thái Hợp Đồng (`HopDong.TrangThai`):**
+  * `A` (Active): Đang có hiệu lực.
+  * `E` (Expired): Đã hết hiệu lực.
+  * `D` (Draft): Bản nháp.
+* **Trạng thái Bảng Lương (`BangLuong.TrangThai`):**
+  * `D` (Draft): Bản nháp (Đang tính toán).
+  * `C` (Confirmed): Đã xác nhận / Đã chốt (Chờ thanh toán).
+  * `P` (Paid): Đã thanh toán thành công.
+  * `L` (Locked): Đã khóa dữ liệu.
+* **Mã Loại Hợp Đồng (`MaLoaiHD`):**
+  * `1`: Hợp đồng thử việc (Không bắt buộc đóng các loại bảo hiểm xã hội).
+  * `2`: Hợp đồng xác định thời hạn 1 năm.
+  * `3`: Hợp đồng xác định thời hạn 3 năm.
+  * `4`: Hợp đồng không xác định thời hạn.
+
+#### 8.3. Biểu thuế Thu nhập cá nhân (TNCN) lũy tiến 7 bậc
+Thuế TNCN đối với thu nhập từ tiền lương, tiền công được tính theo phương pháp lũy tiến từng phần (Thông tư 111/2013/TT-BTC) dựa trên Thu nhập tính thuế (TNTT):
+* **Giảm trừ gia cảnh:**
+  * Giảm trừ bản thân: **`11,000,000` VNĐ / tháng**.
+  * Giảm trừ người phụ thuộc: **`4,400,000` VNĐ / người / tháng**.
+* **Các bậc tính thuế:**
+  * **Bậc 1:** Thu nhập tính thuế đến `5,000,000` VNĐ / tháng — Thuế suất **5%**.
+  * **Bậc 2:** Thu nhập tính thuế trên `5,000,000` đến `10,000,000` VNĐ / tháng — Thuế suất **10%**.
+  * **Bậc 3:** Thu nhập tính thuế trên `10,000,000` đến `18,000,000` VNĐ / tháng — Thuế suất **15%**.
+  * **Bậc 4:** Thu nhập tính thuế trên `18,000,000` đến `32,000,000` VNĐ / tháng — Thuế suất **20%**.
+  * **Bậc 5:** Thu nhập tính thuế trên `32,000,000` đến `52,000,000` VNĐ / tháng — Thuế suất **25%**.
+  * **Bậc 6:** Thu nhập tính thuế trên `52,000,000` đến `80,000,000` VNĐ / tháng — Thuế suất **30%**.
+  * **Bậc 7:** Thu nhập tính thuế trên `80,000,000` VNĐ / tháng — Thuế suất **35%**.
+
+
