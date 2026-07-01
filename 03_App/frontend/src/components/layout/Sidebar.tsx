@@ -87,7 +87,7 @@ export function Sidebar() {
     <aside
       className={cn(
         "bg-slate-900 text-slate-300 h-screen transition-all duration-300 flex flex-col flex-shrink-0",
-        sidebarOpen ? "w-64" : "w-20"
+        sidebarOpen ? "w-64" : "w-20 overflow-visible"
       )}
     >
       <div className="h-16 flex items-center justify-center border-b border-slate-800 shrink-0">
@@ -96,7 +96,7 @@ export function Sidebar() {
         </span>
       </div>
       
-      <nav className="flex-1 py-4 overflow-y-auto sidebar-scrollbar">
+      <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden sidebar-scrollbar">
         <div className="space-y-6 px-3">
           {navGroups.map((group, index) => {
             // Filter items in the group that the user has permission to see
@@ -119,7 +119,8 @@ export function Sidebar() {
                         <Link
                           href={item.href}
                           className={cn(
-                            "relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 group",
+                            "relative flex items-center rounded-lg transition-all duration-300 group",
+                            sidebarOpen ? "justify-start gap-3 px-3 py-2.5" : "justify-center gap-0 px-3 py-2.5 w-full",
                             isActive 
                               ? "bg-indigo-500/15 text-indigo-400 font-semibold" 
                               : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-100"
@@ -133,7 +134,7 @@ export function Sidebar() {
                           
                           {/* Modern Floating Tooltip for Collapsed State */}
                           {!sidebarOpen && (
-                            <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-slate-800 text-white text-xs font-semibold rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 translate-x-[-10px] group-hover:translate-x-0 whitespace-nowrap z-50 pointer-events-none shadow-xl border border-slate-700">
+                            <div className="fixed left-20 ml-3 px-2.5 py-1.5 bg-slate-800 text-white text-xs font-semibold rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-out translate-x-[-8px] group-hover:translate-x-0 whitespace-nowrap z-50 pointer-events-none shadow-xl border border-slate-700">
                               {item.title}
                             </div>
                           )}
@@ -152,7 +153,8 @@ export function Sidebar() {
         <button
           onClick={() => logout()}
           className={cn(
-            "flex items-center gap-3 w-full px-3 py-2.5 rounded-md text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+            "flex items-center rounded-md text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors",
+            sidebarOpen ? "gap-3 w-full px-3 py-2.5" : "justify-center w-12 h-12"
           )}
           title="Đăng xuất"
         >

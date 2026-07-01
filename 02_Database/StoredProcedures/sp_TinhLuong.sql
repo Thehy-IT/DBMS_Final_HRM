@@ -213,12 +213,11 @@ BEGIN
                 
                 -- Lấy lại Lương cơ bản TỪ DATABASE một lần nữa cho các tính toán sau
                 -- (Cố tình vi phạm nguyên tắc sử dụng biến snapshot ban đầu, tạo ra Non-repeatable Read)
+                -- Đã loại bỏ ràng buộc NgayHieuLuc để demo có thể hoạt động ngay cả khi tính lương cho tháng cũ (như tháng 6)
                 SELECT lcb.LuongCB
                 INTO v_cur_LuongCB
                 FROM LuongCoBan lcb
-                WHERE lcb.MaNV        = v_cur_MaNV
-                  AND lcb.NgayHieuLuc <= v_NgayCuoiThang
-                  AND (lcb.NgayHetHieuLuc IS NULL OR lcb.NgayHetHieuLuc >= v_NgayDauThang)
+                WHERE lcb.MaNV = v_cur_MaNV
                 ORDER BY lcb.NgayHieuLuc DESC
                 LIMIT 1;
             END IF;

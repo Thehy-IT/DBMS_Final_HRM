@@ -38,7 +38,8 @@ const pool = mysql.createPool({
     queueLimit: 50,           // max request xếp hàng chờ connection
     connectTimeout: 10000,    // 10s connection timeout
     enableKeepAlive: true,
-    keepAliveInitialDelay: 0
+    keepAliveInitialDelay: 0,
+    multipleStatements: true
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'hrpayroll_super_secret_key';
@@ -1001,6 +1002,9 @@ app.put('/v1/contracts/:id', requireHR, async (req, res) => {
       // 2. Khóa NhanVien (Gây Deadlock vì A đang giữ khóa NhanVien và đòi khóa LuongCoBan)
       await connection.query("UPDATE NhanVien SET GhiChu = 'Cập nhật hợp đồng mới' WHERE MaNV = ?", [empId]);
 
+      // Lấy lương cơ bản hiện tại của Hợp đồng để check xem có đổi lương không
+      const [oldContract] = await connection.query('SELECT LuongCoBan FROM HopDong WHERE MaHD=?', [req.params.id]);
+
       // 3. Cập nhật Hợp đồng
       const query = `
         UPDATE HopDong 
@@ -1009,6 +1013,14 @@ app.put('/v1/contracts/:id', requireHR, async (req, res) => {
       `;
       await connection.query(query, [empId, typeId, startDate, endDate || null, salary, VungLuong || 1, status || 'A', req.params.id]);
 
+      // Đồng bộ sang LuongCoBan nếu đổi mức lương
+      if (oldContract.length > 0 && oldContract[0].LuongCoBan != salary) {
+        await connection.query(`UPDATE LuongCoBan SET NgayHetHieuLuc = CURDATE() - INTERVAL 1 DAY WHERE MaNV = ? AND NgayHetHieuLuc IS NULL`, [empId]);
+        await connection.query(`
+          INSERT INTO LuongCoBan (MaNV, LuongCB, LuongDongBH, NgayHieuLuc, LyDo, NguoiDuyet) 
+          VALUES (?, ?, ?, CURDATE(), 'Cập nhật từ Hợp Đồng (Deadlock)', 'HR')
+        `, [empId, salary, Math.min(salary, 46800000)]);
+      }
     } else {
       // Lấy lương cơ bản hiện tại của Hợp đồng
       const [oldContract] = await connection.query('SELECT LuongCoBan FROM HopDong WHERE MaHD=?', [req.params.id]);

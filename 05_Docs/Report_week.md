@@ -206,7 +206,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
        ```sql
        UPDATE NhanVien 
        SET MaSoThue = '9999999999', Version = Version + 1
-       WHERE MaNV = 'NV000008' AND Version = 1;
+       WHERE MaNV = 'NV000006' AND Version = 1;
        ```
 
        Nếu kết quả `affectedRows = 0`, trả về mã **409 Conflict** kèm thông báo lỗi.
@@ -226,7 +226,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
    ENABLE_OPTIMISTIC_LOCK=false
    ```
 2. Khởi động lại Server Backend để nhận cấu hình mới.
-3. Mở **2 trình duyệt** khác nhau (hoặc 1 Tab thường và 1 Tab ẩn danh) và cùng truy cập trang sửa hồ sơ của nhân viên `NV000008`. Lúc này, cả hai form đều có *Số điện thoại cũ, Mã số thuế cũ*.
+3. Mở **2 trình duyệt** khác nhau (hoặc 1 Tab thường và 1 Tab ẩn danh) và cùng truy cập trang sửa hồ sơ của nhân viên `NV000006`. Lúc này, cả hai form đều có *Số điện thoại cũ, Mã số thuế cũ*.
 4. **Ở Tab 1 (HR1):** Nhập Số điện thoại mới và ấn **Lưu**. Hệ thống báo thành công. (Bản ghi dưới DB lúc này đã đổi Số điện thoại mới nhưng Mã số thuế vẫn là cũ).
 5. **Ở Tab 2 (HR2):** Nhập Mã số thuế mới (vẫn giữ Số điện thoại cũ ban đầu trên form của B) và ấn **Lưu**. Hệ thống báo thành công.
 6. F5 tải lại trang. Giảng viên sẽ thấy **Số điện thoại mới mà HR A vừa sửa đã biến mất** (bị ghi đè bởi giá trị cũ trên form của B). Đây chính là lỗi Lost Update.
@@ -329,8 +329,8 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
   - Lần đọc 1: Lấy mức lương cơ bản hiện tại của nhân viên (VD: 25 triệu) để tính ra mức đóng Bảo Hiểm (BHXH).
   - Lần đọc 2 (Sau một khoảng thời gian xử lý các phép toán phức tạp): Lấy lại mức lương cơ bản để tính Tổng thu nhập và Thuế TNCN.
 
-  Ngay trong khoảng thời gian giữa 2 lần đọc đó, một chuyên viên Nhân sự (HR) quyết định **chỉnh sửa Lương cơ bản trực tiếp** dưới Database của nhân viên đó từ 25 triệu xuống 30 triệu (để vượt qua cơ chế chặn sửa của Trigger).
-  Hậu quả của Non-repeatable Read: Khi quá trình tính lương hoàn tất, Phiếu lương sinh ra sẽ hiển thị Lương Cơ Bản là 20 triệu (Lần đọc 2), nhưng số tiền đóng Bảo hiểm lại tính trên mức 25 triệu (Lần đọc 1). Kế toán nhìn vào bảng lương trên giao diện sẽ thấy ngay một bút toán "sai bét" rành rành (Ví dụ: 8% của 20 triệu phải là 1.6 triệu, nhưng hệ thống lại hiện 2 triệu vì tính trên lương 25 triệu cũ).
+  Ngay trong khoảng thời gian giữa 2 lần đọc đó, một chuyên viên Nhân sự (HR) quyết định **chỉnh sửa Lương cơ bản trực tiếp** dưới Database của nhân viên đó từ 25 triệu lên 30 triệu (để vượt qua cơ chế chặn sửa của Trigger).
+  Hậu quả của Non-repeatable Read: Khi quá trình tính lương hoàn tất, Phiếu lương sinh ra sẽ hiển thị Lương Cơ Bản là 30 triệu (Lần đọc 2), nhưng số tiền đóng Bảo hiểm lại tính trên mức 25 triệu (Lần đọc 1). Kế toán nhìn vào bảng lương trên giao diện sẽ thấy ngay một bút toán "sai bét" rành rành (Ví dụ: 8% của 30 triệu phải là 2.4 triệu, nhưng hệ thống lại hiện 2 triệu vì tính trên lương 25 triệu cũ).
 * **Danh sách các cách khắc phục:**
 
   1. **Khóa bi quan (Pessimistic Locking) bằng `SELECT ... FOR UPDATE`**: Khi đọc Lương Cơ Bản ở Lần 1, ta khóa luôn bản ghi đó. HR muốn sửa lương sẽ bị treo chờ cho đến khi quá trình tính lương hoàn tất. Tuy nhiên, quá trình tính lương thường mất rất lâu, việc khóa này có thể làm tê liệt mọi thao tác liên quan đến nhân sự.
@@ -339,38 +339,25 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 * **Lựa chọn cách tốt nhất & Lý do:**
   Cách tốt nhất thực tiễn là **Sử dụng biến cục bộ (Local Variable Snapshot)**.
   Lý do: Đây là giải pháp xử lý triệt để ở tầng Application/Procedure Logic. Không cần thay đổi mức độ cô lập (Isolation level), không tốn chi phí khóa (Locking) làm nghẽn hệ thống. Dữ liệu trong suốt một quá trình tính toán dài được đảm bảo tính nhất quán nội tại hoàn hảo.
-* **Chi tiết Demo kết hợp UI & CSDL (Sử dụng cách Cập nhật trực tiếp):**
+* **Chi tiết Demo kết hợp UI (Thực hiện hoàn toàn qua Giao diện thay vì dùng SQL Workbench):**
 
   **Bước 1: Tái hiện lỗi (Bất nhất dữ liệu)**
 
-  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
-     ```env
-     DEMO_NON_REPEATABLE_READ=true
-     ```
-  2. Khởi động lại Server Backend. Đảm bảo nhân viên `NV000006` đang có lương cơ bản là `25,000,000`.
-  3. Mở giao diện UI (Kế toán) và công cụ MySQL Workbench (HR):
-     - **Trên UI (Kế toán)**: Vào màn hình **"Bảng Lương"** (`/payroll`), chọn tháng hiện tại và ấn nút **"Tính Lương"**. Hệ thống sẽ bắt đầu xoay (Loading) do đã được giả lập thời gian trễ 15 giây.
-     - **Trên MySQL Workbench (HR)**: Ngay lập tức (trong 15s đó), mở tab Query mới và chạy lệnh UPDATE trực tiếp để thay đổi lương mà không bị vướng Trigger lịch sử lương:
-       ```sql
-       -- Phải cập nhật cả LuongDongBH để không vi phạm ràng buộc CK_LCB_DongBH
-       UPDATE LuongCoBan 
-       SET LuongCB = 30000000, LuongDongBH = 30000000
-       WHERE MaNV = 'NV000006' AND NgayHetHieuLuc IS NULL;
-       ```
-  4. **Kết quả trên UI**: Sau 15 giây, quá trình tính lương trên UI hoàn tất. Kế toán tải lại trang Bảng lương hoặc xem chi tiết Phiếu lương của `NV000006`. Giảng viên sẽ thấy rõ ràng:
-     - Cột **Lương Cơ Bản**: `20,000,000 ₫` (Đã nhận mức lương mới — bị đọc lại từ DB).
-     - Cột **BHXH NLD (8%)**: `2,000,000 ₫` (Hệ thống tính sai, vì tính dựa trên lương 25tr ban đầu — Lần đọc 1).
-       Đây là minh chứng trực quan nhất cho thấy sự bất nhất (Non-repeatable read) trong cùng một chu trình xử lý!
+  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành `DEMO_NON_REPEATABLE_READ=true` và khởi động lại Server.
+  2. Đảm bảo nhân viên `NV000006` đang có lương cơ bản mặc định là `25,000,000 ₫`.
+  3. **Thao tác song song trên UI (Mở 2 Tab trình duyệt):**
+     - **Tab 1 (HR1 - Tính lương)**: Vào màn hình **"Bảng Lương"** (`/payroll`). Bạn có thể chọn tháng trước đó (ví dụ tháng 6) dù thời gian hiện tại là tháng khác, rồi ấn nút **"Tính Lương"**. Hệ thống sẽ bắt đầu xoay (Loading) do đã được giả lập thời gian trễ 15 giây.
+     - **Tab 2 (HR2 - Cập nhật hợp đồng)**: Ngay lập tức (trong 15s đó), vào màn hình **"Hợp đồng"**, tìm Hợp đồng của `NV000006` và thực hiện sửa đổi mức **Lương cơ bản** từ `25,000,000` thành `30,000,000` rồi Lưu lại. *(Lưu ý: Nhờ cải tiến thủ tục ở chế độ demo, hệ thống vẫn áp dụng mức thay đổi này dù bạn đang tính lương cho tháng cũ).*
+  4. **Kết quả trên UI**: Sau 15 giây, quá trình tính lương ở Tab 1 hoàn tất. HR1 tải lại trang Bảng lương và bấm xem **Phiếu Lương** chi tiết của `NV000006`. Bạn sẽ thấy rõ sự sai lệch:
+     - Dòng **Lương Cơ Bản hiển thị**: `30,000,000 ₫` (Đã nhận mức lương mới do bị đọc lại từ DB ở Lần 2).
+     - Số tiền **Khấu trừ BHXH (8%)**: Vẫn là `2,000,000 ₫` (Hệ thống tính sai! 8% của 30 triệu đáng lẽ phải là 2.4 triệu, nhưng máy lại tính theo 25 triệu lúc ban đầu — Lần đọc 1).
+       Đây là minh chứng trực quan nhất cho thấy lỗi không đọc lại được dữ liệu thực tế (Non-repeatable read) có thể demo dễ dàng 100% bằng giao diện UI!
 
   **Bước 2: Trình diễn tính năng Khắc phục (Sử dụng biến Snapshot)**
 
-  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
-     ```env
-     DEMO_NON_REPEATABLE_READ=false
-     ```
-  2. Khởi động lại Server Backend. Đổi lại Lương nhân viên `NV000006` về `25,000,000` (Bằng cách tương tự trên Workbench: `UPDATE LuongCoBan SET LuongCB = 25000000, LuongDongBH = 25000000 WHERE MaNV = 'NV000006' AND NgayHetHieuLuc IS NULL;`).
-  3. Thực hiện lại y hệt **Bước 3** ở trên (Kế toán bấm Tính lương trên UI -> HR chạy lệnh UPDATE xuống 20tr trong Workbench).
-  4. **Kết quả**: Khi xem lại bảng lương trên UI, toàn bộ mức lương, BHXH và thuế đều được tính toán nhất quán dựa trên mức lương `25,000,000` (giá trị Snapshot ở thời điểm bắt đầu tính lương). Dù lệnh UPDATE 20tr của HR thành công ở giữa quá trình, mức lương 20tr này sẽ không làm xáo trộn phép tính hiện tại mà chỉ được áp dụng vào kỳ tính lương tháng sau. Không còn lỗi bất đồng bộ!
+  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env), đổi cấu hình về `DEMO_NON_REPEATABLE_READ=false` và khởi động lại Server. Đổi lại lương của `NV000006` về `25,000,000` trên UI Hợp đồng.
+  2. Thực hiện lại y hệt thao tác ở **Bước 3** (Tab 1 bấm Tính lương -> Tab 2 đổi Hợp đồng lên 30 triệu).
+  3. **Kết quả**: Khi xem lại bảng lương trên UI, toàn bộ mức lương, số tiền BHXH và các loại phụ phí đều được tính toán nhất quán dựa trên mức lương `25,000,000` (giá trị Snapshot ban đầu). Việc cập nhật hợp đồng lên 30 triệu của HR2 ở Tab 2 thành công nhưng không làm xáo trộn phép tính đang chạy, mức 30 triệu đó sẽ được áp dụng an toàn vào kỳ tính lương tháng sau. Không còn lỗi bất đồng bộ!
      *(Ghi chú kỹ thuật: Ở chế độ chuẩn `false`, `sp_TinhLuong.sql` được tối ưu hoá chỉ SELECT Lương 1 lần duy nhất đầu thủ tục, xoá bỏ điểm yếu đọc 2 lần sinh ra sai lệch).*
 
 #### 6.4. Bóng ma (Phantom Read)
