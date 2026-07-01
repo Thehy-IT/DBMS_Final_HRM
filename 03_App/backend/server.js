@@ -1091,6 +1091,26 @@ app.post('/v1/employees', requireHR, async (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     await pool.query(query, [MaNV, HoTen, GioiTinh, NgaySinh, CCCD, SoDienThoai, Email, DiaChi || null, MaPB, MaCV, NgayVaoLam, NgayNghiViec || null, finalMaSoThue, SoTaiKhoanNH || null, TenNganHang || null, SoNguoiPhuThuoc || 0, GhiChu || null, TrangThai || 'A']);
+
+    // [PHẦN MÔ PHỎNG LỖI ĐỒNG THỜI - BÓNG MA (Phantom Read)]
+    // Khi thêm nhân viên mới, nếu đang ở chế độ demo Bóng Ma, tự động sinh 1 bảng lương Draft cho tháng lương hiện tại đang xét duyệt
+    const isPhantomReadDemo = process.env.DEMO_PHANTOM_READ === 'true';
+    if (isPhantomReadDemo) {
+      try {
+        const [drafts] = await pool.query(`SELECT Thang, Nam FROM BangLuong WHERE TrangThai = 'D' ORDER BY Nam DESC, Thang DESC LIMIT 1`);
+        if (drafts.length > 0) {
+          const targetMonth = drafts[0].Thang;
+          const targetYear = drafts[0].Nam;
+          await pool.query(`
+            INSERT IGNORE INTO BangLuong (MaNV, Thang, Nam, LuongCoBan, SoNgayCong, TrangThai) 
+            VALUES (?, ?, ?, 10000000, 22, 'D')
+          `, [MaNV, targetMonth, targetYear]);
+        }
+      } catch (e) {
+        console.error("Lỗi khi giả lập Bóng Ma khi thêm nhân viên:", e);
+      }
+    }
+
     res.status(201).json({ message: 'Created successfully', data: { MaNV } });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1413,143 +1433,6 @@ app.all('/v1/demo/slow-onboarding', async (req, res) => {
     connection.release();
   }
 });
-
-
-
-
-// --- DEMO API PHANTOM READ ---
-app.get('/v1/demo/close-payroll', async (req, res) => {
-  const isPhantomReadDemo = process.env.DEMO_PHANTOM_READ === 'true';
-  const connection = await pool.getConnection();
-  try {
-    // REPEATABLE READ allows Phantom Reads if we don't use FOR UPDATE
-    await connection.query('SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;');
-    await connection.query('START TRANSACTION;');
-    
-    // Bước 1: Đếm số lượng bảng lương Draft
-    let countQuery = "SELECT COUNT(*) as count FROM BangLuong WHERE Thang = 5 AND Nam = 2026 AND TrangThai = 'D'";
-    if (!isPhantomReadDemo) {
-      countQuery += " FOR UPDATE"; // Next-Key Locking
-    }
-    
-    const [rows] = await connection.query(countQuery);
-    const initialCount = rows[0].count;
-
-    // Kế toán đang lúi húi kiểm tra chứng từ (Sleep 10s)
-    await connection.query('DO SLEEP(10);');
-
-    // Bước 2: Chốt sổ (Chuyển D -> C)
-    const [updateResult] = await connection.query(`
-      UPDATE BangLuong 
-      SET TrangThai = 'C' 
-      WHERE Thang = 5 AND Nam = 2026 AND TrangThai = 'D'
-    `);
-    
-    const affectedRows = updateResult.affectedRows;
-    
-    await connection.query('COMMIT;');
-
-    // Dọn dẹp dữ liệu để test lại dễ dàng
-    await pool.query("UPDATE BangLuong SET TrangThai = 'D' WHERE Thang = 5 AND Nam = 2026 AND TrangThai = 'C'");
-    await pool.query("DELETE FROM BangLuong WHERE MaNV = 'NV000099' AND Thang = 5 AND Nam = 2026");
-
-    res.json({
-      locking_strategy: isPhantomReadDemo ? 'Không dùng FOR UPDATE' : 'Sử dụng SELECT ... FOR UPDATE',
-      initial_draft_count: initialCount,
-      actually_closed_count: affectedRows,
-      status: affectedRows > initialCount 
-        ? 'CẢNH BÁO: Đã xảy ra Bóng ma (Phantom Read)! Dư ra ' + (affectedRows - initialCount) + ' bản ghi.' 
-        : 'Tuyệt vời: Dữ liệu nhất quán, không có bóng ma lọt vào.'
-    });
-  } catch (error) {
-    await connection.query('ROLLBACK;');
-    res.status(500).json({ error: error.message });
-  } finally {
-    connection.release();
-  }
-});
-
-app.post('/v1/demo/fire-employee', async (req, res) => {
-  const connection = await pool.getConnection();
-  try {
-    await connection.query('START TRANSACTION;');
-    // Đảm bảo tạo mới nhân viên NV000099 nếu chưa có trong DB (để không vi phạm FK_BL_NhanVien)
-    await connection.query(`INSERT IGNORE INTO NhanVien (MaNV, HoTen, GioiTinh, NgaySinh, CCCD, MaPB, MaCV, NgayVaoLam, Version) VALUES ('NV000099', 'Bóng Ma', 'M', '1990-01-01', '999999999999', 'PB0001', 'CV0001', '2020-01-01', 1)`);
-
-    // Chèn dòng lương Draft cho nhân viên vừa nghỉ
-    await connection.query(`
-      INSERT INTO BangLuong (MaNV, Thang, Nam, LuongCoBan, SoNgayCong, TrangThai) 
-      VALUES ('NV000099', 5, 2026, 10000000, 10, 'D')
-      ON DUPLICATE KEY UPDATE TrangThai = 'D'
-    `);
-    await connection.query('COMMIT;');
-    res.json({ message: 'HR generated final draft payroll for fired employee successfully.' });
-  } catch (error) {
-    await connection.query('ROLLBACK;');
-    res.status(500).json({ error: error.message });
-  } finally {
-    connection.release();
-  }
-});
-
-// --- DEMO API DEADLOCK ---
-app.post('/v1/demo/promote-employee', async (req, res) => {
-  const connection = await pool.getConnection();
-  try {
-    await connection.query('START TRANSACTION;');
-    
-    // Bước 1: Khóa bảng NhanVien
-    await connection.query("UPDATE NhanVien SET MaCV = 'CV0002' WHERE MaNV = 'NV000001'");
-    
-    // Ngủ 5 giây để chờ Giao dịch B khóa bảng LuongCoBan
-    await connection.query('DO SLEEP(5);');
-    
-    // Bước 2: Khóa bảng LuongCoBan
-    await connection.query("UPDATE LuongCoBan SET LuongCB = 50000000 WHERE MaNV = 'NV000001'");
-    
-    await connection.query('COMMIT;');
-    res.json({ message: 'Tiến trình A (Thăng chức) chạy xong: Cập nhật NhanVien -> LuongCoBan thành công.' });
-  } catch (error) {
-    await connection.query('ROLLBACK;');
-    res.status(500).json({ error: error.message, tiến_trình: 'A' });
-  } finally {
-    connection.release();
-  }
-});
-
-app.post('/v1/demo/discipline-employee', async (req, res) => {
-  const isDeadlockDemo = process.env.DEMO_DEADLOCK === 'true';
-  const connection = await pool.getConnection();
-  try {
-    await connection.query('START TRANSACTION;');
-    
-    if (isDeadlockDemo) {
-      // ❌ SAI THỨ TỰ LẤY KHÓA (Gây Deadlock với Tiến trình A)
-      // Bước 1: Khóa LuongCoBan trước
-      await connection.query("UPDATE LuongCoBan SET LuongCB = 10000000 WHERE MaNV = 'NV000001'");
-      await connection.query('DO SLEEP(5);');
-      // Bước 2: Cố gắng khóa NhanVien (Bị T1 chặn -> T1 lại chờ T2 nhả LuongCoBan -> DEADLOCK)
-      await connection.query("UPDATE NhanVien SET MaCV = 'CV0001' WHERE MaNV = 'NV000001'");
-    } else {
-      // ✅ ĐÚNG THỨ TỰ LẤY KHÓA (Cùng chiều với Tiến trình A: NhanVien -> LuongCoBan)
-      await connection.query("UPDATE NhanVien SET MaCV = 'CV0001' WHERE MaNV = 'NV000001'");
-      await connection.query('DO SLEEP(5);');
-      await connection.query("UPDATE LuongCoBan SET LuongCB = 10000000 WHERE MaNV = 'NV000001'");
-    }
-    
-    await connection.query('COMMIT;');
-    res.json({ 
-      message: 'Tiến trình B (Kỷ luật) chạy xong.',
-      locking_order: isDeadlockDemo ? 'NGƯỢC CHIỀU (LuongCoBan -> NhanVien)' : 'CÙNG CHIỀU (NhanVien -> LuongCoBan)'
-    });
-  } catch (error) {
-    await connection.query('ROLLBACK;');
-    res.status(500).json({ error: error.message, tiến_trình: 'B' });
-  } finally {
-    connection.release();
-  }
-});
-
 app.listen(PORT, () => {
   console.log(`🚀 HRM Backend API is running at http://localhost:${PORT}`);
 });
