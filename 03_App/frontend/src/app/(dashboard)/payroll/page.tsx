@@ -65,6 +65,8 @@ export default function PayrollPage() {
       // Alert the exact error from our phantom read simulator
       const msg = error.response?.data?.error || error.message;
       alert(msg);
+      // Tự động load lại dữ liệu để Giảng viên thấy luôn "bóng ma" vừa xuất hiện trên lưới dữ liệu
+      queryClient.invalidateQueries({ queryKey: ['payroll'] });
     }
   });
 

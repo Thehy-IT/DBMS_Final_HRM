@@ -221,26 +221,25 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 
   #### Kịch bản 1: Tái hiện lỗi Lost Update ban đầu (Trước khi sửa)
 
+1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
+   ```env
+   ENABLE_OPTIMISTIC_LOCK=false
+   ```
+2. Khởi động lại Server Backend để nhận cấu hình mới.
+3. Mở **2 trình duyệt** khác nhau (hoặc 1 Tab thường và 1 Tab ẩn danh) và cùng truy cập trang sửa hồ sơ của nhân viên `NV000008`. Lúc này, cả hai form đều có *Số điện thoại cũ, Mã số thuế cũ*.
+4. **Ở Tab 1 (HR1):** Nhập Số điện thoại mới và ấn **Lưu**. Hệ thống báo thành công. (Bản ghi dưới DB lúc này đã đổi Số điện thoại mới nhưng Mã số thuế vẫn là cũ).
+5. **Ở Tab 2 (HR2):** Nhập Mã số thuế mới (vẫn giữ Số điện thoại cũ ban đầu trên form của B) và ấn **Lưu**. Hệ thống báo thành công.
+6. F5 tải lại trang. Giảng viên sẽ thấy **Số điện thoại mới mà HR A vừa sửa đã biến mất** (bị ghi đè bởi giá trị cũ trên form của B). Đây chính là lỗi Lost Update.
 
-  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
-     ```env
-     ENABLE_OPTIMISTIC_LOCK=false
-     ```
-  2. Khởi động lại Server Backend để nhận cấu hình mới.
-  3. Mở **2 trình duyệt** khác nhau (hoặc 1 Tab thường và 1 Tab ẩn danh) và cùng truy cập trang sửa hồ sơ của nhân viên `NV000008`. Lúc này, cả hai form đều có *Số điện thoại cũ, Mã số thuế cũ*.
-  4. **Ở Tab 1 (HR1):** Nhập Số điện thoại mới và ấn **Lưu**. Hệ thống báo thành công. (Bản ghi dưới DB lúc này đã đổi Số điện thoại mới nhưng Mã số thuế vẫn là cũ).
-  5. **Ở Tab 2 (HR2):** Nhập Mã số thuế mới (vẫn giữ Số điện thoại cũ ban đầu trên form của B) và ấn **Lưu**. Hệ thống báo thành công.
-  6. F5 tải lại trang. Giảng viên sẽ thấy **Số điện thoại mới mà HR A vừa sửa đã biến mất** (bị ghi đè bởi giá trị cũ trên form của B). Đây chính là lỗi Lost Update.
+**Kịch bản 2: Trình diễn tính năng Khắc phục (Khóa lạc quan)**
 
-  #### Kịch bản 2: Trình diễn tính năng Khắc phục (Khóa lạc quan)
-
-  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
-     ```env
-     ENABLE_OPTIMISTIC_LOCK=true
-     ```
-  2. Khởi động lại Server Backend.
-  3. Thực hiện lại y hệt các bước từ **3 đến 5** ở Kịch bản 1.
-  4. **Kết quả:** Khi HR B ở Tab 2 ấn **Lưu**, hệ thống sẽ chặn lại ngay lập tức và hiện thông báo lỗi: **"Dữ liệu đã được cập nhật bởi một người khác. Vui lòng tải lại trang!"**. Số điện thoại của HR A được bảo toàn nguyên vẹn. Giao diện được kiểm soát chặt chẽ.
+1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
+   ```env
+   ENABLE_OPTIMISTIC_LOCK=true
+   ```
+2. Khởi động lại Server Backend.
+3. Thực hiện lại y hệt các bước từ **3 đến 5** ở Kịch bản 1.
+4. **Kết quả:** Khi HR B ở Tab 2 ấn **Lưu**, hệ thống sẽ chặn lại ngay lập tức và hiện thông báo lỗi: **"Dữ liệu đã được cập nhật bởi một người khác. Vui lòng tải lại trang!"**. Số điện thoại của HR A được bảo toàn nguyên vẹn. Giao diện được kiểm soát chặt chẽ.
 
 #### 6.2. Đọc dữ liệu rác (Dirty Read)
 
@@ -298,118 +297,40 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 
   #### Kịch bản 1: Tái hiện lỗi Dirty Read ban đầu (Trước khi sửa)
 
+1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
+   ```env
+   DEMO_DIRTY_READ=true
+   ```
+2. Khởi động lại Server Backend và mở sẵn trình duyệt ở trang Dashboard.
+3. Mở Terminal / Command Prompt hoặc Postman và gọi API giả lập giao dịch treo (Onboarding):
+   ```bash
+   curl.exe -X POST http://localhost:8080/v1/demo/slow-onboarding
+   ```
+4. Ngay lập tức (trong vòng 10 giây trước khi lệnh curl trên chạy xong), quay lại trình duyệt và **nhấn F5 (Tải lại trang)** Dashboard.
+5. **Kết quả:** Giảng viên sẽ thấy biểu đồ và thẻ **`Tổng nhân viên`** tăng lên thêm 1 người. Việc chụp ảnh hoặc quay video khoảnh khắc này sẽ là minh chứng vật lý rõ ràng nhất cho thấy hệ thống đã cung cấp dữ liệu sai lệch cho báo cáo nhân sự.
+6. Sau 10 giây, tiến trình chậm ở bước 3 kết thúc và tự động ROLLBACK. Nếu tiếp tục F5 trình duyệt ở bước 4, số lượng nhân viên sẽ tự động sụt giảm về mốc cũ (Dirty Read). Kết quả chớp nhoáng lấy được ở bước 5 chính là bằng chứng không thể chối cãi cho việc UI đã đọc phải dữ liệu rác.
 
-  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
-     ```env
-     DEMO_DIRTY_READ=true
-     ```
-  2. Khởi động lại Server Backend và mở sẵn trình duyệt ở trang Dashboard.
-  3. Mở Terminal / Command Prompt hoặc Postman và gọi API giả lập giao dịch treo (Onboarding):
-     ```bash
-     curl.exe -X POST http://localhost:8080/v1/demo/slow-onboarding
-     ```
-  4. Ngay lập tức (trong vòng 10 giây trước khi lệnh curl trên chạy xong), quay lại trình duyệt và **nhấn F5 (Tải lại trang)** Dashboard.
-  5. **Kết quả:** Giảng viên sẽ thấy biểu đồ và thẻ **`Tổng nhân viên`** tăng lên thêm 1 người. Việc chụp ảnh hoặc quay video khoảnh khắc này sẽ là minh chứng vật lý rõ ràng nhất cho thấy hệ thống đã cung cấp dữ liệu sai lệch cho báo cáo nhân sự.
-  6. Sau 10 giây, tiến trình chậm ở bước 3 kết thúc và tự động ROLLBACK. Nếu tiếp tục F5 trình duyệt ở bước 4, số lượng nhân viên sẽ tự động sụt giảm về mốc cũ (Dirty Read). Kết quả chớp nhoáng lấy được ở bước 5 chính là bằng chứng không thể chối cãi cho việc UI đã đọc phải dữ liệu rác.
+**Kịch bản 2: Trình diễn tính năng Khắc phục (Isolation Level)**
 
-  #### Kịch bản 2: Trình diễn tính năng Khắc phục (Isolation Level)
+1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env), đổi cấu hình thành:
+   ```env
+   DEMO_DIRTY_READ=false
+   ```
+2. Khởi động lại Server Backend.
+3. Gọi lại lệnh API giả lập ở Bước 3 của kịch bản 1.
+4. Ngay lập tức quay lại trình duyệt và **nhấn F5 (Tải lại trang)** Dashboard.
+5. **Kết quả:** Dashboard trả về số lượng nhân viên hoàn toàn chính xác (không bị tăng). Mức độ cô lập `READ COMMITTED` đã chặn luồng đọc dữ liệu khỏi việc quét qua dòng dữ liệu nhân viên đang trong trạng thái `UNCOMMITTED`. Dữ liệu hiển thị (Tổng nhân viên) trên UI không bị sai lệch dù đang có giao dịch Onboarding chạy song song.
 
-  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env), đổi cấu hình thành:
-     ```env
-     DEMO_DIRTY_READ=false
-     ```
-  2. Khởi động lại Server Backend.
-  3. Gọi lại lệnh API giả lập ở Bước 3 của kịch bản 1.
-  4. Ngay lập tức quay lại trình duyệt và **nhấn F5 (Tải lại trang)** Dashboard.
-  5. **Kết quả:** Dashboard trả về số lượng nhân viên hoàn toàn chính xác (không bị tăng). Mức độ cô lập `READ COMMITTED` đã chặn luồng đọc dữ liệu khỏi việc quét qua dòng dữ liệu nhân viên đang trong trạng thái `UNCOMMITTED`. Dữ liệu hiển thị (Tổng nhân viên) trên UI không bị sai lệch dù đang có giao dịch Onboarding chạy song song.
-
-#### 6.3. Bóng ma (Phantom Read)
-
-* **Ngữ cảnh đặc trưng mang tính hệ thống:**
-  HR1 cần chốt sổ toàn bộ 54 nhân viên trong tháng. HR1 vào màn hình UI "Quản lý Lương", thấy danh sách tổng là 54 người (trạng thái Chưa chốt - Draft). Kế toán bấm nút **"Xác nhận"** (Chốt bảng lương). Đột nhiên HR2 quyết định sa thải 1 nhân sự Bùi ngọc Hùng NV000006, trên giao diện Quản lý Nhân viên, HR2 chuyển trạng thái nhân viên này sang **"Nghỉ việc"** và lưu lại. Logic hệ thống lập tức tự động sinh ra 1 bảng lương Draft dở dang cho những ngày làm việc cuối cùng của nhân sự đó. Tiến trình chốt sổ của Kế toán kết thúc, hệ thống duyệt chốt luôn cả bản ghi Draft vừa mới sinh ra kia thay vì 54 bản ghi gốc ban đầu, thông báo UI trả về: "Đã chốt thành công 55 bản ghi" (hoặc báo lỗi sai lệch số lượng). Bản ghi bóng ma (Phantom Row) này đã thâm nhập vào quỹ thanh toán ngoài dự toán của kế toán.
-* **Danh sách các cách khắc phục:**
-
-  1. Tăng mức độ cô lập lên `SERIALIZABLE`.
-  2. Sử dụng Next-Key Locking với `SELECT ... FOR UPDATE` trong mức `REPEATABLE READ` của InnoDB.
-* **Lựa chọn cách tốt nhất & Lý do:**
-  Cách tốt nhất là **Sử dụng Next-Key Locking (`SELECT ... FOR UPDATE`) trong `REPEATABLE READ`**.
-  Lý do: Mức `SERIALIZABLE` gây khóa đọc toàn cục làm treo hệ thống. InnoDB ở mức `REPEATABLE READ` hỗ trợ Next-Key Locking, chỉ cần gọi `SELECT * FROM BangLuong WHERE TrangThai='D' FOR UPDATE`, nó sẽ khóa chặt "khoảng không gian" (gap) điều kiện này. Thao tác Lưu thông tin nghỉ việc của HR trên UI sẽ quay vòng vòng chờ (Block) cho tới khi kế toán chốt sổ xong.
-* **Chi tiết Demo kết hợp UI & CSDL:**
-  **Bước 1: Tái hiện lỗi**
-
-  - **Trên UI (hr1):** Thấy danh sách 54 nhân viên. Bấm nút **"Xác nhận"**.
-    *(Dưới DB hệ thống đếm số lượng: `SELECT COUNT(*) FROM BangLuong WHERE Thang = 6 AND TrangThai = 'D';`, sau đó bị `SLEEP(10)`).*
-  - **Trên UI (HR2 - Trong 10s Sleep):** Chỉnh sửa nhân viên sang trạng thái Nghỉ việc và bấm **"Lưu thông tin"**.
-    *(Dưới DB chạy lệnh UPDATE trạng thái nhân viên, sau đó tự động kích hoạt `INSERT INTO BangLuong (...) VALUES (..., 'D'); COMMIT;`)*.
-  - **Kết quả trên UI:** Sau khi chờ loading xong, màn hình Kế toán hiện Alert cảnh báo lỗi: *"Kế toán ban đầu duyệt 54 bản ghi, nhưng hệ thống lại chốt thành công 55 bản ghi"*. Dư ra 1 bóng ma.
-
-  **Bước 2: Triển khai khắc phục (Đã thực hiện hoàn thiện bằng Bật/Tắt qua `.env`)**
-
-  1. **Cấu hình môi trường (Bật/Tắt chế độ Gap/Next-Key Locking)**:
-     Thêm biến môi trường trong file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env):
-
-     ```env
-     DEMO_PHANTOM_READ=true
-     ```
-
-     * `true`: Không sử dụng `FOR UPDATE` (Tái hiện lỗi Bóng Ma trong môi trường REPEATABLE READ mặc định của MySQL vì MySQL không khóa Insert mới).
-     * `false`: Gắn thêm lệnh `FOR UPDATE` vào cuối câu `SELECT` đếm số lượng. Kích hoạt Next-Key Locking khóa toàn bộ khoảng trống (Gap Lock), triệt tiêu lỗi.
-  2. **Xử lý tại API Backend ([server.js](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/server.js))**:
-     Hệ thống đã chèn trực tiếp logic theo dõi Bóng ma vào các luồng nghiệp vụ thực tế của Frontend:
-
-     - **API Xác nhận bảng lương (`PUT /v1/payroll/confirm`):**
-       (Đếm số bảng lương Draft hiện có, sau đó `SLEEP(10)` mô phỏng đang xử lý tổng hợp dữ liệu, và cuối cùng `UPDATE` toàn bộ sang trạng thái Closed 'C'. Nếu biến môi trường là false, hệ thống sẽ tự động nối thêm `FOR UPDATE` ở câu `SELECT COUNT`).
-     - **API Cập nhật nhân viên (`PUT /v1/employees/:id`):**
-       (Khi HR thay đổi trạng thái nhân sự thành 'T' (Nghỉ việc), hệ thống lập tức `INSERT` một bảng lương Draft 'D' dở dang vào tháng hiện hành của nhân sự đó).
-
-  ---
-
-  ### HƯỚNG DẪN DEMO CHO GIẢNG VIÊN (PHANTOM READ)
-
-  *Kịch bản này sử dụng trực tiếp các thao tác thực tế trên giao diện hệ thống (không dùng trang demo riêng) để cho thấy lỗi phát sinh như thế nào trong môi trường sản xuất thực tế.*
-
-  #### Kịch bản 1: Tái hiện lỗi Bóng Ma ban đầu (Trước khi sửa)
-
-
-  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
-     ```env
-     DEMO_PHANTOM_READ=true
-     ```
-  2. Khởi động lại Server Backend.
-  3. Mở 2 Tab trình duyệt (tượng trưng cho 2 nhân sự đang làm việc đồng thời):
-     - **Tab 1 (hr1):** Vào trang Quản lý Lương (`http://localhost:3000/payroll`), chọn tháng hiện tại (đảm bảo đang có danh sách các bảng lương ở trạng thái **Chưa chốt**).
-     - **Tab 2 (HR2):** Vào trang Quản lý Nhân viên (`http://localhost:3000/employees`), chọn 1 nhân viên bất kỳ (VD: `NV000006`) và bấm **Sửa**. Ở form sửa, để sẵn trạng thái là **Nghỉ việc**.
-  4. Ở **Tab 1 (Kế toán)**, bấm nút **"Xác nhận"** (để duyệt chốt lương). Nút sẽ quay loading chờ 10 giây (do hệ thống mô phỏng độ trễ xử lý).
-  5. Ngay lập tức (trong vòng 10 giây đó), chuyển sang **Tab 2 (HR)** và bấm nút **"Lưu thông tin"** để cho nhân viên nghỉ việc.
-  6. **Kết quả:**
-     - Màn hình HR2 sẽ báo lưu thành công ngay lập tức.
-     - Sau đó khi Kế toán quay xong đủ 10s, màn hình Kế toán sẽ văng ra cảnh báo Alert: `"LỖI BÓNG MA (Phantom Read)! Kế toán ban đầu duyệt X bản ghi, nhưng hệ thống lại chốt thành công X+1 bản ghi. Dư ra 1 bóng ma!"`.
-     - Lý do: Khi HR báo nghỉ việc, hệ thống tự động sinh ra 1 bảng lương Draft (lương những ngày làm việc cuối). Câu lệnh `UPDATE` ở cuối quy trình của Kế toán đã vô tình quét trúng bản ghi Draft mới sinh đó và chốt luôn, biến nó thành Bóng Ma làm sai lệch số lượng Kế toán tính toán ban đầu.
-
-  #### Kịch bản 2: Trình diễn tính năng Khắc phục (Next-Key Locking)
-
-  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env), đổi cấu hình thành:
-     ```env
-     DEMO_PHANTOM_READ=false
-     ```
-  2. Khởi động lại Server Backend.
-  3. Lặp lại thao tác chuẩn bị ở Bước 3 của kịch bản 1.
-  4. Bấm nút **"Xác nhận"** bên Kế toán, và ngay lập tức bấm **"Lưu thông tin"** bên HR.
-  5. **Kết quả:**
-     - Lần này, thao tác Lưu thông tin của HR sẽ bị "đứng hình" chờ đợi (Loading...) và không thể lưu ngay lập tức.
-     - Sau 10 giây, Kế toán chạy xong và hiện thông báo: `"Xác nhận thành công X bảng lương."` (không có lỗi). Ngay sau khi Kế toán nhận thông báo, giao dịch của HR mới được nhả khóa và lưu thành công.
-     - Lý do: Cú pháp `SELECT ... FOR UPDATE` đã yêu cầu InnoDB thiết lập Next-Key Lock (kết hợp Record Lock và Gap Lock) trên vùng dữ liệu `Thang=..., Nam=..., TrangThai=D`. Mọi nỗ lực `INSERT` vào vùng này từ các giao dịch khác (như thao tác tạo Draft lương nghỉ việc của HR) đều bị "Block" cho đến khi giao dịch của Kế toán hoàn thành!
-
-#### 6.4. Không đọc lại được dữ liệu (Non-repeatable Read)
+#### 6.3. Không đọc lại được dữ liệu (Non-repeatable Read)
 
 * **Ngữ cảnh đặc trưng mang tính hệ thống:**
   Trong hệ thống Tính lương, hr2 vào màn hình UI **"Bảng Lương"** (`/payroll`) và bấm nút **"Tính Lương"**. Tiến trình tính lương dưới Database (`sp_TinhLuong`) bắt đầu chạy. Nó sẽ thực hiện 2 bước độc lập:
 
-  - Lần đọc 1: Lấy mức lương cơ bản hiện tại của nhân viên (VD: 70 triệu) để tính ra mức đóng Bảo Hiểm (BHXH).
+  - Lần đọc 1: Lấy mức lương cơ bản hiện tại của nhân viên (VD: 25 triệu) để tính ra mức đóng Bảo Hiểm (BHXH).
   - Lần đọc 2 (Sau một khoảng thời gian xử lý các phép toán phức tạp): Lấy lại mức lương cơ bản để tính Tổng thu nhập và Thuế TNCN.
 
-  Ngay trong khoảng thời gian giữa 2 lần đọc đó, một chuyên viên Nhân sự (HR) quyết định **chỉnh sửa Lương cơ bản trực tiếp** dưới Database của nhân viên đó từ 70 triệu lên 80 triệu (để vượt qua cơ chế chặn sửa của Trigger).
-  Hậu quả của Non-repeatable Read: Khi quá trình tính lương hoàn tất, Phiếu lương sinh ra sẽ hiển thị Lương Cơ Bản là 80 triệu (Lần đọc 2), nhưng số tiền đóng Bảo hiểm lại tính trên mức 70 triệu (Lần đọc 1). Kế toán nhìn vào bảng lương trên giao diện sẽ thấy ngay một bút toán "sai bét" rành rành (Ví dụ: 8% của 30 triệu phải là 6.4 triệu, nhưng hệ thống lại hiện 5.6 triệu).
+  Ngay trong khoảng thời gian giữa 2 lần đọc đó, một chuyên viên Nhân sự (HR) quyết định **chỉnh sửa Lương cơ bản trực tiếp** dưới Database của nhân viên đó từ 25 triệu xuống 30 triệu (để vượt qua cơ chế chặn sửa của Trigger).
+  Hậu quả của Non-repeatable Read: Khi quá trình tính lương hoàn tất, Phiếu lương sinh ra sẽ hiển thị Lương Cơ Bản là 20 triệu (Lần đọc 2), nhưng số tiền đóng Bảo hiểm lại tính trên mức 25 triệu (Lần đọc 1). Kế toán nhìn vào bảng lương trên giao diện sẽ thấy ngay một bút toán "sai bét" rành rành (Ví dụ: 8% của 20 triệu phải là 1.6 triệu, nhưng hệ thống lại hiện 2 triệu vì tính trên lương 25 triệu cũ).
 * **Danh sách các cách khắc phục:**
 
   1. **Khóa bi quan (Pessimistic Locking) bằng `SELECT ... FOR UPDATE`**: Khi đọc Lương Cơ Bản ở Lần 1, ta khóa luôn bản ghi đó. HR muốn sửa lương sẽ bị treo chờ cho đến khi quá trình tính lương hoàn tất. Tuy nhiên, quá trình tính lương thường mất rất lâu, việc khóa này có thể làm tê liệt mọi thao tác liên quan đến nhân sự.
@@ -426,18 +347,19 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
      ```env
      DEMO_NON_REPEATABLE_READ=true
      ```
-  2. Khởi động lại Server Backend. Đảm bảo nhân viên `NV000001` đang có lương cơ bản là `70,000,000`.
+  2. Khởi động lại Server Backend. Đảm bảo nhân viên `NV000006` đang có lương cơ bản là `25,000,000`.
   3. Mở giao diện UI (Kế toán) và công cụ MySQL Workbench (HR):
      - **Trên UI (Kế toán)**: Vào màn hình **"Bảng Lương"** (`/payroll`), chọn tháng hiện tại và ấn nút **"Tính Lương"**. Hệ thống sẽ bắt đầu xoay (Loading) do đã được giả lập thời gian trễ 15 giây.
      - **Trên MySQL Workbench (HR)**: Ngay lập tức (trong 15s đó), mở tab Query mới và chạy lệnh UPDATE trực tiếp để thay đổi lương mà không bị vướng Trigger lịch sử lương:
        ```sql
+       -- Phải cập nhật cả LuongDongBH để không vi phạm ràng buộc CK_LCB_DongBH
        UPDATE LuongCoBan 
-       SET LuongCB = 80000000 
-       WHERE MaNV = 'NV000001' AND NgayHetHieuLuc IS NULL;
+       SET LuongCB = 30000000, LuongDongBH = 30000000
+       WHERE MaNV = 'NV000006' AND NgayHetHieuLuc IS NULL;
        ```
-  4. **Kết quả trên UI**: Sau 15 giây, quá trình tính lương trên UI hoàn tất. Kế toán tải lại trang Bảng lương hoặc xem chi tiết Phiếu lương của `NV000001`. Giảng viên sẽ thấy rõ ràng:
-     - Cột **Lương Cơ Bản**: `80,000,000 ₫` (Đã nhận mức lương mới).
-     - Cột **BHXH NLD (8%)**: `5,600,000 ₫` (Hệ thống tính sai, vì tính dựa trên lương 70tr cũ).
+  4. **Kết quả trên UI**: Sau 15 giây, quá trình tính lương trên UI hoàn tất. Kế toán tải lại trang Bảng lương hoặc xem chi tiết Phiếu lương của `NV000006`. Giảng viên sẽ thấy rõ ràng:
+     - Cột **Lương Cơ Bản**: `20,000,000 ₫` (Đã nhận mức lương mới — bị đọc lại từ DB).
+     - Cột **BHXH NLD (8%)**: `2,000,000 ₫` (Hệ thống tính sai, vì tính dựa trên lương 25tr ban đầu — Lần đọc 1).
        Đây là minh chứng trực quan nhất cho thấy sự bất nhất (Non-repeatable read) trong cùng một chu trình xử lý!
 
   **Bước 2: Trình diễn tính năng Khắc phục (Sử dụng biến Snapshot)**
@@ -446,10 +368,94 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
      ```env
      DEMO_NON_REPEATABLE_READ=false
      ```
-  2. Khởi động lại Server Backend. Đổi lại Lương nhân viên `NV000001` về `70,000,000` (Bằng cách tương tự trên Workbench: `UPDATE LuongCoBan SET LuongCB = 70000000 WHERE MaNV = 'NV000001' AND NgayHetHieuLuc IS NULL;`).
-  3. Thực hiện lại y hệt **Bước 3** ở trên (Kế toán bấm Tính lương trên UI -> HR chạy lệnh UPDATE lên 80tr trong Workbench).
-  4. **Kết quả**: Khi xem lại bảng lương trên UI, toàn bộ mức lương, BHXH và thuế đều được tính toán nhất quán dựa trên mức lương `70,000,000` (giá trị Snapshot ở thời điểm bắt đầu tính lương). Dù lệnh UPDATE 80tr của HR thành công ở giữa quá trình, mức lương 80tr này sẽ không làm xáo trộn phép tính hiện tại mà chỉ được áp dụng vào kỳ tính lương tháng sau. Không còn lỗi bất đồng bộ!
+  2. Khởi động lại Server Backend. Đổi lại Lương nhân viên `NV000006` về `25,000,000` (Bằng cách tương tự trên Workbench: `UPDATE LuongCoBan SET LuongCB = 25000000, LuongDongBH = 25000000 WHERE MaNV = 'NV000006' AND NgayHetHieuLuc IS NULL;`).
+  3. Thực hiện lại y hệt **Bước 3** ở trên (Kế toán bấm Tính lương trên UI -> HR chạy lệnh UPDATE xuống 20tr trong Workbench).
+  4. **Kết quả**: Khi xem lại bảng lương trên UI, toàn bộ mức lương, BHXH và thuế đều được tính toán nhất quán dựa trên mức lương `25,000,000` (giá trị Snapshot ở thời điểm bắt đầu tính lương). Dù lệnh UPDATE 20tr của HR thành công ở giữa quá trình, mức lương 20tr này sẽ không làm xáo trộn phép tính hiện tại mà chỉ được áp dụng vào kỳ tính lương tháng sau. Không còn lỗi bất đồng bộ!
      *(Ghi chú kỹ thuật: Ở chế độ chuẩn `false`, `sp_TinhLuong.sql` được tối ưu hoá chỉ SELECT Lương 1 lần duy nhất đầu thủ tục, xoá bỏ điểm yếu đọc 2 lần sinh ra sai lệch).*
+
+#### 6.4. Bóng ma (Phantom Read)
+
+* **Ngữ cảnh đặc trưng mang tính hệ thống:**
+  Kế toán cần chốt sổ quỹ lương toàn công ty trong tháng. Kế toán vào màn hình UI "Quản lý Lương", thấy danh sách tổng là N người (trạng thái Chưa chốt - Draft). Kế toán bấm nút **"Xác nhận"** (Chốt bảng lương). Đột nhiên chuyên viên nhân sự (HR) quyết định tuyển thêm 1 nhân sự mới (Onboarding). Trên giao diện Quản lý Nhân viên, HR điền thông tin và bấm **"Thêm mới"** nhân viên. Logic hệ thống lập tức tự động sinh ra 1 bảng lương Draft cho tháng đầu tiên của nhân sự mới đó. Tiến trình chốt sổ của Kế toán kết thúc, hệ thống duyệt chốt luôn cả bản ghi Draft vừa mới sinh ra kia thay vì N bản ghi gốc ban đầu. Bản ghi bóng ma (Phantom Row) này đã lọt vào quỹ thanh toán ngoài dự toán của kế toán, gây rủi ro thất thoát tài chính.
+* **Danh sách các cách khắc phục:**
+
+  1. Tăng mức độ cô lập lên `SERIALIZABLE`.
+  2. Sử dụng Next-Key Locking với `SELECT ... FOR UPDATE` trong mức `REPEATABLE READ` của InnoDB.
+* **Lựa chọn cách tốt nhất & Lý do:**
+  Cách tốt nhất là **Sử dụng Next-Key Locking (`SELECT ... FOR UPDATE`) trong `REPEATABLE READ`**.
+  Lý do: Mức `SERIALIZABLE` gây khóa đọc toàn cục làm treo hệ thống. InnoDB ở mức `REPEATABLE READ` hỗ trợ Next-Key Locking, chỉ cần gọi `SELECT * FROM BangLuong WHERE TrangThai='D' FOR UPDATE`, nó sẽ khóa chặt "khoảng không gian" (gap) điều kiện này. Thao tác **Thêm mới nhân viên** của HR trên UI sẽ quay vòng vòng chờ (Block) cho tới khi kế toán chốt sổ xong, ngăn chặn triệt để việc luồn hồ sơ mới vào lô đang duyệt.
+* **Chi tiết Demo kết hợp UI & CSDL:**
+
+  **Chuẩn bị trước mỗi lần demo:**
+  Chạy file [06_demo/03_Phantom Read.sql](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/06_demo/03_Phantom%20Read.sql) trong MySQL Workbench để:
+
+  - Đưa toàn bộ các bảng lương của tháng hiện tại về trạng thái Nháp (`D`) để Kế toán có danh sách chờ duyệt.
+  - Recreate lại các trigger bảo vệ chống xóa/sửa với `MESSAGE_TEXT` an toàn (< 128 byte).
+
+  **Bước 1: Tái hiện lỗi**
+
+  - **Trên UI (Tab 1 - Kế toán):** Thấy danh sách bảng lương tháng hiện hành đang ở trạng thái Draft. Bấm nút **"Xác nhận"**. Nút sẽ quay loading chờ 10 giây.
+    *(Dưới DB hệ thống đếm số lượng: `SELECT COUNT(*) FROM BangLuong WHERE Thang = ? AND Nam = ? AND TrangThai = 'D';`, sau đó bị `SLEEP(10)`).*
+  - **Trên UI (Tab 2 - HR trong 10s Sleep):** Vào trang quản lý nhân viên, bấm **"Thêm mới"**, điền nhanh thông tin cơ bản cho nhân viên mới (Onboarding) và bấm **"Lưu"**.
+    *(Dưới DB `POST /v1/employees` sau khi thêm vào bảng `NhanVien`, tự động chạy `INSERT IGNORE INTO BangLuong (...) VALUES (..., 'D')` để tạo bảng lương nháp đầu tiên cho nhân viên mới này).*
+  - **Kết quả trên UI:** Sau khi Kế toán chờ đủ 10 giây, màn hình hiện Alert cảnh báo lỗi đỏ: *"LỖI BÓNG MA (Phantom Read)! Kế toán ban đầu duyệt N bản ghi, nhưng hệ thống lại chốt thành công N+1 bản ghi. Dư ra 1 bóng ma!"*.
+
+  **Bước 2: Triển khai khắc phục (Đã thực hiện hoàn thiện bằng Bật/Tắt qua `.env`)**
+
+  1. **Cấu hình môi trường (Bật/Tắt chế độ Gap/Next-Key Locking)**:
+     Điều chỉnh biến môi trường trong file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env):
+
+     ```env
+     DEMO_PHANTOM_READ=true
+     ```
+
+     * `true`: Không sử dụng `FOR UPDATE` (Tái hiện lỗi Bóng Ma trong môi trường REPEATABLE READ mặc định của MySQL vì MySQL không khóa Insert mới).
+     * `false`: Kích hoạt Next-Key Locking bằng cách tự động gắn thêm lệnh `FOR UPDATE` vào cuối câu `SELECT` đếm số lượng. Khóa toàn bộ khoảng trống (Gap Lock), chặn triệt để giao dịch Insert của HR, triệt tiêu lỗi.
+  2. **Xử lý tại API Backend ([server.js](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/server.js))**:
+     Hệ thống đã chèn trực tiếp logic theo dõi Bóng ma vào các luồng nghiệp vụ thực tế của Frontend:
+
+     - **API Xác nhận bảng lương (`PUT /v1/payroll/confirm`):**
+       (Đếm số bảng lương Draft hiện có, sau đó `SLEEP(10)` mô phỏng đang xử lý tổng hợp dữ liệu, và cuối cùng `UPDATE` toàn bộ sang trạng thái Closed 'C'. Nếu biến môi trường là false, hệ thống tự động nối thêm `FOR UPDATE` ở câu đếm).
+     - **API Thêm nhân viên mới (`POST /v1/employees`):**
+       (Khi HR thêm một nhân sự mới vào hệ thống, hệ thống lập tức `INSERT` một bảng lương Draft 'D' dở dang vào tháng hiện hành của nhân sự đó để chuẩn bị cho kỳ lương đầu tiên).
+
+  ---
+
+  ### HƯỚNG DẪN DEMO CHO GIẢNG VIÊN (PHANTOM READ)
+
+  *Kịch bản này sử dụng trực tiếp các thao tác thực tế trên giao diện hệ thống (không dùng trang demo riêng) để cho thấy lỗi phát sinh như thế nào trong môi trường sản xuất thực tế.*
+
+  #### Kịch bản 1: Tái hiện lỗi Bóng Ma ban đầu (Trước khi sửa)
+
+1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
+   ```env
+   DEMO_PHANTOM_READ=true
+   ```
+2. Khởi động lại Server Backend.
+3. Mở 2 Tab trình duyệt (tượng trưng cho 2 nhân sự đang làm việc đồng thời):
+   - **Tab 1 (Kế toán):** Vào trang Quản lý Lương (`http://localhost:3000/payroll`), chọn tháng hiện tại (đảm bảo đang có danh sách các bảng lương ở trạng thái **Chưa chốt**).
+   - **Tab 2 (HR):** Vào trang Quản lý Nhân viên (`http://localhost:3000/employees`), bấm **Thêm mới**, gõ sẵn một vài thông tin bắt buộc (VD: Họ tên, Giới tính, Phòng ban...) và để sẵn chuột ở nút **Lưu**.
+4. Ở **Tab 1 (Kế toán)**, bấm nút **"Xác nhận"** (để duyệt chốt lương). Nút sẽ quay loading chờ 10 giây (do hệ thống mô phỏng độ trễ xử lý).
+5. Ngay lập tức (trong vòng 10 giây đó), chuyển sang **Tab 2 (HR)** và bấm nút **"Lưu"** để hoàn tất việc thêm nhân viên mới (Onboarding).
+6. **Kết quả:**
+   - Màn hình HR sẽ báo thêm nhân viên thành công ngay lập tức.
+   - Sau đó khi Kế toán quay xong đủ 10s, màn hình Kế toán sẽ văng ra cảnh báo Alert: `"LỖI BÓNG MA (Phantom Read)! Kế toán ban đầu duyệt X bản ghi, nhưng hệ thống lại chốt thành công X+1 bản ghi. Dư ra 1 bóng ma!"`.
+   - Lý do: Khi HR nhận nhân viên mới, hệ thống tự động sinh ra 1 bảng lương Draft cho tháng đầu tiên. Câu lệnh `UPDATE` ở cuối quy trình của Kế toán đã vô tình quét trúng bản ghi Draft mới sinh đó và chốt duyệt luôn, biến nó thành Bóng Ma làm sai lệch số lượng Kế toán tính toán ban đầu, gây rủi ro thất thoát quỹ lương.
+
+**Kịch bản 2: Trình diễn tính năng Khắc phục (Next-Key Locking)**
+
+1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env), đổi cấu hình thành:
+   ```env
+   DEMO_PHANTOM_READ=false
+   ```
+2. Khởi động lại Server Backend.
+3. Chạy lại file [03_Phantom Read.sql](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/06_demo/03_Phantom%20Read.sql) để trả lại dữ liệu về trạng thái Draft.
+4. Lặp lại thao tác chuẩn bị ở Bước 3 của kịch bản 1 (Điền sẵn form Thêm nhân viên mới ở Tab HR).
+5. Bấm nút **"Xác nhận"** bên Kế toán, và ngay lập tức bấm **"Lưu"** bên HR.
+6. **Kết quả:**
+   - Lần này, thao tác Thêm mới nhân viên của HR sẽ bị "đứng hình" chờ đợi (Loading...) và không thể lưu ngay lập tức.
+   - Sau 10 giây, Kế toán chạy xong và hiện thông báo: `"Xác nhận thành công X bảng lương."` (không có lỗi). Ngay sau khi Kế toán nhận thông báo, giao dịch tạo bảng lương nháp của HR mới được nhả khóa và lưu thành công.
+   - Lý do: Cú pháp `SELECT ... FOR UPDATE` đã yêu cầu InnoDB thiết lập Next-Key Lock (kết hợp Record Lock và Gap Lock) trên vùng dữ liệu `Thang=..., Nam=..., TrangThai=D`. Mọi nỗ lực `INSERT` vào vùng này từ các giao dịch khác (như thao tác tạo Draft lương của HR) đều bị "Block" cho đến khi giao dịch của Kế toán hoàn thành!
 
 ### 7. Deadlock (Khóa chết)
 
@@ -492,87 +498,25 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 
   #### Kịch bản 1: Tái hiện lỗi Khóa Chết (Deadlock) qua tương tác người dùng
 
+1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
+   ```env
+   DEMO_DEADLOCK=true
+   ```
+2. Khởi động lại Server Backend.
+3. Mở **Tab 1 (Giao diện Quản lý Nhân Viên)**, bấm nút **Sửa** (Edit) nhân viên `NV000006`. Đổi ghi chú hoặc địa chỉ. Đừng bấm lưu vội.
+4. Mở **Tab 2 (Giao diện Quản lý Hợp Đồng)**, tìm hợp đồng của `NV000006`, bấm **Sửa**, điền lại một con số Lương cơ bản mới bất kỳ. Đừng bấm lưu vội.
+5. **Thực thi đồng thời:**
+   - Mở Tab 1 (Nhân viên), bấm nút **Lưu**. (Lúc này hệ thống đã khóa thành công bảng `NhanVien` và đang sleep chờ).
+   - Ngay lập tức (trong vòng dưới 5 giây), chuyển sang Tab 2 (Hợp Đồng) và bấm nút **Lưu**.
+6. **Kết quả trên UI:** Cả hai tab sẽ quay xoay (loading). Hết thời gian chờ 5 giây của DB, một trong hai tab sẽ hiển thị báo lỗi Pop-up/Toast màu đỏ: `"LỖI KHÓA CHẾT (DEADLOCK)! Hai giao dịch tự khóa chéo lẫn nhau. MySQL đã phát hiện và tự động hủy giao dịch này..."`. Tab còn lại sẽ báo Thành công. Giao diện trực quan cho thấy hệ thống đã bóc tách và ngăn chặn sập server thành công!
 
-  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env) của Backend, đổi cấu hình thành:
-     ```env
-     DEMO_DEADLOCK=true
-     ```
-  2. Khởi động lại Server Backend.
-  3. Mở **Tab 1 (Giao diện Quản lý Nhân Viên)**, bấm nút **Sửa** (Edit) nhân viên `NV000006`. Đổi ghi chú hoặc địa chỉ. Đừng bấm lưu vội.
-  4. Mở **Tab 2 (Giao diện Quản lý Hợp Đồng)**, tìm hợp đồng của `NV000006`, bấm **Sửa**, điền lại một con số Lương cơ bản mới bất kỳ. Đừng bấm lưu vội.
-  5. **Thực thi đồng thời:**
-     - Mở Tab 1 (Nhân viên), bấm nút **Lưu**. (Lúc này hệ thống đã khóa thành công bảng `NhanVien` và đang sleep chờ).
-     - Ngay lập tức (trong vòng dưới 5 giây), chuyển sang Tab 2 (Hợp Đồng) và bấm nút **Lưu**.
-  6. **Kết quả trên UI:** Cả hai tab sẽ quay xoay (loading). Hết thời gian chờ 5 giây của DB, một trong hai tab sẽ hiển thị báo lỗi Pop-up/Toast màu đỏ: `"LỖI KHÓA CHẾT (DEADLOCK)! Hai giao dịch tự khóa chéo lẫn nhau. MySQL đã phát hiện và tự động hủy giao dịch này..."`. Tab còn lại sẽ báo Thành công. Giao diện trực quan cho thấy hệ thống đã bóc tách và ngăn chặn sập server thành công!
+#### Kịch bản 2: Trình diễn tính năng Khắc phục (Đồng nhất hướng lấy khóa chuẩn)
 
-  #### Kịch bản 2: Trình diễn tính năng Khắc phục (Đồng nhất hướng lấy khóa chuẩn)
-
-  1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env), đổi cấu hình thành:
-     ```env
-     DEMO_DEADLOCK=false
-     ```
-  2. Khởi động lại Server Backend.
-  3. Cài đặt lại **Tab 1** và **Tab 2** như bước 3, 4 ở Kịch bản 1.
-  4. Lặp lại thao tác ấn **Lưu** nhanh ở Tab 1 rồi sang Tab 2.
-  5. **Kết quả:** Lần này hệ thống Backend tuân thủ luật lấy khóa một chiều (`HopDong` -> `LuongCoBan`), không vòng ngược lại sửa `NhanVien`. Do đó, vòng lặp Deadlock bị phá vỡ. Cả hai tab sẽ đều xử lý trơn tru và hiện thông báo **"Lưu thành công"**. Không hề xảy ra tranh chấp dẫn đến bị ngắt tiến trình!
-
----
-
-### 8. Báo Cáo Chi Tiết Các Đối Tượng CSDL Chính (Dùng Cho Báo Cáo Tuần)
-
-Dưới đây là chi tiết 2 đối tượng tiêu biểu cho từng loại (Giao tác, View, Store Procedure, Function, Trigger) để trình bày nhanh trong các buổi báo cáo tiến độ hàng tuần.
-
-#### 8.1. Giao tác (Transactions)
-
-1. **`sp_TiepNhanNhanSu` (Onboarding Transaction)**
-   - **Vị trí file**: `02_Database/StoredProcedures/sp_TiepNhanNhanSu.sql`
-   - **Mục đích**: Đảm bảo quy trình tiếp nhận nhân sự mới tuân thủ tính toàn vẹn dữ liệu (ACID).
-   - **Chi tiết**: Giao tác bọc 4 lệnh `INSERT` liên tiếp vào các bảng: `NhanVien`, `HopDong`, `LuongCoBan`, và `TaiKhoan`. Cấu hình `DECLARE EXIT HANDLER FOR SQLEXCEPTION` sẽ bắt mọi lỗi xảy ra; nếu bất kỳ bước nào thất bại, toàn bộ tiến trình sẽ `ROLLBACK` để tránh rác dữ liệu. Nếu thành công sẽ `COMMIT`.
-2. **`sp_ChotBangLuong` (Payroll Confirmation Transaction)**
-   - **Vị trí file**: `02_Database/StoredProcedures/sp_ChotBangLuong.sql`
-   - **Mục đích**: Chốt và thanh toán bảng lương cuối kỳ đồng bộ.
-   - **Chi tiết**: Cập nhật đồng thời trạng thái bảng `BangLuong` sang 'P' (Đã thanh toán) và các khoản khấu trừ trong bảng `KhauTru` sang 'A' (Đã áp dụng). Việc đặt vào `START TRANSACTION` giúp hệ thống không gặp tình trạng bảng lương đã chốt nhưng khấu trừ vẫn treo nháp.
-
-#### 8.2. Views (Bảng ảo)
-
-1. **`vw_HoSoNhanVien_ChiTiet`**
-   - **Vị trí file**: `02_Database/Views/vw_HoSoNhanVien_ChiTiet.sql`
-   - **Mục đích**: Tối ưu hóa truy vấn hiển thị danh sách nhân sự trên giao diện Backend.
-   - **Chi tiết**: View này gom dữ liệu thông qua việc `JOIN` bảng `NhanVien` với `PhongBan` và `ChucVu`. Quan trọng nhất, nó dùng `LEFT JOIN` với bảng `HopDong` và `LuongCoBan` đi kèm bộ lọc (chỉ lấy Hợp đồng trạng thái Active và Lương hiệu lực) giúp Frontend không phải gọi nhiều API.
-2. **`vw_BangLuong_TongHop`**
-   - **Vị trí file**: `02_Database/Views/vw_BangLuong.sql` (Từ dòng 105)
-   - **Mục đích**: Cung cấp nguồn dữ liệu sạch để xuất biểu đồ và Excel báo cáo quỹ lương phòng ban.
-   - **Chi tiết**: Gộp nhóm (`GROUP BY`) theo tháng, năm và tên phòng ban. Tự động dùng các hàm tính tổng (`SUM`) để trả ra: Tổng lương Gross, Bảo hiểm NSDLĐ phải đóng, Tổng thuế TNCN và Tổng chi phí nhân sự thực tế.
-
-#### 8.3. Store Procedures (Thủ tục lưu trữ)
-
-1. **`sp_TinhLuong`**
-   - **Vị trí file**: `02_Database/StoredProcedures/sp_TinhLuong.sql`
-   - **Mục đích**: Xử lý logic nghiệp vụ tính lương cốt lõi, chạy định kỳ hàng tháng.
-   - **Chi tiết**: Thủ tục chạy qua một quy trình 8 bước biến Lương Gross thành Lương Net: lấy số ngày công chuẩn, cộng lương tăng ca, tính phụ cấp, tính các khoản bảo hiểm bắt buộc trừ vào lương, trừ thuế TNCN lũy tiến, và trừ các khoản khấu trừ phát sinh để ra thực lĩnh.
-2. **`sp_NghiViec`**
-   - **Vị trí file**: `02_Database/StoredProcedures/sp_NghiViec.sql`
-   - **Mục đích**: Đóng gói quy trình thanh lý hợp đồng và cho nhân viên nghỉ việc.
-   - **Chi tiết**: Tự động chuyển trạng thái của nhân viên thành "Nghỉ việc", thay đổi ngày kết thúc hợp đồng hiện tại thành ngày hiện hành, chốt và đóng lại bảng lương hiện tại, đồng thời khóa `TaiKhoan` đăng nhập để đảm bảo bảo mật.
-
-#### 8.4. Functions (Hàm tính toán vô hướng)
-
-1. **`fn_SoNgayChuanThang`**
-   - **Vị trí file**: `02_Database/Functions/fn_SoNgayLamViec.sql` (Từ dòng 22)
-   - **Mục đích**: Tự động tính số ngày làm việc chuẩn trong tháng để làm cơ sở chia lương.
-   - **Chi tiết**: Hàm sử dụng vòng lặp `WHILE` duyệt từng ngày từ đầu đến cuối tháng. Tự động bỏ qua Thứ 7, Chủ Nhật (`DAYOFWEEK`) và các ngày lễ quốc gia (kiểm tra `MONTH`, `DAY` và tra cứu thêm bảng `NgayLe`) để trả về chính xác số ngày công tiêu chuẩn.
-2. **`fn_TinhThueTNCN_Scalar`**
-   - **Vị trí file**: `02_Database/Functions/fn_TinhThueTNCN.sql` (Từ dòng 16)
-   - **Mục đích**: Tự động hóa biểu thuế lũy tiến 7 bậc của Việt Nam.
-   - **Chi tiết**: Hàm nhận đầu vào là `ThuNhapChiuThue`, chạy qua các điều kiện `IF` xếp tầng từ bậc 7 (> 80 triệu, 35%) lùi dần về bậc 1 (0-5 triệu, 5%). Mỗi bậc tính xong sẽ cấn trừ dần và cộng dồn vào tổng tiền thuế.
-
-#### 8.5. Triggers (Trình kích hoạt)
-
-1. **`trg_NghiPhep_CheckOverlap_Insert`**
-   - **Vị trí file**: `02_Database/Triggers/trg_NghiPhep_CheckOverlap.sql` (Từ dòng 11)
-   - **Mục đích**: Bảo vệ tính logic của quy trình chấm công, chặn nhân viên xin nghỉ lặp ngày.
-   - **Chi tiết**: Trigger kích hoạt ở sự kiện `BEFORE INSERT` trên bảng `NghiPhep`. Bằng một truy vấn `EXISTS`, nếu phát hiện nhân viên đang xin một ngày đã nằm lọt thỏm trong một đơn nghỉ phép khác đã duyệt (APPROVED), hệ thống sẽ dùng lệnh `SIGNAL SQLSTATE` chặn insert.
-2. **`trg_HopDong_AfterInsert`**
-   - **Vị trí file**: `02_Database/Triggers/trg_LogHopDong.sql` (Từ dòng 23)
-   - **Mục đích**: Audit log (Nhật ký hệ thống) chống chối bỏ trách nhiệm.
-   - **Chi tiết**: Kích hoạt tự động ngay sau khi có sự kiện `AFTER INSERT` ở bảng `HopDong`. Chuyển toàn bộ dữ liệu mới (`NEW`) thành định dạng JSON và ghi một bản sao vào bảng lịch sử `AuditLog_HopDong`.
+1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env), đổi cấu hình thành:
+   ```env
+   DEMO_DEADLOCK=false
+   ```
+2. Khởi động lại Server Backend.
+3. Cài đặt lại **Tab 1** và **Tab 2** như bước 3, 4 ở Kịch bản 1.
+4. Lặp lại thao tác ấn **Lưu** nhanh ở Tab 1 rồi sang Tab 2.
+5. **Kết quả:** Lần này hệ thống Backend tuân thủ luật lấy khóa một chiều (`HopDong` -> `LuongCoBan`), không vòng ngược lại sửa `NhanVien`. Do đó, vòng lặp Deadlock bị phá vỡ. Cả hai tab sẽ đều xử lý trơn tru và hiện thông báo **"Lưu thành công"**. Không hề xảy ra tranh chấp dẫn đến bị ngắt tiến trình!

@@ -207,7 +207,7 @@ BEGIN
             LIMIT 1;
 
             -- [DEMO INJECTION] MÔ PHỎNG LỖI NON-REPEATABLE READ 
-            IF @demo_non_repeatable_read = 1 AND v_cur_MaNV = 'NV000001' THEN
+            IF @demo_non_repeatable_read = 1 AND v_cur_MaNV = 'NV000006' THEN
                 -- Tạm dừng 15 giây để HR kịp sang màn hình Hợp đồng đổi lương
                 DO SLEEP(15);
                 

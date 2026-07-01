@@ -25,7 +25,7 @@ BEGIN
 
     START TRANSACTION;
 
-    -- 1. Cập nhật bảng NhanVien
+    -- 1. Cập nhật bảng NhanVien với trạng thái T : terminated.
     UPDATE NhanVien
     SET TrangThai = 'T', NgayNghiViec = p_NgayNghiViec
     WHERE MaNV = p_MaNV;
