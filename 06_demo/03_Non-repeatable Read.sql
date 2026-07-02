@@ -1,6 +1,3 @@
--- SCRIPT RESET TRẠNG THÁI TRƯỚC KHI DEMO "NON-REPEATABLE READ"
--- Chạy script này dưới MySQL Workbench / DBeaver để reset dữ liệu của NV000006
--- về trạng thái chuẩn trước khi thực hiện demo qua giao diện UI (hoặc bằng SQL).
 
 USE hrpayrolldb;
 

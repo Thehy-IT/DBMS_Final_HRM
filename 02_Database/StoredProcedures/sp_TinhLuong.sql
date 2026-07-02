@@ -207,19 +207,21 @@ BEGIN
             LIMIT 1;
 
             -- [DEMO INJECTION] MÔ PHỎNG LỖI NON-REPEATABLE READ 
-            IF @demo_non_repeatable_read = 1 AND v_cur_MaNV = 'NV000006' THEN
-                -- Tạm dừng 15 giây để HR kịp sang màn hình Hợp đồng đổi lương
-                DO SLEEP(15);
+            IF v_cur_MaNV = 'NV000006' THEN
+                -- Tạm dừng 15 giây để HR kịp sang màn hình Hợp đồng đổi lương (chạy chậm cả khi demo lỗi và khi đã khắc phục lỗi)
+                DO SLEEP(5);
                 
-                -- Lấy lại Lương cơ bản TỪ DATABASE một lần nữa cho các tính toán sau
-                -- (Cố tình vi phạm nguyên tắc sử dụng biến snapshot ban đầu, tạo ra Non-repeatable Read)
-                -- Đã loại bỏ ràng buộc NgayHieuLuc để demo có thể hoạt động ngay cả khi tính lương cho tháng cũ (như tháng 6)
-                SELECT lcb.LuongCB
-                INTO v_cur_LuongCB
-                FROM LuongCoBan lcb
-                WHERE lcb.MaNV = v_cur_MaNV
-                ORDER BY lcb.NgayHieuLuc DESC
-                LIMIT 1;
+                IF @demo_non_repeatable_read = 1 THEN
+                    -- Lấy lại Lương cơ bản TỪ DATABASE một lần nữa cho các tính toán sau
+                    -- (Cố tình vi phạm nguyên tắc sử dụng biến snapshot ban đầu, tạo ra Non-repeatable Read)
+                    -- Đã loại bỏ ràng buộc NgayHieuLuc để demo có thể hoạt động ngay cả khi tính lương cho tháng cũ (như tháng 6)
+                    SELECT lcb.LuongCB
+                    INTO v_cur_LuongCB
+                    FROM LuongCoBan lcb
+                    WHERE lcb.MaNV = v_cur_MaNV
+                    ORDER BY lcb.NgayHieuLuc DESC
+                    LIMIT 1;
+                END IF;
             END IF;
             -- [/DEMO INJECTION]
             
