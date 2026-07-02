@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { masterDataService, MasterData } from '@/services/masterData.service';
 import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
 
-function DeductionTypeFormModal({ isOpen, onClose, onSubmit, initialData }: { isOpen: boolean, onClose: () => void, onSubmit: (data: any) => void, initialData: any }) {
+function DeductionTypeFormModal({ isOpen, onClose, onSubmit, initialData, isSubmitting = false }: { isOpen: boolean, onClose: () => void, onSubmit: (data: any) => void, initialData: any, isSubmitting?: boolean }) {
   const [formData, setFormData] = useState<Partial<MasterData>>({
     MaLKT: '',
     TenLKT: '',
@@ -32,9 +32,15 @@ function DeductionTypeFormModal({ isOpen, onClose, onSubmit, initialData }: { is
 
   if (!isOpen) return null;
 
+  const handleClose = () => {
+    if (isSubmitting) return;
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden flex flex-col">
+      <div className="fixed inset-0" onClick={handleClose}></div>
+      <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden flex flex-col relative z-10">
         <div className="px-6 py-4 border-b border-slate-200">
           <h2 className="text-xl font-bold text-slate-900">
             {initialData ? 'Cập nhật Loại Khấu Trừ' : 'Thêm mới Loại Khấu Trừ'}
@@ -80,9 +86,9 @@ function DeductionTypeFormModal({ isOpen, onClose, onSubmit, initialData }: { is
           </div>
         </div>
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
-          <Button variant="outline" onClick={onClose}>Hủy Bỏ</Button>
-          <Button className="bg-rose-600 hover:bg-rose-700" onClick={() => onSubmit(formData)}>
-            {initialData ? 'Cập nhật' : 'Tạo mới'}
+          <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>Hủy Bỏ</Button>
+          <Button className="bg-rose-600 hover:bg-rose-700" onClick={() => onSubmit(formData)} disabled={isSubmitting}>
+            {isSubmitting ? (initialData ? 'Đang cập nhật...' : 'Đang tạo...') : (initialData ? 'Cập nhật' : 'Tạo mới')}
           </Button>
         </div>
       </div>
@@ -315,7 +321,8 @@ export default function DeductionTypesPage() {
         isOpen={isFormOpen} 
         onClose={() => setIsFormOpen(false)} 
         onSubmit={handleFormSubmit} 
-        initialData={editingType} 
+        initialData={editingType}
+        isSubmitting={createMutation.isPending || updateMutation.isPending}
       />
 
       <ConfirmDeleteModal 
@@ -324,6 +331,7 @@ export default function DeductionTypesPage() {
         onConfirm={handleConfirmDelete}
         title="Xóa danh mục khấu trừ"
         description={`Bạn có chắc chắn muốn xóa loại khấu trừ "${deletingType?.TenLKT || deletingType?.name}" không? Hành động này sẽ bị từ chối nếu nó đang được áp dụng cho bất kỳ nhân viên nào.`}
+        isSubmitting={deleteMutation.isPending}
       />
     </div>
   );

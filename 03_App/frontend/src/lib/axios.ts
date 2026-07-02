@@ -6,7 +6,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   // Timeout 15s: tránh request treo vô thời hạn
-  timeout: 15000,
+  timeout: 0,
 });
 
 // Cache token trong module scope để tránh JSON.parse localStorage mỗi request

@@ -10,9 +10,10 @@ interface DepartmentFormModalProps {
   onSubmit: (dept: Partial<MasterData>) => void;
   initialData?: MasterData | null;
   employees: any[];
+  isSubmitting?: boolean;
 }
 
-export function DepartmentFormModal({ isOpen, onClose, onSubmit, initialData, employees }: DepartmentFormModalProps) {
+export function DepartmentFormModal({ isOpen, onClose, onSubmit, initialData, employees, isSubmitting = false }: DepartmentFormModalProps) {
   const [formData, setFormData] = useState<Partial<MasterData>>({
     MaPB: '',
     TenPB: '',
@@ -71,16 +72,24 @@ export function DepartmentFormModal({ isOpen, onClose, onSubmit, initialData, em
     onSubmit(formData);
   };
 
+  const handleClose = () => {
+    if (isSubmitting) return;
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      {/* Thêm overlay div để click bên ngoài thì đóng */}
+      <div className="fixed inset-0" onClick={handleClose}></div>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200 relative z-10">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
           <h2 className="text-lg font-bold text-slate-800">
             {initialData ? 'Chỉnh sửa phòng ban' : 'Tạo phòng ban mới'}
           </h2>
           <button 
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-200 rounded-full"
+            onClick={handleClose}
+            disabled={isSubmitting}
+            className={`transition-colors p-1 rounded-full ${isSubmitting ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200'}`}
           >
             <X className="w-5 h-5" />
           </button>
@@ -198,8 +207,10 @@ export function DepartmentFormModal({ isOpen, onClose, onSubmit, initialData, em
           </div>
 
           <div className="pt-6 flex justify-end gap-3 border-t border-slate-100">
-            <Button type="button" variant="outline" onClick={onClose}>Hủy bỏ</Button>
-            <Button type="submit">{initialData ? 'Lưu thay đổi' : 'Tạo mới'}</Button>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>Hủy bỏ</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (initialData ? 'Đang cập nhật...' : 'Đang tạo...') : (initialData ? 'Lưu thay đổi' : 'Tạo mới')}
+            </Button>
           </div>
         </form>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,9 +75,21 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
     queryKey: ['employee', employeeId],
     queryFn: () => employeeService.getEmployeeById(employeeId!),
     enabled: !!employeeId && isOpen,
+    refetchOnWindowFocus: false,
   });
 
+  const initializedForId = useRef<string | null | undefined>(undefined);
+
   useEffect(() => {
+    if (!isOpen) {
+      initializedForId.current = undefined;
+      return;
+    }
+    
+    if (initializedForId.current === employeeId) {
+      return; // Đã khởi tạo dữ liệu cho lần mở form này rồi, không ghi đè lại nếu có refetch ngầm!
+    }
+
     const actualData = employee || ((employeeData as any)?.data || employeeData);
 
     if (actualData) {
@@ -95,15 +107,17 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
         NgayNghiViec: actualData.NgayNghiViec ? actualData.NgayNghiViec.split('T')[0] : '',
         Version: actualData.Version || 1,
       });
-    } else if (!employeeId && isOpen) {
+      initializedForId.current = employeeId;
+    } else if (!employeeId) {
       reset({
         MaNV: '', HoTen: '', GioiTinh: 'M', NgaySinh: '', CCCD: '', SoDienThoai: '', Email: '',
         DiaChi: '', MaPB: '', MaCV: '', NgayVaoLam: '', MaSoThue: '', SoTaiKhoanNH: '',
         TenNganHang: '', SoNguoiPhuThuoc: 0, GhiChu: '', NgayNghiViec: '', TrangThai: 'A',
         Version: 1
       });
+      initializedForId.current = employeeId;
     }
-  }, [employeeData, employeeId, isOpen, reset]);
+  }, [employee, employeeData, employeeId, isOpen, reset]);
 
   const mutation = useMutation({
     mutationFn: (data: EmployeeFormValues) => {
@@ -125,18 +139,30 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
     mutation.mutate(data);
   };
 
+  const handleClose = () => {
+    if (mutation.isPending) return;
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
     <>
-      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={onClose} />
+      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={handleClose} />
       <div className="fixed inset-y-0 right-0 w-full md:w-[600px] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
+        {mutation.isPending && (
+          <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] z-[100] flex flex-col items-center justify-center">
+            <Loader2 className="w-12 h-12 animate-spin text-indigo-600 mb-4" />
+            <p className="text-lg font-semibold text-slate-800">Hệ thống đang xử lý...</p>
+            <p className="text-slate-500 text-sm mt-2">Vui lòng đợi và không đóng trình duyệt!</p>
+          </div>
+        )}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <div>
             <h2 className="text-xl font-bold text-slate-900">{employeeId ? 'Sửa Nhân Viên' : 'Thêm Nhân Viên Mới'}</h2>
             <p className="text-sm text-slate-500 mt-1">Nhập thông tin hồ sơ nhân viên</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
+          <button onClick={handleClose} disabled={mutation.isPending} className={cn("p-2 rounded-full transition-colors", mutation.isPending ? "text-slate-300 cursor-not-allowed" : "hover:bg-slate-100 text-slate-500")}>
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -165,7 +191,7 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30">
-          {isLoadingEmployee ? (
+          {(employeeId && isLoadingEmployee) ? (
             <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin text-indigo-600 w-8 h-8" /></div>
           ) : (
             <form id="employee-form" onSubmit={handleSubmit(onSubmit as any)}>
@@ -307,7 +333,7 @@ export function EmployeeFormDrawer({ isOpen, onClose, employeeId, employee }: Em
         </div>
 
         <div className="p-6 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
-          <Button variant="outline" onClick={onClose} type="button">Hủy bỏ</Button>
+          <Button variant="outline" onClick={handleClose} disabled={mutation.isPending} type="button">Hủy bỏ</Button>
           {activeTab !== "benefits" && (
             <Button type="submit" form="employee-form" disabled={mutation.isPending}>
               {mutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Đang lưu...</> : 'Lưu Thay Đổi'}

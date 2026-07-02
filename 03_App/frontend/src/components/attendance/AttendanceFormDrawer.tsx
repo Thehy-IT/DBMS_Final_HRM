@@ -85,11 +85,16 @@ export function AttendanceFormDrawer({ isOpen, onClose, attendanceData }: Attend
     mutation.mutate(formData);
   };
 
+  const handleClose = () => {
+    if (mutation.isPending) return;
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
     <>
-      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={onClose} />
+      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={handleClose} />
       
       <div className="fixed inset-y-0 right-0 w-full md:w-[450px] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
@@ -97,7 +102,7 @@ export function AttendanceFormDrawer({ isOpen, onClose, attendanceData }: Attend
             <h2 className="text-xl font-bold text-slate-900">{attendanceData ? 'Sửa Chấm Công' : 'Thêm Chấm Công'}</h2>
             <p className="text-sm text-slate-500 mt-1">Cập nhật giờ vào/ra của nhân viên</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
+          <button onClick={handleClose} disabled={mutation.isPending} className={`p-2 rounded-full transition-colors ${mutation.isPending ? 'text-slate-300 cursor-not-allowed' : 'hover:bg-slate-100 text-slate-500'}`}>
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -158,7 +163,7 @@ export function AttendanceFormDrawer({ isOpen, onClose, attendanceData }: Attend
         </div>
 
         <div className="p-6 border-t border-slate-200 bg-white flex items-center justify-end gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-          <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>Hủy</Button>
+          <Button variant="ghost" onClick={handleClose} disabled={mutation.isPending}>Hủy</Button>
           <Button onClick={handleSubmit} disabled={mutation.isPending}>
             {mutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             {attendanceData ? 'Cập nhật' : 'Thêm Chấm Công'}

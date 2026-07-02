@@ -273,7 +273,8 @@ export default function BenefitsPage() {
         isOpen={isFormOpen} 
         onClose={() => setIsFormOpen(false)} 
         onSubmit={handleFormSubmit} 
-        initialData={editingBenefit} 
+        initialData={editingBenefit}
+        isSubmitting={createMutation.isPending || updateMutation.isPending}
       />
 
       <ConfirmDeleteModal 
@@ -282,6 +283,7 @@ export default function BenefitsPage() {
         onConfirm={handleConfirmDelete}
         title="Xóa loại phúc lợi"
         description={`Bạn có chắc chắn muốn xóa loại phúc lợi "${deletingBenefit?.TenFL || deletingBenefit?.name}" không? Hành động này sẽ bị từ chối nếu phúc lợi này đang được gắn cho bất kỳ nhân viên nào.`}
+        isSubmitting={deleteMutation.isPending}
       />
     </div>
   );

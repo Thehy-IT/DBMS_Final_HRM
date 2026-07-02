@@ -220,7 +220,8 @@ export default function ContractTypesPage() {
         isOpen={isFormOpen} 
         onClose={() => setIsFormOpen(false)} 
         onSubmit={handleFormSubmit} 
-        initialData={editingType} 
+        initialData={editingType}
+        isSubmitting={createMutation.isPending || updateMutation.isPending}
       />
 
       <ConfirmDeleteModal 
@@ -229,6 +230,7 @@ export default function ContractTypesPage() {
         onConfirm={handleConfirmDelete}
         title="Xóa loại hợp đồng"
         description={`Bạn có chắc chắn muốn xóa loại hợp đồng "${deletingType?.TenLoaiHD || deletingType?.name}" không? Thao tác này chỉ thực hiện được nếu không có nhân viên nào đang ký loại hợp đồng này.`}
+        isSubmitting={deleteMutation.isPending}
       />
     </div>
   );

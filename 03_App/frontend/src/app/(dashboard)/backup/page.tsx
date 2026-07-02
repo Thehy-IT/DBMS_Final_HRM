@@ -229,6 +229,7 @@ export default function BackupPage() {
         onConfirm={handleConfirmDelete}
         title="Xóa bản sao lưu"
         description={`Bạn có chắc chắn muốn xóa vĩnh viễn file sao lưu "${deletingFile?.fileName}" không? Hành động này không thể hoàn tác.`}
+        isSubmitting={deleteMutation.isPending}
       />
     </div>
   );

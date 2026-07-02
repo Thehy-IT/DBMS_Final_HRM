@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,9 +49,21 @@ export function ContractFormDrawer({ isOpen, onClose, contractId }: ContractForm
     queryKey: ['contract', contractId],
     queryFn: () => contractService.getContractById(contractId!),
     enabled: !!contractId && isOpen,
+    refetchOnWindowFocus: false,
   });
 
+  const initializedForId = useRef<string | null | undefined>(undefined);
+
   useEffect(() => {
+    if (!isOpen) {
+      initializedForId.current = undefined;
+      return;
+    }
+    
+    if (initializedForId.current === contractId) {
+      return;
+    }
+
     setErrors({});
     if (contractData) {
       setFormData({
@@ -59,8 +71,8 @@ export function ContractFormDrawer({ isOpen, onClose, contractId }: ContractForm
         startDate: contractData.startDate ? contractData.startDate.split('T')[0] : '',
         endDate: contractData.endDate ? contractData.endDate.split('T')[0] : ''
       });
-      // VungLuong logic could be added if interface was extended, defaulting to 1
       setVungLuong((contractData as any).VungLuong || "1");
+      initializedForId.current = contractId;
     } else if (!contractId) {
       setFormData({
         id: '',
@@ -72,6 +84,7 @@ export function ContractFormDrawer({ isOpen, onClose, contractId }: ContractForm
         status: 'A'
       });
       setVungLuong("1");
+      initializedForId.current = contractId;
     }
   }, [contractData, contractId, isOpen]);
 
@@ -129,25 +142,37 @@ export function ContractFormDrawer({ isOpen, onClose, contractId }: ContractForm
     });
   };
 
+  const handleClose = () => {
+    if (mutation.isPending) return;
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
     <>
-      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={onClose} />
+      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={handleClose} />
       
       <div className="fixed inset-y-0 right-0 w-full md:w-[500px] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
+        {mutation.isPending && (
+          <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] z-[100] flex flex-col items-center justify-center">
+            <Loader2 className="w-12 h-12 animate-spin text-indigo-600 mb-4" />
+            <p className="text-lg font-semibold text-slate-800">Hệ thống đang xử lý...</p>
+            <p className="text-slate-500 text-sm mt-2">Vui lòng đợi và không đóng trình duyệt!</p>
+          </div>
+        )}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <div>
             <h2 className="text-xl font-bold text-slate-900">{contractId ? 'Sửa Hợp Đồng' : 'Thêm Hợp Đồng'}</h2>
             <p className="text-sm text-slate-500 mt-1">Khởi tạo hợp đồng lao động mới</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
+          <button onClick={handleClose} disabled={mutation.isPending} className={`p-2 rounded-full transition-colors ${mutation.isPending ? 'text-slate-300 cursor-not-allowed' : 'hover:bg-slate-100 text-slate-500'}`}>
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30">
-          {isLoadingContract ? (
+          {(contractId && isLoadingContract) ? (
             <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin text-indigo-600 w-8 h-8" /></div>
           ) : (
             <div className="space-y-5">
@@ -222,7 +247,7 @@ export function ContractFormDrawer({ isOpen, onClose, contractId }: ContractForm
         </div>
 
         <div className="p-6 border-t border-slate-200 bg-white flex items-center justify-end gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-          <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>Hủy</Button>
+          <Button variant="ghost" onClick={handleClose} disabled={mutation.isPending}>Hủy</Button>
           <Button onClick={handleSubmit} disabled={mutation.isPending}>
             {mutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             {contractId ? 'Cập nhật' : 'Lưu Hợp Đồng'}

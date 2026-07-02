@@ -256,6 +256,7 @@ export default function DepartmentsPage() {
         onSubmit={handleFormSubmit} 
         initialData={editingDept} 
         employees={employees}
+        isSubmitting={createMutation.isPending || updateMutation.isPending}
       />
 
       <ConfirmDeleteModal 
@@ -264,6 +265,7 @@ export default function DepartmentsPage() {
         onConfirm={handleConfirmDelete}
         title="Xóa phòng ban"
         description={`Bạn có chắc chắn muốn xóa phòng ban "${deletingDept?.TenPB || deletingDept?.name}" không? Thao tác này không thể hoàn tác và chỉ thực hiện được nếu phòng ban chưa có nhân viên nào.`}
+        isSubmitting={deleteMutation.isPending}
       />
     </div>
   );

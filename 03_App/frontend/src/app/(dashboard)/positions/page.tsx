@@ -240,7 +240,8 @@ export default function PositionsPage() {
         isOpen={isFormOpen} 
         onClose={() => setIsFormOpen(false)} 
         onSubmit={handleFormSubmit} 
-        initialData={editingPos} 
+        initialData={editingPos}
+        isSubmitting={createMutation.isPending || updateMutation.isPending}
       />
 
       <ConfirmDeleteModal 
@@ -249,6 +250,7 @@ export default function PositionsPage() {
         onConfirm={handleConfirmDelete}
         title="Xóa chức vụ"
         description={`Bạn có chắc chắn muốn xóa chức vụ "${deletingPos?.TenCV || deletingPos?.name}" không? Thao tác này chỉ thực hiện được nếu không có nhân viên nào đang giữ chức vụ này.`}
+        isSubmitting={deleteMutation.isPending}
       />
     </div>
   );

@@ -279,6 +279,7 @@ export default function UsersPage() {
         onSubmit={handleFormSubmit} 
         initialData={editingUser} 
         employees={employees}
+        isSubmitting={createMutation.isPending || updateMutation.isPending}
       />
 
       <ConfirmDeleteModal 
@@ -287,6 +288,7 @@ export default function UsersPage() {
         onConfirm={handleConfirmDelete}
         title="Xóa tài khoản"
         description={`Bạn có chắc chắn muốn xóa tài khoản "${deletingUser?.TenDangNhap}" không? Nếu xóa, người này sẽ không thể đăng nhập vào hệ thống.`}
+        isSubmitting={deleteMutation.isPending}
       />
     </div>
   );

@@ -71,10 +71,15 @@ export function LeaveFormDrawer({ isOpen, onClose }: LeaveFormDrawerProps) {
     mutation.mutate({ MaNV, MaLoaiNghi, NgayBatDau, NgayKetThuc, LyDo });
   };
 
+  const handleClose = () => {
+    if (mutation.isPending) return;
+    onClose();
+  };
+
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 z-40 transition-opacity" onClick={onClose} />
+        <div className="fixed inset-0 bg-slate-900/50 z-40 transition-opacity" onClick={handleClose} />
       )}
 
       <div
@@ -85,7 +90,11 @@ export function LeaveFormDrawer({ isOpen, onClose }: LeaveFormDrawerProps) {
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-800">Tạo Đơn Nghỉ Phép</h2>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors">
+          <button 
+            onClick={handleClose} 
+            disabled={mutation.isPending}
+            className={`p-2 rounded-full transition-colors ${mutation.isPending ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -144,7 +153,7 @@ export function LeaveFormDrawer({ isOpen, onClose }: LeaveFormDrawerProps) {
         </div>
 
         <div className="p-6 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={onClose}>Hủy bỏ</Button>
+          <Button type="button" variant="outline" onClick={handleClose} disabled={mutation.isPending}>Hủy bỏ</Button>
           <Button type="submit" form="leave-form" disabled={mutation.isPending}>
             {mutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             Lưu lại

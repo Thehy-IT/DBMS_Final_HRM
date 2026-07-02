@@ -1052,6 +1052,9 @@ app.put('/v1/contracts/:id', requireHR, async (req, res) => {
     if (err.code === 'ER_LOCK_DEADLOCK') {
       return res.status(500).json({ error: 'LỖI KHÓA CHẾT (DEADLOCK)! Hai giao dịch tự khóa chéo lẫn nhau. MySQL đã phát hiện và tự động hủy giao dịch này (Rollback) để hệ thống không bị treo cứng.' });
     }
+    if (err.code === 'ER_LOCK_WAIT_TIMEOUT') {
+      return res.status(500).json({ error: 'LỖI TREO CỨNG HỆ THỐNG (LOCK WAIT TIMEOUT)! Giao dịch đã bị treo vĩnh viễn do tranh chấp tài nguyên và bị MySQL hủy sau 30 giây chờ đợi.' });
+    }
     res.status(500).json({ error: err.message });
   } finally {
     connection.release();
@@ -1214,6 +1217,9 @@ app.put('/v1/employees/:id', requireHR, async (req, res) => {
     await connection.rollback();
     if (err.code === 'ER_LOCK_DEADLOCK') {
       return res.status(500).json({ error: 'LỖI KHÓA CHẾT (DEADLOCK)! Hai giao dịch tự khóa chéo lẫn nhau. MySQL đã phát hiện và tự động hủy giao dịch này (Rollback) để hệ thống không bị treo cứng.' });
+    }
+    if (err.code === 'ER_LOCK_WAIT_TIMEOUT') {
+      return res.status(500).json({ error: 'LỖI TREO CỨNG HỆ THỐNG (LOCK WAIT TIMEOUT)! Giao dịch đã bị treo vĩnh viễn do tranh chấp tài nguyên và bị MySQL hủy sau 30 giây chờ đợi.' });
     }
     res.status(500).json({ error: err.message });
   } finally {
@@ -1435,4 +1441,22 @@ app.all('/v1/demo/slow-onboarding', async (req, res) => {
 });
 app.listen(PORT, () => {
   console.log(`🚀 HRM Backend API is running at http://localhost:${PORT}`);
+  
+  // Tự động dọn dẹp các transaction bị treo (zombie deadlocks) khi khởi động server
+  (async () => {
+    try {
+      const connection = await pool.getConnection();
+      try {
+        const [rows] = await connection.query(`SELECT trx_mysql_thread_id FROM information_schema.innodb_trx`);
+        for (let row of rows) {
+          try {
+            await connection.query(`KILL ${row.trx_mysql_thread_id}`);
+          } catch (e) {}
+        }
+        await connection.query('SET GLOBAL innodb_deadlock_detect = ON;');
+      } finally {
+        connection.release();
+      }
+    } catch (err) {}
+  })();
 });

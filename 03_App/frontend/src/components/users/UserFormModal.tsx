@@ -10,9 +10,10 @@ interface UserFormModalProps {
   onSubmit: (user: Partial<User> & { MatKhau?: string }) => void;
   initialData?: User | null;
   employees: any[];
+  isSubmitting?: boolean;
 }
 
-export function UserFormModal({ isOpen, onClose, onSubmit, initialData, employees }: UserFormModalProps) {
+export function UserFormModal({ isOpen, onClose, onSubmit, initialData, employees, isSubmitting = false }: UserFormModalProps) {
   const [formData, setFormData] = useState<Partial<User> & { MatKhau?: string }>({
     TenDangNhap: '',
     MatKhau: '',
@@ -47,16 +48,23 @@ export function UserFormModal({ isOpen, onClose, onSubmit, initialData, employee
     onSubmit(formData);
   };
 
+  const handleClose = () => {
+    if (isSubmitting) return;
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="fixed inset-0" onClick={handleClose}></div>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 relative z-10">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="text-lg font-semibold text-slate-800">
             {initialData ? 'Chỉnh sửa tài khoản' : 'Tạo tài khoản mới'}
           </h2>
           <button 
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors"
+            onClick={handleClose}
+            disabled={isSubmitting}
+            className={`transition-colors p-1 rounded-full ${isSubmitting ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200'}`}
           >
             <X className="w-5 h-5" />
           </button>
@@ -138,8 +146,10 @@ export function UserFormModal({ isOpen, onClose, onSubmit, initialData, employee
           </div>
 
           <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
-            <Button type="button" variant="outline" onClick={onClose}>Hủy</Button>
-            <Button type="submit">{initialData ? 'Cập nhật' : 'Tạo tài khoản'}</Button>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>Hủy</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (initialData ? 'Đang cập nhật...' : 'Đang tạo...') : (initialData ? 'Cập nhật' : 'Tạo tài khoản')}
+            </Button>
           </div>
         </form>
       </div>
