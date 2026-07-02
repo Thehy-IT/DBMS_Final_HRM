@@ -1,3 +1,4 @@
+
 # BÁO CÁO DỰ ÁN MÔN HỆ QUẢN TRỊ CƠ SỞ DỮ LIỆU
 
 ## Đề tài: Hệ Thống Quản Lý Nhân Sự và Tính Lương Tự Động (HRPayrollSystem)
@@ -497,7 +498,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
    - Ngay lập tức (trong vòng dưới 5 giây), chuyển sang Tab 2 (Hợp Đồng) và bấm nút **Lưu**.
 6. **Kết quả trên UI:** Cả hai tab sẽ quay xoay (loading). Hết thời gian chờ 5 giây của DB, một trong hai tab sẽ hiển thị báo lỗi Pop-up/Toast màu đỏ: `"LỖI KHÓA CHẾT (DEADLOCK)! Hai giao dịch tự khóa chéo lẫn nhau. MySQL đã phát hiện và tự động hủy giao dịch này..."`. Tab còn lại sẽ báo Thành công. Giao diện trực quan cho thấy hệ thống đã bóc tách và ngăn chặn sập server thành công!
 
-#### Kịch bản 2: Trình diễn tính năng Khắc phục (Đồng nhất hướng lấy khóa chuẩn)
+**Kịch bản 2: Trình diễn tính năng Khắc phục (Đồng nhất hướng lấy khóa chuẩn)**
 
 1. Mở file [.env](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/03_App/backend/.env), đổi cấu hình thành:
    ```env
@@ -513,13 +514,16 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 ### 8. Lưu ý
 
 #### 8.1. Quy định mức Lương tối thiểu vùng trong dự án
+
 Bảng lương cơ bản tối thiểu được cấu hình bằng các ràng buộc dữ liệu (`CHECK CONSTRAINTS`) dưới Database để tránh nhập sai quy định pháp luật:
+
 * **Vùng 1:** Lương cơ bản tối thiểu từ **`4,960,000` VNĐ** (Áp dụng các khu vực đô thị đặc biệt như TP. Hồ Chí Minh, Hà Nội...).
 * **Vùng 2:** Lương cơ bản tối thiểu từ **`4,410,000` VNĐ** (Áp dụng các khu vực ngoại thành, thành phố trực thuộc tỉnh...).
 * **Vùng 3:** Lương cơ bản tối thiểu từ **`3,860,000` VNĐ** (Áp dụng các khu vực thị xã, huyện...).
 * **Vùng 4:** Lương cơ bản tối thiểu từ **`3,450,000` VNĐ** (Áp dụng các khu vực nông thôn, vùng sâu vùng xa...).
 
 #### 8.2. Ý nghĩa các ký hiệu/mã trạng thái trong dự án
+
 * **Trạng thái Nhân Viên (`NhanVien.TrangThai`):**
   * `A` (Active): Đang làm việc / Hoạt động.
   * `I` (Inactive): Nghỉ việc.
@@ -541,7 +545,9 @@ Bảng lương cơ bản tối thiểu được cấu hình bằng các ràng bu
   * `4`: Hợp đồng không xác định thời hạn.
 
 #### 8.3. Biểu thuế Thu nhập cá nhân (TNCN) lũy tiến 7 bậc
+
 Thuế TNCN đối với thu nhập từ tiền lương, tiền công được tính theo phương pháp lũy tiến từng phần (Thông tư 111/2013/TT-BTC) dựa trên Thu nhập tính thuế (TNTT):
+
 * **Giảm trừ gia cảnh:**
   * Giảm trừ bản thân: **`11,000,000` VNĐ / tháng**.
   * Giảm trừ người phụ thuộc: **`4,400,000` VNĐ / người / tháng**.
@@ -553,5 +559,3 @@ Thuế TNCN đối với thu nhập từ tiền lương, tiền công được t
   * **Bậc 5:** Thu nhập tính thuế trên `32,000,000` đến `52,000,000` VNĐ / tháng — Thuế suất **25%**.
   * **Bậc 6:** Thu nhập tính thuế trên `52,000,000` đến `80,000,000` VNĐ / tháng — Thuế suất **30%**.
   * **Bậc 7:** Thu nhập tính thuế trên `80,000,000` VNĐ / tháng — Thuế suất **35%**.
-
-
