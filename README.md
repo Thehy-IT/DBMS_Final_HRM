@@ -138,9 +138,10 @@ DBMS_Final_HRM/
 │
 ├── 02_Database/
 │   ├── DDL/
-│   │   ├── 01_create_tables.sql    # 17 bảng, constraints, tiering
+│   │   ├── 01_create_tables.sql    # 18 bảng, constraints, tiering
 │   │   ├── 02_constraints.sql      # CHECK constraints, unique index
-│   │   └── 03_indexes.sql          # 20+ composite index
+│   │   ├── 03_indexes.sql          # 20+ composite index
+│   │   └── 04_perf_indexes.sql     # Index tối ưu hiệu năng cho UI
 │   ├── Functions/                  # 12 scalar functions
 │   │   ├── fn_TinhThueTNCN.sql     # Thuế TNCN (3 functions)
 │   │   ├── fn_TinhBHXH.sql         # BHXH/BHYT/BHTN (4 functions)
@@ -207,6 +208,7 @@ SET GLOBAL log_bin_trust_function_creators = 1;
 SOURCE 02_Database/DDL/01_create_tables.sql;
 SOURCE 02_Database/DDL/02_constraints.sql;
 SOURCE 02_Database/DDL/03_indexes.sql;
+SOURCE 02_Database/DDL/04_perf_indexes.sql;
 
 -- Bước 4: Functions
 SOURCE 02_Database/Functions/fn_TinhThueTNCN.sql;
@@ -248,8 +250,11 @@ CALL sp_TinhLuong(5, 2026, NULL, 0, 0);
 | Nhóm                   | Procedure                         | Mô tả                                                   |
 | ----------------------- | --------------------------------- | --------------------------------------------------------- |
 | **Lương**       | `sp_TinhLuong`                  | Pipeline tính lương tự động — cốt lõi hệ thống |
+|                         | `sp_TinhBHXH_ChiTiet`           | Tính chi tiết BHXH cho từng nhân viên                |
+|                         | `sp_TinhThueTNCN_ChiTiet`       | Tính chi tiết thuế TNCN cho từng nhân viên           |
 |                         | `sp_XacNhanBangLuong`           | Chuyển trạng thái Draft → Confirmed                   |
 |                         | `sp_ThanhToanLuong`             | Đánh dấu Confirmed → Paid                             |
+|                         | `sp_ChotBangLuong`              | Chốt bảng lương cuối kỳ, không cho sửa đổi           |
 | **Bảng lương** | `sp_TaoBangLuong_ChinhThuc`     | Bảng lương tổng hợp chính thức                     |
 |                         | `sp_TaoBangLuong_PhieuLuong`    | Phiếu lương chi tiết 1 nhân viên                    |
 |                         | `sp_TaoBangLuong_BHXH`          | Danh sách đóng BHXH tháng                             |
@@ -268,6 +273,9 @@ CALL sp_TinhLuong(5, 2026, NULL, 0, 0);
 |                         | `sp_BaoCaoNhanSu_BienDong`      | Tuyển mới / nghỉ việc theo kỳ                        |
 |                         | `sp_BaoCaoNhanSu_LuongPhanPhoi` | Phân phối lương & xếp hạng                          |
 |                         | `sp_BaoCaoNhanSu_NghiPhepNam`   | Quản lý phép năm tồn dư                             |
+| **Nhân sự**     | `sp_TiepNhanNhanSu`             | Quy trình tiếp nhận nhân viên mới                     |
+|                         | `sp_DieuChuyenThangChuc`        | Điều chuyển phòng ban, thăng chức nhân viên       |
+|                         | `sp_NghiViec`                   | Xử lý quy trình nghỉ việc, bàn giao                   |
 
 ### Functions (13)
 
@@ -285,6 +293,7 @@ CALL sp_TinhLuong(5, 2026, NULL, 0, 0);
 |                       | `fn_SoNgayNghiCoLuong`    | Ngày nghỉ có hưởng lương            |
 |                       | `fn_SoNgayNghiKhongLuong` | Ngày nghỉ không lương                 |
 |                       | `fn_HeSoLuongThang`       | Hệ số lương theo ngày công thực tế |
+| **Nhân sự**     | `fn_TinhThamNien`         | Tính thâm niên công tác (tháng/năm)      |
 
 ### Triggers (23)
 
@@ -309,6 +318,8 @@ CALL sp_TinhLuong(5, 2026, NULL, 0, 0);
 | `BangLuong`  | `trg_BangLuong_BeforeUpdate` | BEFORE UPDATE | Ngăn sửa bảng lương CHỐT          |
 |                | `trg_BangLuong_BeforeDelete` | BEFORE DELETE | Ngăn xóa bảng lương CHỐT          |
 |                | `trg_BangLuong_AfterUpdate`  | AFTER UPDATE  | Log chuyển trạng thái                |
+|                | `trg_BangLuong_BeforeUpdate_Protect` | BEFORE UPDATE | Bảo vệ bảng lương đã chốt           |
+|                | `trg_BangLuong_BeforeDelete_Protect` | BEFORE DELETE | Bảo vệ dữ liệu bảng lương           |
 
 ### Views (7)
 
@@ -316,6 +327,7 @@ CALL sp_TinhLuong(5, 2026, NULL, 0, 0);
 | --------------------------- | -------------------------------------------------------- |
 | `vw_BangLuong`            | Chi tiết lương đầy đủ từng nhân viên từng kỳ |
 | `vw_BangLuong_TongHop`    | Tổng hợp quỹ lương theo phòng ban/tháng           |
+| `vw_HoSoNhanVien_ChiTiet` | Hồ sơ chi tiết nhân viên (chức vụ, phòng ban) |
 | `vw_ThueTNCN_KyQuyetToan` | Dữ liệu quyết toán thuế TNCN theo nhân viên       |
 | `vw_TongHopChamCong`      | Tổng hợp chấm công theo nhân viên/tháng           |
 | `vw_ChamCong_ChiTiet`     | Chi tiết chấm công từng ngày                        |

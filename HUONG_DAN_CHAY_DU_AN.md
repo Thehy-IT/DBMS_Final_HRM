@@ -2,7 +2,7 @@
 
 DBMS: MySQL 8.0+
 Công cụ: MySQL Workbench 8.0 / MySQL Shell / DBeaver
-Tổng file SQL: 25 files | ~10,700+ dòng SQL | 177 test cases
+Tổng file SQL: 33 files | ~11,300+ dòng SQL | 177 test cases
 Môn học: Hệ Quản Trị Cơ Sở Dữ Liệu — DL2301CLCA
 
 ---
@@ -45,13 +45,14 @@ DBMS_Final_HRM/
 │
 ├── 02_Database/
 │   ├── DDL/
-│   │   ├── 01_create_tables.sql    # Tạo database + 17 bảng
+│   │   ├── 01_create_tables.sql    # Tạo database + 18 bảng
 │   │   ├── 02_constraints.sql      # Ràng buộc & Logic kiểm tra bổ sung
-│   │   └── 03_indexes.sql          # Index composite & tối ưu hiệu năng
-│   ├── Functions/                  # 12 functions nghiệp vụ
-│   ├── Triggers/                   # 21 triggers kiểm soát dữ liệu
-│   ├── StoredProcedures/           # 25 procedures tính toán lương/báo cáo
-│   ├── Views/                      # 6 views tổng hợp dữ liệu
+│   │   ├── 03_indexes.sql          # Index composite & tối ưu hiệu năng
+│   │   └── 04_perf_indexes.sql     # Index bổ sung tối ưu cho Dashboard
+│   ├── Functions/                  # 13 functions nghiệp vụ
+│   ├── Triggers/                   # 23 triggers kiểm soát dữ liệu
+│   ├── StoredProcedures/           # 27 procedures tính toán lương/báo cáo
+│   ├── Views/                      # 7 views tổng hợp dữ liệu
 │   └── DML/
 │       ├── seed_data.sql           # Dữ liệu mẫu: 50 NV + 3 tháng chấm công
 │       └── test_queries.sql        # 71 queries kiểm thử MySQL
@@ -80,15 +81,16 @@ DBMS_Final_HRM/
 
 Bắt buộc chạy theo đúng thứ tự dưới đây để đảm bảo phụ thuộc khoá ngoại và logic nghiệp vụ.
 
-1. DDL/01_create_tables.sql (Tạo DB + 17 bảng)
+1. DDL/01_create_tables.sql (Tạo DB + 18 bảng)
 2. DDL/02_constraints.sql (Ràng buộc & Helper SP)
 3. DDL/03_indexes.sql (Index & Tối ưu)
-4. Functions/ (Chạy tất cả các file trong thư mục này)
-5. StoredProcedures/ (Chạy tất cả các file trong thư mục này)
-6. Triggers/ (Chạy tất cả các file trong thư mục này)
-7. Views/ (Chạy tất cả các file trong thư mục này)
-8. DML/seed_data.sql (Nạp dữ liệu mẫu)
-9. DML/test_queries.sql (Kiểm thử truy vấn)
+4. DDL/04_perf_indexes.sql (Index bổ sung cho giao diện)
+5. Functions/ (Chạy tất cả các file trong thư mục này)
+6. StoredProcedures/ (Chạy tất cả các file trong thư mục này)
+7. Triggers/ (Chạy tất cả các file trong thư mục này)
+8. Views/ (Chạy tất cả các file trong thư mục này)
+9. DML/seed_data.sql (Nạp dữ liệu mẫu)
+10. DML/test_queries.sql (Kiểm thử truy vấn)
 
 ---
 
@@ -103,13 +105,14 @@ SELECT VERSION(); -- Yêu cầu >= 8.0
 
 ### Bước 1 — Tạo Cấu Trúc Database
 File: `02_Database/DDL/01_create_tables.sql`
-Kiểm tra: `USE HRPayrollDB; SHOW TABLES;` (Kết quả: 17 bảng)
+Kiểm tra: `USE HRPayrollDB; SHOW TABLES;` (Kết quả: 18 bảng)
 
 ### Bước 2 — Ràng Buộc, Index & Hàm Nghiệp Vụ
 Chạy lần lượt:
 1. `02_Database/DDL/02_constraints.sql`
 2. `02_Database/DDL/03_indexes.sql`
-3. Các file trong `02_Database/Functions/`
+3. `02_Database/DDL/04_perf_indexes.sql`
+4. Các file trong `02_Database/Functions/`
 
 ### Bước 3 — Tạo Stored Procedures & Triggers
 Lưu ý: MySQL yêu cầu đổi DELIMITER (thường dùng $$) khi tạo Procedure/Trigger.
@@ -197,11 +200,11 @@ CALL sp_BaoCaoNhanSu_TongQuan();
 
 | Thành phần | Số lượng | Trạng thái |
 | --- | --- | --- |
-| Bảng (Tables) | 17 | Hoàn tất |
-| Hàm (Functions) | 12 | Hoàn tất |
-| Thủ tục (Procs) | 25 | Hoàn tất |
-| Triggers | 21 | Hoàn tất |
-| Views | 6 | Hoàn tất |
+| Bảng (Tables) | 18 | Hoàn tất |
+| Hàm (Functions) | 13 | Hoàn tất |
+| Thủ tục (Procs) | 27 | Hoàn tất |
+| Triggers | 23 | Hoàn tất |
+| Views | 7 | Hoàn tất |
 | Dữ liệu mẫu | 50 NV | Đã nạp |
 
 ---
