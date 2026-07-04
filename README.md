@@ -103,19 +103,27 @@ Lương Net = Gross − BH_NLĐ − ThuếTNCN − KhauTruKhac
 
 ---
 
+## Giao Diện Ứng Dụng (Dashboard)
+
+![Dashboard 1](05_Docs/image/dashboard1.PNG)
+
+![Dashboard 2](05_Docs/image/dashboard2.jpg)
+
+---
+
 ## Thống Kê Dự Án
 
 | Hạng mục                  | Số lượng | Chi tiết                                               |
 | --------------------------- | ----------- | ------------------------------------------------------- |
-| **Tables**            | 17          | InnoDB, utf8mb4_unicode_ci                              |
-| **Stored Procedures** | 21          | Tính lương, chấm công, báo cáo, bảng lương    |
-| **Functions**         | 12          | Thuế TNCN, BHXH, ngày công, hệ số lương          |
-| **Triggers**          | 21          | Audit trail, validate, business rules                   |
-| **Views**             | 6           | Bảng lương, chấm công, thuế, tỷ lệ chuyên cần |
+| **Tables**            | 18          | InnoDB, utf8mb4_unicode_ci                              |
+| **Stored Procedures** | 27          | Tính lương, chấm công, báo cáo, bảng lương    |
+| **Functions**         | 13          | Thuế TNCN, BHXH, ngày công, hệ số lương          |
+| **Triggers**          | 23          | Audit trail, validate, business rules                   |
+| **Views**             | 7           | Bảng lương, chấm công, thuế, tỷ lệ chuyên cần |
 | **Indexes**           | 20+         | Composite index cho tính lương, báo cáo            |
 | **Dữ liệu mẫu**    | 50 NV       | 3 tháng chấm công (≥3,000 records)                  |
 | **Test cases**        | 177         | 102 lương + 75 chấm công                            |
-| **Tổng dòng SQL**   | ~7,847      | Bao gồm testcases                                      |
+| **Tổng dòng SQL**   | ~11,316     | Bao gồm testcases                                      |
 | **DBMS**              | MySQL 8.0+  | Engine: InnoDB                                          |
 
 ---
@@ -235,7 +243,7 @@ CALL sp_TinhLuong(5, 2026, NULL, 0, 0);
 
 ## Danh Sách Đối Tượng Database
 
-### Stored Procedures (21)
+### Stored Procedures (27)
 
 | Nhóm                   | Procedure                         | Mô tả                                                   |
 | ----------------------- | --------------------------------- | --------------------------------------------------------- |
@@ -261,7 +269,7 @@ CALL sp_TinhLuong(5, 2026, NULL, 0, 0);
 |                         | `sp_BaoCaoNhanSu_LuongPhanPhoi` | Phân phối lương & xếp hạng                          |
 |                         | `sp_BaoCaoNhanSu_NghiPhepNam`   | Quản lý phép năm tồn dư                             |
 
-### Functions (12)
+### Functions (13)
 
 | Nhóm                 | Function                    | Trả về                                   |
 | --------------------- | --------------------------- | ------------------------------------------ |
@@ -278,7 +286,7 @@ CALL sp_TinhLuong(5, 2026, NULL, 0, 0);
 |                       | `fn_SoNgayNghiKhongLuong` | Ngày nghỉ không lương                 |
 |                       | `fn_HeSoLuongThang`       | Hệ số lương theo ngày công thực tế |
 
-### Triggers (21)
+### Triggers (23)
 
 | Bảng          | Trigger                        | Thời điểm  | Mục đích                             |
 | -------------- | ------------------------------ | ------------- | --------------------------------------- |
@@ -302,7 +310,7 @@ CALL sp_TinhLuong(5, 2026, NULL, 0, 0);
 |                | `trg_BangLuong_BeforeDelete` | BEFORE DELETE | Ngăn xóa bảng lương CHỐT          |
 |                | `trg_BangLuong_AfterUpdate`  | AFTER UPDATE  | Log chuyển trạng thái                |
 
-### Views (6)
+### Views (7)
 
 | View                        | Mô tả                                                  |
 | --------------------------- | -------------------------------------------------------- |
