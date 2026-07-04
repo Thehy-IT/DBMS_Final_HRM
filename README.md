@@ -24,26 +24,26 @@ Hệ thống được thiết kế theo mô hình **Database-Centric Architectur
                          │  CALL / SELECT / INSERT
 ┌────────────────────────▼────────────────────────────────────────┐
 │                  STORED PROCEDURE LAYER                         │
-│   sp_TinhLuong  │  sp_ChamCong  │  sp_TaoBangLuong             │
+│   sp_TinhLuong  │  sp_ChamCong  │  sp_TaoBangLuong              │
 │   sp_BaoCaoNhanSu  │  sp_XacNhanBangLuong  │  sp_ThanhToanLuong │
 └────────────────────────┬────────────────────────────────────────┘
                          │  gọi hàm / truy vấn bảng
 ┌────────────────────────▼────────────────────────────────────────┐
 │                   FUNCTION LAYER                                │
-│   fn_TinhThueTNCN_Scalar  │  fn_TinhBH_NLD  │  fn_TinhBH_NSDLD │
+│   fn_TinhThueTNCN_Scalar  │  fn_TinhBH_NLD  │   fn_TinhBH_NSDLD │
 │   fn_SoNgayChuanThang     │  fn_HeSoLuongThang  │  ...          │
 └────────────────────────┬────────────────────────────────────────┘
                          │  DML trên bảng → kích hoạt
 ┌────────────────────────▼────────────────────────────────────────┐
-│                   DATA LAYER (17 Tables — InnoDB)               │
+│                   DATA LAYER (18 Tables — InnoDB)               │
 │  NhanVien │ HopDong │ LuongCoBan │ ChamCong │ BangLuong         │
 │  ChiTietLuong │ KhauTru │ AuditLog_HopDong │ AuditLog_Luong     │
 │  PhongBan │ ChucVu │ LoaiHopDong │ NghiPhep │ NhanVienPhucLoi   │
-│  LoaiNghiPhep │ LoaiPhucLoi │ NgayLe                           │
+│  LoaiNghiPhep │ LoaiPhucLoi │ NgayLe                            │
 └────────────────────────┬────────────────────────────────────────┘
                          │  INSERT/UPDATE/DELETE → tự động kích hoạt
 ┌────────────────────────▼────────────────────────────────────────┐
-│                   TRIGGER LAYER (21 Triggers)                   │
+│                   TRIGGER LAYER (23 Triggers)                   │
 │  Audit Trail  │  Data Validation  │  Business Rule Enforcement  │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -57,7 +57,7 @@ Hệ thống được thiết kế theo mô hình **Database-Centric Architectur
 Stored procedure cốt lõi xử lý toàn bộ pipeline tính lương trong **1 lệnh duy nhất**:
 
 ```sql
-CALL sp_TinhLuong(3, 2025, NULL, 0, 0);
+CALL sp_TinhLuong(3, 2026, NULL, 0, 0);
 -- Tháng 3/2025 | Toàn bộ NV | Không override | Không dry-run
 ```
 
@@ -251,10 +251,10 @@ CALL sp_TinhLuong(5, 2026, NULL, 0, 0);
 | ----------------------- | --------------------------------- | --------------------------------------------------------- |
 | **Lương**       | `sp_TinhLuong`                  | Pipeline tính lương tự động — cốt lõi hệ thống |
 |                         | `sp_TinhBHXH_ChiTiet`           | Tính chi tiết BHXH cho từng nhân viên                |
-|                         | `sp_TinhThueTNCN_ChiTiet`       | Tính chi tiết thuế TNCN cho từng nhân viên           |
+|                         | `sp_TinhThueTNCN_ChiTiet`       | Tính chi tiết thuế TNCN cho từng nhân viên          |
 |                         | `sp_XacNhanBangLuong`           | Chuyển trạng thái Draft → Confirmed                   |
 |                         | `sp_ThanhToanLuong`             | Đánh dấu Confirmed → Paid                             |
-|                         | `sp_ChotBangLuong`              | Chốt bảng lương cuối kỳ, không cho sửa đổi           |
+|                         | `sp_ChotBangLuong`              | Chốt bảng lương cuối kỳ, không cho sửa đổi      |
 | **Bảng lương** | `sp_TaoBangLuong_ChinhThuc`     | Bảng lương tổng hợp chính thức                     |
 |                         | `sp_TaoBangLuong_PhieuLuong`    | Phiếu lương chi tiết 1 nhân viên                    |
 |                         | `sp_TaoBangLuong_BHXH`          | Danh sách đóng BHXH tháng                             |
@@ -273,9 +273,9 @@ CALL sp_TinhLuong(5, 2026, NULL, 0, 0);
 |                         | `sp_BaoCaoNhanSu_BienDong`      | Tuyển mới / nghỉ việc theo kỳ                        |
 |                         | `sp_BaoCaoNhanSu_LuongPhanPhoi` | Phân phối lương & xếp hạng                          |
 |                         | `sp_BaoCaoNhanSu_NghiPhepNam`   | Quản lý phép năm tồn dư                             |
-| **Nhân sự**     | `sp_TiepNhanNhanSu`             | Quy trình tiếp nhận nhân viên mới                     |
+| **Nhân sự**     | `sp_TiepNhanNhanSu`             | Quy trình tiếp nhận nhân viên mới                   |
 |                         | `sp_DieuChuyenThangChuc`        | Điều chuyển phòng ban, thăng chức nhân viên       |
-|                         | `sp_NghiViec`                   | Xử lý quy trình nghỉ việc, bàn giao                   |
+|                         | `sp_NghiViec`                   | Xử lý quy trình nghỉ việc, bàn giao                 |
 
 ### Functions (13)
 
@@ -293,33 +293,33 @@ CALL sp_TinhLuong(5, 2026, NULL, 0, 0);
 |                       | `fn_SoNgayNghiCoLuong`    | Ngày nghỉ có hưởng lương            |
 |                       | `fn_SoNgayNghiKhongLuong` | Ngày nghỉ không lương                 |
 |                       | `fn_HeSoLuongThang`       | Hệ số lương theo ngày công thực tế |
-| **Nhân sự**     | `fn_TinhThamNien`         | Tính thâm niên công tác (tháng/năm)      |
+| **Nhân sự**   | `fn_TinhThamNien`         | Tính thâm niên công tác (tháng/năm) |
 
 ### Triggers (23)
 
-| Bảng          | Trigger                        | Thời điểm  | Mục đích                             |
-| -------------- | ------------------------------ | ------------- | --------------------------------------- |
-| `ChamCong`   | `trg_ChamCong_BeforeInsert`  | BEFORE INSERT | Validate ngày không trong tương lai |
-|                | `trg_ChamCong_BeforeUpdate`  | BEFORE UPDATE | Validate cập nhật chấm công         |
-| `HopDong`    | `trg_HopDong_AfterInsert`    | AFTER INSERT  | Audit log hợp đồng mới              |
-|                | `trg_HopDong_AfterUpdate`    | AFTER UPDATE  | Audit log thay đổi hợp đồng        |
-|                | `trg_HopDong_AfterDelete`    | AFTER DELETE  | Audit log hủy hợp đồng              |
-|                | `trg_HopDong_BeforeUpdate`   | BEFORE UPDATE | Enforce business rules HĐ              |
-|                | `trg_HopDong_BeforeDelete`   | BEFORE DELETE | Ngăn xóa HĐ đang hiệu lực         |
-|                | `trg_HopDong_CheckOneActive` | BEFORE INSERT | Đảm bảo 1 HĐ active/thời điểm    |
-| `LuongCoBan` | `trg_LuongCoBan_AfterInsert` | AFTER INSERT  | Log điều chỉnh lương mới          |
-|                | `trg_LuongCoBan_AfterUpdate` | AFTER UPDATE  | Log từng cột thay đổi               |
-|                | `trg_LuongCoBan_CheckOneCurrent` | BEFORE INSERT | Đảm bảo chỉ 1 mức lương đang áp dụng |
-|                | `trg_LuongCoBan_CheckOneCurrent_Update` | BEFORE UPDATE | Ngăn chuyển 2 mức lương sang áp dụng |
-| `NghiPhep`   | `trg_NghiPhep_CheckOverlap_Insert` | BEFORE INSERT | Chặn trùng lịch nghỉ đã duyệt      |
-|                | `trg_NghiPhep_CheckOverlap_Update` | BEFORE UPDATE | Chặn trùng lịch nghỉ khi sửa ngày  |
-| `KhauTru`    | `trg_KhauTru_BeforeInsert_NgayHopLe` | BEFORE INSERT | Chặn ngày khấu trừ tương lai        |
-|                | `trg_KhauTru_BeforeUpdate_NgayHopLe` | BEFORE UPDATE | Chặn ngày khấu trừ tương lai        |
-| `BangLuong`  | `trg_BangLuong_BeforeUpdate` | BEFORE UPDATE | Ngăn sửa bảng lương CHỐT          |
-|                | `trg_BangLuong_BeforeDelete` | BEFORE DELETE | Ngăn xóa bảng lương CHỐT          |
-|                | `trg_BangLuong_AfterUpdate`  | AFTER UPDATE  | Log chuyển trạng thái                |
-|                | `trg_BangLuong_BeforeUpdate_Protect` | BEFORE UPDATE | Bảo vệ bảng lương đã chốt           |
-|                | `trg_BangLuong_BeforeDelete_Protect` | BEFORE DELETE | Bảo vệ dữ liệu bảng lương           |
+| Bảng          | Trigger                                   | Thời điểm  | Mục đích                                    |
+| -------------- | ----------------------------------------- | ------------- | ---------------------------------------------- |
+| `ChamCong`   | `trg_ChamCong_BeforeInsert`             | BEFORE INSERT | Validate ngày không trong tương lai        |
+|                | `trg_ChamCong_BeforeUpdate`             | BEFORE UPDATE | Validate cập nhật chấm công                |
+| `HopDong`    | `trg_HopDong_AfterInsert`               | AFTER INSERT  | Audit log hợp đồng mới                     |
+|                | `trg_HopDong_AfterUpdate`               | AFTER UPDATE  | Audit log thay đổi hợp đồng               |
+|                | `trg_HopDong_AfterDelete`               | AFTER DELETE  | Audit log hủy hợp đồng                     |
+|                | `trg_HopDong_BeforeUpdate`              | BEFORE UPDATE | Enforce business rules HĐ                     |
+|                | `trg_HopDong_BeforeDelete`              | BEFORE DELETE | Ngăn xóa HĐ đang hiệu lực                |
+|                | `trg_HopDong_CheckOneActive`            | BEFORE INSERT | Đảm bảo 1 HĐ active/thời điểm           |
+| `LuongCoBan` | `trg_LuongCoBan_AfterInsert`            | AFTER INSERT  | Log điều chỉnh lương mới                 |
+|                | `trg_LuongCoBan_AfterUpdate`            | AFTER UPDATE  | Log từng cột thay đổi                      |
+|                | `trg_LuongCoBan_CheckOneCurrent`        | BEFORE INSERT | Đảm bảo chỉ 1 mức lương đang áp dụng |
+|                | `trg_LuongCoBan_CheckOneCurrent_Update` | BEFORE UPDATE | Ngăn chuyển 2 mức lương sang áp dụng    |
+| `NghiPhep`   | `trg_NghiPhep_CheckOverlap_Insert`      | BEFORE INSERT | Chặn trùng lịch nghỉ đã duyệt           |
+|                | `trg_NghiPhep_CheckOverlap_Update`      | BEFORE UPDATE | Chặn trùng lịch nghỉ khi sửa ngày        |
+| `KhauTru`    | `trg_KhauTru_BeforeInsert_NgayHopLe`    | BEFORE INSERT | Chặn ngày khấu trừ tương lai             |
+|                | `trg_KhauTru_BeforeUpdate_NgayHopLe`    | BEFORE UPDATE | Chặn ngày khấu trừ tương lai             |
+| `BangLuong`  | `trg_BangLuong_BeforeUpdate`            | BEFORE UPDATE | Ngăn sửa bảng lương CHỐT                 |
+|                | `trg_BangLuong_BeforeDelete`            | BEFORE DELETE | Ngăn xóa bảng lương CHỐT                 |
+|                | `trg_BangLuong_AfterUpdate`             | AFTER UPDATE  | Log chuyển trạng thái                       |
+|                | `trg_BangLuong_BeforeUpdate_Protect`    | BEFORE UPDATE | Bảo vệ bảng lương đã chốt              |
+|                | `trg_BangLuong_BeforeDelete_Protect`    | BEFORE DELETE | Bảo vệ dữ liệu bảng lương               |
 
 ### Views (7)
 
@@ -327,7 +327,7 @@ CALL sp_TinhLuong(5, 2026, NULL, 0, 0);
 | --------------------------- | -------------------------------------------------------- |
 | `vw_BangLuong`            | Chi tiết lương đầy đủ từng nhân viên từng kỳ |
 | `vw_BangLuong_TongHop`    | Tổng hợp quỹ lương theo phòng ban/tháng           |
-| `vw_HoSoNhanVien_ChiTiet` | Hồ sơ chi tiết nhân viên (chức vụ, phòng ban) |
+| `vw_HoSoNhanVien_ChiTiet` | Hồ sơ chi tiết nhân viên (chức vụ, phòng ban)    |
 | `vw_ThueTNCN_KyQuyetToan` | Dữ liệu quyết toán thuế TNCN theo nhân viên       |
 | `vw_TongHopChamCong`      | Tổng hợp chấm công theo nhân viên/tháng           |
 | `vw_ChamCong_ChiTiet`     | Chi tiết chấm công từng ngày                        |
@@ -339,7 +339,7 @@ CALL sp_TinhLuong(5, 2026, NULL, 0, 0);
 
 | Mã   | Quy tắc                                                      | Thực thi tại                                 |
 | ----- | ------------------------------------------------------------- | ---------------------------------------------- |
-| BR-01 | Mã NV duy nhất, định dạng `NV######`                   | UNIQUE KEY + CHECK REGEXP                      |
+| BR-01 | Mã NV duy nhất, định dạng`NV######`                    | UNIQUE KEY + CHECK REGEXP                      |
 | BR-02 | 1 NV chỉ có 1 hợp đồng đang hiệu lực                  | `trg_HopDong_CheckOneActive`                 |
 | BR-03 | HĐ thử việc: lương 85%, không tính BHXH                | `fn_TinhBH_NLD` logic                        |
 | BR-04 | Không chấm công ngày tương lai                          | `trg_ChamCong_BeforeInsert`                  |
