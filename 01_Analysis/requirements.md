@@ -2,7 +2,7 @@
 
 # Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 
-**Hệ QTCSDL:** Microsoft SQL Server 2019+
+**Hệ QTCSDL:** MySQL 8.0+
 **Phiên bản:** 1.0
 **Ngày:** 2025-06-01
 
@@ -26,21 +26,23 @@ khấu trừ bảo hiểm & thuế TNCN, đến xuất báo cáo tài chính nh�
 
 | STT | Thực thể                 | Mô tả                                   | Ghi chú                              |
 | --- | -------------------------- | ----------------------------------------- | ------------------------------------- |
-| 1   | **NhanVien**         | Thông tin cá nhân nhân viên          | Thực thể trung tâm                 |
-| 2   | **PhongBan**         | Đơn vị tổ chức nội bộ              | Có cây phân cấp                   |
-| 3   | **ChucVu**           | Vị trí công việc, hệ số lương     | Gắn với nhóm lương               |
-| 4   | **HopDong**          | Hợp đồng lao động từng nhân viên  | Nhiều loại hợp đồng              |
-| 5   | **LuongCoBan**       | Mức lương cơ bản theo thời kỳ      | Lịch sử thay đổi                  |
-| 6   | **ChamCong**         | Bản ghi điểm danh từng ngày          | Nguồn đầu vào tính lương       |
-| 7   | **PhucLoi**          | Danh mục phụ cấp & phúc lợi          | Ăn trưa, xăng xe, điện thoại... |
-| 8   | **NhanVienPhucLoi**  | Gán phúc lợi cho nhân viên           | Quan hệ nhiều-nhiều                |
-| 9   | **BangLuong**        | Bảng lương tổng hợp theo tháng      | Kết quả từ sp_TinhLuong            |
-| 10  | **ChiTietLuong**     | Dòng chi tiết thu nhập/khấu trừ      | 1 BangLuong → N ChiTiet              |
-| 11  | **KhauTru**          | Các khoản khấu trừ đặc biệt        | Tạm ứng, phạt kỷ luật...         |
-| 12  | **ThueTNCN**         | Quyết toán thuế TNCN hàng tháng      | Theo biểu lũy tiến                 |
-| 13  | **NghiPhep**         | Đăng ký & theo dõi nghỉ phép        | Phép năm, thai sản, ốm...         |
-| 14  | **AuditLog_HopDong** | Log tự động khi thay đổi hợp đồng | Do Trigger ghi                        |
-| 15  | **AuditLog_Luong**   | Log tự động khi thay đổi lương     | Do Trigger ghi                        |
+| 1   | **PhongBan**         | Đơn vị tổ chức nội bộ              | Có cây phân cấp                   |
+| 2   | **ChucVu**           | Vị trí công việc, hệ số lương     | Gắn với nhóm lương               |
+| 3   | **LoaiHopDong**      | Danh mục các loại hợp đồng          |                                       |
+| 4   | **LoaiNghiPhep**     | Danh mục các loại nghỉ phép          |                                       |
+| 5   | **LoaiPhucLoi**      | Danh mục phụ cấp & phúc lợi          | Ăn trưa, xăng xe, điện thoại... |
+| 6   | **NgayLe**           | Danh mục các ngày nghỉ lễ            |                                       |
+| 7   | **NhanVien**         | Thông tin cá nhân nhân viên          | Thực thể trung tâm                 |
+| 8   | **HopDong**          | Hợp đồng lao động từng nhân viên  | Nhiều loại hợp đồng              |
+| 9   | **LuongCoBan**       | Mức lương cơ bản theo thời kỳ      | Lịch sử thay đổi                  |
+| 10  | **NghiPhep**         | Đăng ký & theo dõi nghỉ phép        | Phép năm, thai sản, ốm...         |
+| 11  | **NhanVienPhucLoi**  | Gán phúc lợi cho nhân viên           | Quan hệ nhiều-nhiều                |
+| 12  | **ChamCong**         | Bản ghi điểm danh từng ngày          | Nguồn đầu vào tính lương       |
+| 13  | **BangLuong**        | Bảng lương tổng hợp theo tháng      | Kết quả từ sp_TinhLuong            |
+| 14  | **ChiTietLuong**     | Dòng chi tiết thu nhập/khấu trừ      | 1 BangLuong → N ChiTiet              |
+| 15  | **KhauTru**          | Các khoản khấu trừ đặc biệt        | Tạm ứng, phạt kỷ luật...         |
+| 16  | **AuditLog_HopDong** | Log tự động khi thay đổi hợp đồng | Do Trigger ghi                        |
+| 17  | **AuditLog_Luong**   | Log tự động khi thay đổi lương     | Do Trigger ghi                        |
 
 ---
 
@@ -65,7 +67,7 @@ khấu trừ bảo hiểm & thuế TNCN, đến xuất báo cáo tài chính nh�
 - BR-09: Trạng thái chấm công: `DI_LAM`, `NGHI_PHEP`, `NGHI_BENH`, `NGHI_KHONG_PHEP`, `NGHI_LE`
 - BR-10: 1 nhân viên chỉ có 1 bản ghi chấm công mỗi ngày (UNIQUE constraint)
 - BR-11: Không cho phép chấm công vào ngày trong tương lai
-- BR-12: Làm thêm giờ tính 150% lương/giờ (ngày thường), 200% (cuối tuần), 300% (lễ)
+- BR-12: Làm thêm giờ tính 170% lương/giờ (ngày thường), 200% (cuối tuần), 300% (lễ)
 
 ### 3.4 Tính lương — Công thức cốt lõi
 
@@ -84,7 +86,7 @@ Giảm trừ bản thân  = 11,000,000 VNĐ/tháng
 Giảm trừ phụ thuộc = 4,400,000 VNĐ/người/tháng
 
 Thu nhập chịu thuế = Lương Gross - BH NV - Giảm trừ bản thân - Giảm trừ phụ thuộc
-Thuế TNCN          = fn_TinhThueTNCN(ThuNhapChiuThue)
+Thuế TNCN          = fn_TinhThueTNCN_Scalar(ThuNhapChiuThue)
 
 Lương Net  = Lương Gross - BH NV - Thuế TNCN - KhauTruKhac
 ```
@@ -104,7 +106,7 @@ Lương Net  = Lương Gross - BH NV - Thuế TNCN - KhauTruKhac
 ### 3.6 Báo cáo & Audit
 
 - BR-13: Mọi thay đổi lương cơ bản phải được ghi log với OldValue, NewValue, timestamp, user
-- BR-14: Bảng lương đã chốt (TrangThai = 'CHOT') không được phép sửa/xóa
+- BR-14: Bảng lương đã chốt (TrangThai = 'Confirmed' hoặc 'Paid') không được phép sửa/xóa
 - BR-15: Báo cáo lương phải có chữ ký xác nhận của HR và Giám đốc tài chính
 
 ---
@@ -113,15 +115,15 @@ Lương Net  = Lương Gross - BH NV - Thuế TNCN - KhauTruKhac
 
 ### Actor 1: HR Administrator
 
-| Mã UC | Use Case               | Mô tả                                           | Check list |
-| ------ | ---------------------- | ------------------------------------------------- | ---------- |
-| UC-01  | Quản lý nhân viên  | Thêm, sửa, vô hiệu hoá hồ sơ nhân viên   | 90%        |
-| UC-02  | Quản lý hợp đồng  | Ký mới, gia hạn, thanh lý hợp đồng         | 90%        |
-| UC-03  | Quản lý chấm công  | Nhập bảng chấm công tháng                    |            |
-| UC-04  | Quản lý phúc lợi   | Gán/xoá phụ cấp cho nhân viên               |            |
-| UC-05  | Chạy tính lương    | Gọi sp_TinhLuong(@Thang, @Nam)                   |            |
-| UC-06  | Duyệt & chốt lương | Chuyển trạng thái BangLuong → CHOT            |            |
-| UC-07  | Xem audit log          | Tra cứu lịch sử thay đổi hợp đồng/lương |            |
+| Mã UC | Use Case               | Mô tả                                           |
+| ------ | ---------------------- | ------------------------------------------------- |
+| UC-01  | Quản lý nhân viên  | Thêm, sửa, vô hiệu hoá hồ sơ nhân viên   |
+| UC-02  | Quản lý hợp đồng  | Ký mới, gia hạn, thanh lý hợp đồng         |
+| UC-03  | Quản lý chấm công  | Nhập bảng chấm công tháng                    |
+| UC-04  | Quản lý phúc lợi   | Gán/xoá phụ cấp cho nhân viên               |
+| UC-05  | Chạy tính lương    | Gọi sp_TinhLuong(@Thang, @Nam)                   |
+| UC-06  | Duyệt & chốt lương | Chuyển trạng thái BangLuong Draft → Confirmed |
+| UC-07  | Xem audit log          | Tra cứu lịch sử thay đổi hợp đồng/lương |
 
 ### Actor 2: Nhân Viên
 

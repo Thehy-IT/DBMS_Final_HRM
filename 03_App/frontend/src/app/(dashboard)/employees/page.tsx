@@ -143,13 +143,14 @@ export default function EmployeeListPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <>
       <EmployeeFormDrawer 
         isOpen={isDrawerOpen} 
         onClose={() => setIsDrawerOpen(false)} 
         employeeId={selectedEmployeeId}
         employee={employees.find((e: any) => e.MaNV === selectedEmployeeId)}
       />
+      <div className="space-y-6">
 
       {/* Import/Export Instructions Modal */}
       {isInstructionOpen && (
@@ -380,6 +381,7 @@ export default function EmployeeListPage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }

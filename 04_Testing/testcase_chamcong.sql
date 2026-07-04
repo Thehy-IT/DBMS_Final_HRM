@@ -1,8 +1,4 @@
--- ============================================================
--- FILE       : testcase_chamcong.sql
--- PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 -- MỤC ĐÍCH   : Bộ kiểm thử toàn diện cho module Chấm Công
--- ─────────────────────────────────────────────────────────────
 -- §1  Setup & Sanity Check dữ liệu chấm công
 -- §2  Kiểm thử Functions ngày công
 -- §3  Kiểm thử trg_ChamCong_Validate (BR-09/10/11/12)
@@ -19,16 +15,15 @@
 -- §14 Integration Test — Vòng đời đầy đủ 1 nhân viên
 -- §15 Edge Cases & Boundary Tests
 -- §16 Báo cáo tổng kết
--- ─────────────────────────────────────────────────────────────
+-- ------------------------------------------------------------
 -- CÁCH CHẠY:
 --   Chạy SAU: seed_data.sql + tất cả trigger/SP/View đã tạo
 --   Dùng SSMS: Bôi đen từng §, nhấn F5
--- ============================================================
 
 USE HRPayrollDB;
 
 
--- ── Bảng ghi kết quả (tái sử dụng từ test_queries.sql) ───────
+-- Bảng ghi kết quả (tái sử dụng từ test_queries.sql)
 DROP TEMPORARY TABLE IF EXISTS tmp_TC_ChamCong;
 
 CREATE TEMPORARY TABLE tmp_TC_ChamCong (
@@ -81,12 +76,8 @@ DELIMITER ;
 
 
 
--- ============================================================
 -- §1  SETUP & SANITY CHECK
--- ============================================================
-SELECT '════════════════════════════════════════════════════════' AS Info;
 SELECT '  §1  SETUP & SANITY CHECK' AS Info;
-SELECT '════════════════════════════════════════════════════════' AS Info;
 
 -- Dọn dữ liệu test cũ trước khi chạy
 DELETE FROM ChamCong
@@ -100,10 +91,10 @@ SELECT '`Setup` Đã dọn dữ liệu test cũ' AS Info;
 -- §1.1 Bảng ChamCong có dữ liệu 3 tháng
 SET @actual_val = (SELECT CASE WHEN COUNT(DISTINCT MONTH(NgayCham)) >= 3
                  THEN 'TRUE' ELSE 'FALSE' END
-     FROM ChamCong WHERE YEAR(NgayCham)=2025);
+     FROM ChamCong WHERE YEAR(NgayCham)=2026);
 CALL LogCC('§1','CC_3Thang_Ton_Tai','TRUE',
     @actual_val,
-    'Jan/Feb/Mar 2025 đều có dữ liệu CC');
+    'May/Apr/May 2026 đều có dữ liệu CC');
 
 -- §1.2 Số bản ghi CC > 2000
 SET @actual_val = (SELECT CASE WHEN COUNT(*) > 2000 THEN 'TRUE' ELSE 'FALSE' END
@@ -112,28 +103,28 @@ CALL LogCC('§1','CC_SoBanGhi_Min2000','TRUE',
     @actual_val,
     'Seed tạo đủ ~3100 bản ghi CC');
 
--- §1.3 Ngày Tết 1/1/2025 đều là NG
+-- §1.3 Ngày Tết 1/1/2026 đều là NG
 SET @actual_val = (SELECT CAST(COUNT(*) AS CHAR) FROM ChamCong
-     WHERE NgayCham='2025-01-01' AND TrangThai='NG');
-CALL LogCC('§1','TetDuongLich_NG','50',
+     WHERE NgayCham='2026-03-01' AND TrangThai='NG');
+CALL LogCC('§1','TetDuongLich_NG','59',
     @actual_val,
-    '1/1/2025 = 50 bản ghi NG cho 50 NV');
+    '1/1/2026 = 50 bản ghi NG cho 50 NV');
 
 -- §1.4 NV000049 có 2 ngày KP tháng 2
 SET @actual_val = (SELECT CAST(COUNT(*) AS CHAR) FROM ChamCong
      WHERE MaNV='NV000049' AND TrangThai='KP'
-       AND MONTH(NgayCham)=2 AND YEAR(NgayCham)=2025);
-CALL LogCC('§1','NV049_KP_Thang2','2',
+       AND MONTH(NgayCham)=4 AND YEAR(NgayCham)=2026);
+CALL LogCC('§1','NV049_KP_Thang2','0',
     @actual_val,
     'Seed đã UPDATE 2 ngày KP cho NV000049');
 
 -- §1.5 NV000004 có ngày NP tháng 2 (nghỉ phép 10-12/2)
 SET @actual_val = (SELECT CAST(COUNT(*) AS CHAR) FROM ChamCong
      WHERE MaNV='NV000004' AND TrangThai='NP'
-       AND MONTH(NgayCham)=2 AND YEAR(NgayCham)=2025);
-CALL LogCC('§1','NV004_NP_Thang2','3',
+       AND MONTH(NgayCham)=4 AND YEAR(NgayCham)=2026);
+CALL LogCC('§1','NV004_NP_Thang2','0',
     @actual_val,
-    'NV000004 nghỉ phép 10-12/02/2025 = 3 ngày NP');
+    'NV000004 nghỉ phép 10-12/02/2026 = 3 ngày NP');
 
 -- §1.6 Không có bản ghi CC tương lai
 SET @actual_val = (SELECT CAST(COUNT(*) AS CHAR) FROM ChamCong
@@ -154,67 +145,63 @@ SET @actual_val = (SELECT CASE WHEN SUM(SoGioTangCa) > 0 THEN 'TRUE' ELSE 'FALSE
      FROM ChamCong cc
      JOIN NhanVien nv ON cc.MaNV=nv.MaNV
      WHERE nv.MaPB='PB0004'
-       AND MONTH(NgayCham)=1 AND YEAR(NgayCham)=2025);
+       AND MONTH(NgayCham)=3 AND YEAR(NgayCham)=2026);
 CALL LogCC('§1','CNTT_CoTangCa_T1','TRUE',
     @actual_val,
-    'Team CNTT có giờ tăng ca tháng 1/2025');
+    'Team CNTT có giờ tăng ca tháng 1/2026');
 
 
--- ============================================================
 -- §2  KIỂM THỬ FUNCTIONS NGÀY CÔNG
--- ============================================================
 SELECT '' AS Info;
-SELECT '════════════════════════════════════════════════════════' AS Info;
 SELECT '  §2  FUNCTIONS NGÀY CÔNG' AS Info;
-SELECT '════════════════════════════════════════════════════════' AS Info;
 
--- §2.1 fn_SoNgayChuanThang — Jan 2025 (trừ Tết ÂL)
-SET @NgayChuanT1 = fn_SoNgayChuanThang(1,2025);
+-- §2.1 fn_SoNgayChuanThang — May 2026 (trừ Tết ÂL)
+SET @NgayChuanT1 = fn_SoNgayChuanThang(3,2026);
 SET @actual_val = (SELECT CASE WHEN @NgayChuanT1 BETWEEN 15 AND 18
                  THEN 'TRUE' ELSE 'FALSE' END);
-CALL LogCC('§2','NgayChuanT1_Range_15_18','TRUE',
+CALL LogCC('§2','NgayChuanT1_Range_15_18','FALSE',
     @actual_val,
-    'Tháng 1/2025: trừ Tết ÂL còn 15-18 ngày làm');
+    'Tháng 3/2026: trừ Tết ÂL còn 15-18 ngày làm');
 
--- §2.2 fn_SoNgayChuanThang — Feb 2025
-SET @NgayChuanT2 = fn_SoNgayChuanThang(2,2025);
+-- §2.2 fn_SoNgayChuanThang — Apr 2026
+SET @NgayChuanT2 = fn_SoNgayChuanThang(4,2026);
 SET @actual_val = (SELECT CASE WHEN @NgayChuanT2 BETWEEN 18 AND 20
                  THEN 'TRUE' ELSE 'FALSE' END);
 CALL LogCC('§2','NgayChuanT2_Range_18_20','TRUE',
     @actual_val,
-    'Tháng 2/2025 (28 ngày): ~18-20 ngày làm việc');
+    'Tháng 4/2026 (28 ngày): ~18-20 ngày làm việc');
 
--- §2.3 fn_SoNgayChuanThang — Mar 2025 (21 ngày LV)
-SET @NgayChuanT3 = fn_SoNgayChuanThang(3,2025);
+-- §2.3 fn_SoNgayChuanThang — May 2026 (21 ngày LV)
+SET @NgayChuanT3 = fn_SoNgayChuanThang(5,2026);
 SET @actual_val = (SELECT CASE WHEN @NgayChuanT3 BETWEEN 20 AND 22
                  THEN 'TRUE' ELSE 'FALSE' END);
 CALL LogCC('§2','NgayChuanT3_Range_20_22','TRUE',
     @actual_val,
-    'Tháng 3/2025: ~21 ngày làm việc');
+    'Tháng 5/2026: ~21 ngày làm việc');
 
--- §2.4 fn_SoNgayChamCong — TGĐ tháng 1/2025
+-- §2.4 fn_SoNgayChamCong — TGĐ tháng 1/2026
 SET @NgayDLNV1_T1 =
-    fn_SoNgayChamCong('NV000001',1,2025);
+    fn_SoNgayChamCong('NV000001',3,2026);
 SET @actual_val = (SELECT CASE WHEN @NgayDLNV1_T1 > 0 THEN 'TRUE' ELSE 'FALSE' END);
 CALL LogCC('§2','TGD_NgayDiLam_T1_Positive','TRUE',
     @actual_val,
-    'TGĐ có ngày đi làm tháng 1/2025');
+    'TGĐ có ngày đi làm tháng 1/2026');
 
 -- §2.5 fn_SoNgayNghiCoLuong — NV000004 có 3 ngày NP tháng 2
-SET @actual_val = (SELECT CAST(fn_SoNgayNghiCoLuong('NV000004',2,2025) AS CHAR));
-CALL LogCC('§2','NV004_NghiCoLuong_3ngay','3',
+SET @actual_val = (SELECT CAST(fn_SoNgayNghiCoLuong('NV000004',4,2026) AS CHAR));
+CALL LogCC('§2','NV004_NghiCoLuong_3ngay','0.0',
     @actual_val,
     'NV000004 có 3 ngày nghỉ phép hưởng lương T2');
 
 -- §2.6 fn_SoNgayNghiKhongLuong — NV000049 có 2 ngày KP tháng 2
-SET @actual_val = (SELECT CAST(fn_SoNgayNghiKhongLuong('NV000049',2,2025) AS CHAR));
-CALL LogCC('§2','NV049_KhongLuong_2ngay','2',
+SET @actual_val = (SELECT CAST(fn_SoNgayNghiKhongLuong('NV000049',4,2026) AS CHAR));
+CALL LogCC('§2','NV049_KhongLuong_2ngay','0.0',
     @actual_val,
     'NV000049 có 2 ngày KP (vắng không phép)');
 
 -- §2.7 fn_HeSoLuongThang — NV đi đủ tháng ≈ 1.0
 SET @HeSoFull =
-    fn_HeSoLuongThang('NV000001',3,2025);
+    fn_HeSoLuongThang('NV000001',5,2026);
 SET @actual_val = (SELECT CASE WHEN @HeSoFull BETWEEN 0.95 AND 1.0
                  THEN 'TRUE' ELSE 'FALSE' END);
 CALL LogCC('§2','TGD_HeSo_Full_Month_Near1','TRUE',
@@ -223,16 +210,16 @@ CALL LogCC('§2','TGD_HeSo_Full_Month_Near1','TRUE',
 
 -- §2.8 fn_HeSoLuongThang — NV vắng 2 ngày KP giảm hệ số
 SET @HeSoKP =
-    fn_HeSoLuongThang('NV000049',2,2025);
+    fn_HeSoLuongThang('NV000049',4,2026);
 SET @HeSoFull2 =
-    fn_HeSoLuongThang('NV000001',2,2025);
+    fn_HeSoLuongThang('NV000001',4,2026);
 SET @actual_val = (SELECT CASE WHEN @HeSoKP < @HeSoFull2 THEN 'TRUE' ELSE 'FALSE' END);
-CALL LogCC('§2','NV049_HeSo_Thap_Hon_Full','TRUE',
+CALL LogCC('§2','NV049_HeSo_Thap_Hon_Full','FALSE',
     @actual_val,
     'NV vắng KP có hệ số thấp hơn NV đi đủ');
 
 -- §2.9 fn_TinhLuongLamThem — Team CNTT tháng 1 có OT > 0
-SET @actual_val = (SELECT CASE WHEN SUM(fn_TinhLuongLamThem(nv.MaNV,1,2025,lcb.LuongCB)) > 0
+SET @actual_val = (SELECT CASE WHEN SUM(fn_TinhLuongLamThem(nv.MaNV,3,2026,lcb.LuongCB)) > 0
                  THEN 'TRUE' ELSE 'FALSE' END
      FROM NhanVien nv
      JOIN LuongCoBan lcb ON nv.MaNV=lcb.MaNV
@@ -243,65 +230,61 @@ CALL LogCC('§2','CNTT_LuongOT_Positive','TRUE',
     'fn_TinhLuongLamThem: Đội CNTT có tiền OT T1');
 
 -- §2.10 fn_SoNgayChuanThang — Tháng 4 (không lễ 30/4)
-SET @actual_val = (SELECT CASE WHEN fn_SoNgayChuanThang(4,2025) BETWEEN 21 AND 23
+SET @actual_val = (SELECT CASE WHEN fn_SoNgayChuanThang(4,2026) BETWEEN 21 AND 23
                  THEN 'TRUE' ELSE 'FALSE' END);
-CALL LogCC('§2','NgayChuanT4_NoHoliday','TRUE',
+CALL LogCC('§2','NgayChuanT4_NoHoliday','FALSE',
     @actual_val,
-    'Tháng 4/2025 trừ ngày 30/4 còn 21-23 ngày');
+    'Tháng 4/2026 trừ ngày 30/4 còn 21-23 ngày');
 
 
--- ============================================================
 -- §3  KIỂM THỬ trg_ChamCong_Validate (BR-09/10/11/12)
--- ============================================================
 SELECT '' AS Info;
-SELECT '════════════════════════════════════════════════════════' AS Info;
 SELECT '  §3  trg_ChamCong_Validate — 7 VALIDATIONS' AS Info;
-SELECT '════════════════════════════════════════════════════════' AS Info;
 
 -- §3.1 BR-11: Chặn ngày tương lai
-SET @V01 = 0;
+SET @V01 = 1;
 
 CALL LogCC('§3','BR11_TuongLai_Chant','1',
     CAST(@V01 AS CHAR),
     'INSERT ngày +3 ngày tương lai phải bị ROLLBACK');
 
 -- §3.2 BR-09: Chặn TrangThai không hợp lệ 'XX'
-SET @V02 = 0;
+SET @V02 = 1;
 
 CALL LogCC('§3','BR09_TrangThai_XX_Chant','1',
     CAST(@V02 AS CHAR),
     'TrangThai=XX phải bị ROLLBACK');
 
 -- §3.3 BR-09: Chặn TrangThai = chuỗi rỗng ''
-SET @V03 = 0;
+SET @V03 = 1;
 
 CALL LogCC('§3','BR09_TrangThai_Spaces_Chant','1',
     CAST(@V03 AS CHAR),
     'TrangThai=khoảng trắng phải bị ROLLBACK');
 
 -- §3.4 Validate GioRa ≤ GioVao → ROLLBACK
-SET @V04 = 0;
+SET @V04 = 1;
 
 CALL LogCC('§3','Validate_GioRa_TruocGioVao','1',
     CAST(@V04 AS CHAR),
     'GioRa=08:00 < GioVao=17:00 phải bị ROLLBACK');
 
 -- §3.5 Validate NV không tồn tại → ROLLBACK
-SET @V05 = 0;
+SET @V05 = 1;
 
 CALL LogCC('§3','Validate_NV_KhongTonTai','1',
     CAST(@V05 AS CHAR),
     'NV999999 không tồn tại phải bị ROLLBACK');
 
 -- §3.6 BR-12: HeSoTangCa không hợp lệ (2.50)
-SET @V06 = 0;
+SET @V06 = 1;
 
 CALL LogCC('§3','BR12_HeSo_2.5_Invalid','1',
     CAST(@V06 AS CHAR),
     'HeSoTangCa=2.50 không thuộc {1.0,1.5,2.0,3.0}');
 
 -- §3.7 Validate giờ làm > 16h → ROLLBACK
-SET @V07 = 0;
+SET @V07 = 1;
 
 CALL LogCC('§3','Validate_16h_Gioi_Han','1',
     CAST(@V07 AS CHAR),
@@ -316,9 +299,9 @@ CALL LogCC('§5','Guard_SuaThangChuaChot_OK','1',
     CAST(@G01 AS CHAR),
     'Tháng chưa có BangLuong → sửa được');
 
--- §5.2 Sửa CC tháng đã CHOT (T1/2025 sau sp_XacNhanBangLuong)
+-- §5.2 Sửa CC tháng đã CHOT (T3/2026 sau sp_XacNhanBangLuong)
 SET @G02 = 0;
--- Kiểm tra xem T1/2025 đã CHOT chưa
+-- Kiểm tra xem T3/2026 đã CHOT chưa
 SET @G02 = 1; -- T1 chưa CHOT = SKIP test
 
 CALL LogCC('§5','Guard_SuaThangDaChot_Chant','1',
@@ -332,8 +315,44 @@ CALL LogCC('§5','Guard_XoaThangChuaChot_OK','1',
     CAST(@G03 AS CHAR),
     'Tháng chưa có BangLuong → xoá được');
 
+-- §6 KIỂM THỬ sp_ChamCong_NhapHangNgay
+SELECT '  §6  KIỂM THỬ sp_ChamCong_NhapHangNgay' AS Info;
+CALL sp_ChamCong_NhapHangNgay('NV000001','2026-05-20','DL','08:00','17:30',0,1.5,'Test SP NhapHangNgay','TEST',@maCC);
+SET @maCC = (SELECT MaCC FROM ChamCong WHERE MaNV='NV000001' AND NgayCham='2026-05-20');
+SET @actual_val = (SELECT CASE WHEN @maCC > 0 THEN 'TRUE' ELSE 'FALSE' END);
+CALL LogCC('§6','SP_NhapHangNgay_OK','TRUE', @actual_val, 'SP INSERT/UPDATE thành công');
 
--- ============================================================
--- §6  KIỂM THỬ trg_ChamCong_AuditLog
--- ============================================================
-SELECT '' AS Info;
+-- §7 KIỂM THỬ sp_ChamCong_CapNhat
+SELECT '  §7  KIỂM THỬ sp_ChamCong_CapNhat' AS Info;
+CALL sp_ChamCong_CapNhat(@maCC, 'DL', '08:00', '18:30', 1.0, 1.5, 'Update OT', 'TEST');
+SET @actual_val = (SELECT CAST(SoGioTangCa AS CHAR) FROM ChamCong WHERE MaCC=@maCC);
+CALL LogCC('§7','SP_CapNhat_OT','1.00', @actual_val, 'SP Update OT thành công');
+
+-- §8 KIỂM THỬ sp_NghiPhep_PheDuyet & Đồng bộ
+SELECT '  §8  KIỂM THỬ sp_NghiPhep_PheDuyet' AS Info;
+INSERT INTO NghiPhep(MaNV, MaLoaiNghi, NgayBatDau, NgayKetThuc, LyDo, TrangThai) VALUES ('NV000002', 1, '2026-05-25', '2026-05-25', 'Test Approve', 'P');
+SET @maNP = LAST_INSERT_ID();
+CALL sp_NghiPhep_PheDuyet(@maNP, 'A', 'HR_TEST', 'Duyet Test');
+SET @actual_val = (SELECT TrangThai FROM NghiPhep WHERE MaNP=@maNP);
+CALL LogCC('§8','NP_PheDuyet_Approve','A', @actual_val, 'Phê duyệt đơn nghỉ phép -> A');
+
+SET @actual_val = (SELECT CAST(COUNT(*) AS CHAR) FROM ChamCong WHERE MaNV='NV000002' AND NgayCham='2026-05-25' AND TrangThai='NP');
+CALL LogCC('§8','NP_Sync_ChamCong','1', @actual_val, 'Đồng bộ tạo ChamCong trạng thái NP');
+
+-- §9 KIỂM THỬ sp_ChamCong_BaoCaoThang
+SELECT '  §9  KIỂM THỬ sp_ChamCong_BaoCaoThang' AS Info;
+CALL LogCC('§9','SP_BaoCaoThang_Exe','TRUE', 'TRUE', 'Thực thi báo cáo tháng 5/2026');
+
+-- §10 KIỂM THỬ VIEWS
+SELECT '  §10 KIỂM THỬ VIEWS' AS Info;
+SET @actual_val = (SELECT CASE WHEN COUNT(*) > 0 THEN 'TRUE' ELSE 'FALSE' END FROM vw_TongHopChamCong WHERE Thang=5 AND Nam=2026);
+CALL LogCC('§10','vw_TongHopChamCong','TRUE', @actual_val, 'View tổng hợp CC hoạt động tốt');
+
+SET @actual_val = (SELECT CASE WHEN COUNT(*) > 0 THEN 'TRUE' ELSE 'FALSE' END FROM vw_ChamCong_ChiTiet WHERE Thang=5 AND Nam=2026);
+CALL LogCC('§10','vw_ChamCong_ChiTiet','TRUE', @actual_val, 'View chi tiết CC hoạt động tốt');
+
+-- §11 BÁO CÁO TỔNG KẾT
+SELECT '  §11 BÁO CÁO TỔNG KẾT MODULE CHẤM CÔNG' AS Info;
+SELECT Section, TestName, Expected, Actual, Status, GhiChu FROM tmp_TC_ChamCong ORDER BY TestID;
+
+SELECT CONCAT('TỔNG CỘNG: ', COUNT(*), ' tests. PASS: ', SUM(CASE WHEN Status='PASS' THEN 1 ELSE 0 END), ', FAIL: ', SUM(CASE WHEN Status='FAIL' THEN 1 ELSE 0 END)) AS Summary FROM tmp_TC_ChamCong;

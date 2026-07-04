@@ -1,53 +1,9 @@
 /*
   KỊCH BẢN DEMO DEADLOCK (KHÓA CHẾT)
   (Phù hợp với kịch bản trong Report_week.md - Mục 7)
-  
-  Mô phỏng hai luồng xử lý đồng thời từ 2 chuyên viên HR (Giao dịch A và B)
-  thao tác trên cùng một nhân sự (NV000006) nhưng lấy khóa (lock) theo 
-  trình tự ngược nhau, dẫn đến hiện tượng Deadlock.
-*/
+  */
 
--- =========================================================================
--- 1. GIAO DỊCH A (HR 1 - Sửa Hồ Sơ Nhân Viên NV000006 trên UI)
--- Trình tự lấy khóa: NhanVien -> LuongCoBan
--- (Mở Cửa sổ/Tab 1 trong MySQL Workbench. Chạy khối này NGAY LẬP TỨC 
--- sau khi Tab 2 đã được chạy và đang trong giai đoạn SLEEP 5 giây)
--- =========================================================================
-START TRANSACTION;
--- Bước A1: Cập nhật thông tin cá nhân (Lấy và giữ khóa dòng trên bảng NhanVien)
-UPDATE NhanVien SET SoDienThoai = '0999999999' WHERE MaNV = 'NV000006'; 
-
-
--- Bước A2: Đồng bộ thông tin liên đới (Cố gắng lấy khóa dòng trên bảng LuongCoBan)
--- -> Sẽ bị kẹt chờ nếu Giao dịch B đã lấy khóa LuongCoBan trước
-UPDATE LuongCoBan SET LyDo = 'Cập nhật từ hồ sơ' WHERE MaNV = 'NV000006' AND NgayHetHieuLuc IS NULL;
-COMMIT;
-
-
--- =========================================================================
--- 2. GIAO DỊCH B (HR 2 - Sửa Hợp Đồng / Tăng Lương NV000006 trên UI)
--- Trình tự lấy khóa NGƯỢC CHIỀU: LuongCoBan -> NhanVien
--- (Mở Cửa sổ/Tab 2 trong MySQL Workbench. Bôi đen và CHẠY KHỐI NÀY TRƯỚC,
--- nó sẽ bắt đầu SLEEP 5 giây. Ngay lập tức quay lại Tab 1 và chạy Tab 1)
--- =========================================================================
-START TRANSACTION;
--- Bước B1: Điều chỉnh mức lương cơ bản (Lấy và giữ khóa dòng trên bảng LuongCoBan)
-UPDATE LuongCoBan SET LuongCB = 30000000 WHERE MaNV = 'NV000006' AND NgayHetHieuLuc IS NULL; 
-
--- Giả lập hệ thống tốn 5 giây xử lý, tạo cửa sổ thời gian (window) để Giao dịch A xen vào
-DO SLEEP(5); 
-
-
--- Bước B2: Ghi nhận cờ chú thích (Cố gắng lấy khóa dòng trên bảng NhanVien)
--- -> Sinh ra DEADLOCK do NhanVien đang bị khóa bởi Giao dịch A, 
--- và Giao dịch A lại đang chờ LuongCoBan từ Giao dịch B. MySQL sẽ tự động hủy 1 giao dịch.
-UPDATE NhanVien SET GhiChu = 'Đã thay đổi lương' WHERE MaNV = 'NV000006'; 
-COMMIT;
-
-
--- =========================================================================
--- =========================================================================
--- 3. SCRIPT RESET DỮ LIỆU
+-- . SCRIPT RESET DỮ LIỆU
 -- (Khôi phục toàn bộ dữ liệu mẫu gốc cho bảng NhanVien, HopDong, LuongCoBan 
 --  để có thể thực hiện demo lại nhiều lần hoặc demo cho bất kỳ nhân viên nào khác)
 -- =========================================================================

@@ -1,9 +1,3 @@
--- =========================================================================
--- SCRIPT RESET TRẠNG THÁI TRƯỚC KHI DEMO "PHANTOM READ" (LỖI BÓNG MA)
--- =========================================================================
--- Chạy script này dưới MySQL Workbench / DBeaver để dọn dẹp các nhân viên mới
--- được thêm trong quá trình demo và đưa danh sách bảng lương Tháng 6/2026 về Draft.
-
 USE hrpayrolldb;
 
 -- Tạm thời tắt kiểm tra khóa ngoại để xóa dữ liệu sạch sẽ

@@ -144,12 +144,13 @@ export default function ContractListPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <>
       <ContractFormDrawer 
         isOpen={isDrawerOpen} 
         onClose={() => setIsDrawerOpen(false)} 
         contractId={selectedContractId}
       />
+      <div className="space-y-6">
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -336,6 +337,7 @@ export default function ContractListPage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }

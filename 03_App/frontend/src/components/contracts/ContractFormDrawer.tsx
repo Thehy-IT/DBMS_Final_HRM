@@ -147,13 +147,35 @@ export function ContractFormDrawer({ isOpen, onClose, contractId }: ContractForm
     onClose();
   };
 
-  if (!isOpen) return null;
+  const [shouldRender, setRender] = useState(isOpen);
+
+  useEffect(() => {
+    if (isOpen) setRender(true);
+  }, [isOpen]);
+
+  const onAnimationEnd = () => {
+    if (!isOpen) setRender(false);
+  };
+
+  if (!shouldRender) return null;
 
   return (
     <>
-      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={handleClose} />
+      <div 
+        className={cn(
+          "fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity duration-300",
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )} 
+        onClick={handleClose} 
+      />
       
-      <div className="fixed inset-y-0 right-0 w-full md:w-[500px] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
+      <div 
+        onTransitionEnd={onAnimationEnd}
+        className={cn(
+          "fixed inset-y-0 right-0 w-full md:w-[500px] bg-white shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-in-out",
+          isOpen ? "translate-x-0" : "translate-x-full"
+        )}
+      >
         {mutation.isPending && (
           <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] z-[100] flex flex-col items-center justify-center">
             <Loader2 className="w-12 h-12 animate-spin text-indigo-600 mb-4" />
@@ -171,7 +193,7 @@ export function ContractFormDrawer({ isOpen, onClose, contractId }: ContractForm
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30">
+        <div className="flex-1 overflow-y-auto p-6 bg-white">
           {(contractId && isLoadingContract) ? (
             <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin text-indigo-600 w-8 h-8" /></div>
           ) : (

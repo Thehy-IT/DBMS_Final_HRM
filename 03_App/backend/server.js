@@ -982,10 +982,20 @@ app.put('/v1/contracts/:id', requireHR, async (req, res) => {
   const { empId, typeId, startDate, endDate, salary, status, VungLuong } = req.body;
   const isDeadlockDemo = process.env.DEMO_DEADLOCK === 'true';
   const connection = await pool.getConnection();
+
+  // Xử lý khi người dùng F5 (trình duyệt ngắt kết nối)
+  req.on('close', () => {
+    if (isDeadlockDemo) {
+      try { connection.destroy(); } catch (e) {}
+    }
+  });
+
   try {
     await connection.beginTransaction();
 
     if (isDeadlockDemo) {
+      await connection.query('SET GLOBAL innodb_deadlock_detect = OFF;');
+      await connection.query('SET SESSION innodb_lock_wait_timeout = 600;');
       // [MÔ PHỎNG LỖI ĐỒNG THỜI - KHÓA CHẾT / DEADLOCK]
       // Tiến trình B: Khóa LuongCoBan -> Ngủ 5s -> Khóa NhanVien
       
@@ -1048,12 +1058,17 @@ app.put('/v1/contracts/:id', requireHR, async (req, res) => {
     await connection.commit();
     res.json({ message: 'Updated successfully' });
   } catch (err) {
-    await connection.rollback();
+    try { await connection.rollback(); } catch (e) {}
     if (err.code === 'ER_LOCK_DEADLOCK') {
       return res.status(500).json({ error: 'LỖI KHÓA CHẾT (DEADLOCK)! Hai giao dịch tự khóa chéo lẫn nhau. MySQL đã phát hiện và tự động hủy giao dịch này (Rollback) để hệ thống không bị treo cứng.' });
     }
     if (err.code === 'ER_LOCK_WAIT_TIMEOUT') {
       return res.status(500).json({ error: 'LỖI TREO CỨNG HỆ THỐNG (LOCK WAIT TIMEOUT)! Giao dịch đã bị treo vĩnh viễn do tranh chấp tài nguyên và bị MySQL hủy sau 30 giây chờ đợi.' });
+    }
+    if (err.code === 'PROTOCOL_CONNECTION_LOST' || (err.message && err.message.includes('Connection lost')) || err.code === 'ER_QUERY_INTERRUPTED') {
+      if (process.env.DEMO_DEADLOCK === 'true') {
+        return res.status(500).json({ error: 'LỖI KHÓA CHẾT (DEADLOCK) - HỆ THỐNG BỊ TREO CỨNG! Hai giao dịch tự khóa chéo lẫn nhau gây treo hệ thống. Một quản trị viên (hoặc thao tác F5) vừa phải KILL thủ công tiến trình này để giải cứu cơ sở dữ liệu!' });
+      }
     }
     res.status(500).json({ error: err.message });
   } finally {
@@ -1168,13 +1183,15 @@ app.put('/v1/employees/:id', requireHR, async (req, res) => {
     const [result] = await connection.query(query, queryParams);
     
     if (enableOptimisticLock && result.affectedRows === 0) {
-      await connection.rollback();
+      try { await connection.rollback(); } catch (e) {}
       connection.release();
       return res.status(409).json({ error: 'Dữ liệu đã được cập nhật bởi một người khác. Vui lòng tải lại trang!' });
     }
 
     // [MÔ PHỎNG LỖI ĐỒNG THỜI - KHÓA CHẾT / DEADLOCK]
     if (isDeadlockDemo) {
+      await connection.query('SET GLOBAL innodb_deadlock_detect = OFF;');
+      await connection.query('SET SESSION innodb_lock_wait_timeout = 600;');
       // Tiến trình A: Ngủ 5s -> Khóa LuongCoBan
       await connection.query('DO SLEEP(5);');
       
@@ -1214,12 +1231,17 @@ app.put('/v1/employees/:id', requireHR, async (req, res) => {
     await connection.commit();
     res.json({ message: 'Updated successfully' });
   } catch (err) {
-    await connection.rollback();
+    try { await connection.rollback(); } catch (e) {}
     if (err.code === 'ER_LOCK_DEADLOCK') {
       return res.status(500).json({ error: 'LỖI KHÓA CHẾT (DEADLOCK)! Hai giao dịch tự khóa chéo lẫn nhau. MySQL đã phát hiện và tự động hủy giao dịch này (Rollback) để hệ thống không bị treo cứng.' });
     }
     if (err.code === 'ER_LOCK_WAIT_TIMEOUT') {
       return res.status(500).json({ error: 'LỖI TREO CỨNG HỆ THỐNG (LOCK WAIT TIMEOUT)! Giao dịch đã bị treo vĩnh viễn do tranh chấp tài nguyên và bị MySQL hủy sau 30 giây chờ đợi.' });
+    }
+    if (err.code === 'PROTOCOL_CONNECTION_LOST' || (err.message && err.message.includes('Connection lost')) || err.code === 'ER_QUERY_INTERRUPTED') {
+      if (process.env.DEMO_DEADLOCK === 'true') {
+        return res.status(500).json({ error: 'LỖI KHÓA CHẾT (DEADLOCK) - HỆ THỐNG BỊ TREO CỨNG! Hai giao dịch tự khóa chéo lẫn nhau gây treo hệ thống. Một quản trị viên (hoặc thao tác F5) vừa phải KILL thủ công tiến trình này để giải cứu cơ sở dữ liệu!' });
+      }
     }
     res.status(500).json({ error: err.message });
   } finally {

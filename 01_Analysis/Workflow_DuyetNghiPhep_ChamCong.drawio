@@ -1,0 +1,116 @@
+<mxfile host="65bd71144e">
+    <diagram id="workflow_duyetnghiphep" name="Phê Duyệt Nghỉ Phép">
+        <mxGraphModel dx="832" dy="475" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="start" value="Bắt đầu" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;fontSize=14;fontFamily=Times New Roman;" parent="1" vertex="1">
+                    <mxGeometry x="356.5" y="32" width="87" height="38" as="geometry"/>
+                </mxCell>
+                <mxCell id="input" value="Nhận yêu cầu Duyệt/Từ chối&lt;br&gt;(sp_NghiPhep_PheDuyet)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontFamily=Times New Roman;" parent="1" vertex="1">
+                    <mxGeometry x="315" y="100" width="170" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="val_state" value="Trạng thái đơn&lt;br&gt;có hợp lệ? (Pending)" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;fontFamily=Times New Roman;" parent="1" vertex="1">
+                    <mxGeometry x="298" y="173" width="204" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="err" value="Báo lỗi &amp;amp; Rollback" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14;fontFamily=Times New Roman;" parent="1" vertex="1">
+                    <mxGeometry x="534" y="317" width="120" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="dec_action" value="Hành động là gì?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;fontFamily=Times New Roman;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="295" width="160" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="act_rc" value="Cập nhật trạng thái đơn&lt;br&gt;= Từ chối (R) / Hủy (C)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontFamily=Times New Roman;" parent="1" vertex="1">
+                    <mxGeometry x="63" y="310" width="170" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="act_a" value="Cập nhật trạng thái đơn&lt;br&gt;= Đã duyệt (A)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;fontFamily=Times New Roman;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="419" width="160" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="loop_init" value="Lặp từng ngày&lt;br&gt;(NgayBatDau ➔ NgayKetThuc)" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontFamily=Times New Roman;" parent="1" vertex="1">
+                    <mxGeometry x="310" y="500" width="180" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="dec_weekend" value="Ngày hiện tại là&lt;br&gt;Thứ 7 / Chủ Nhật?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;fontFamily=Times New Roman;" parent="1" vertex="1">
+                    <mxGeometry x="310" y="599" width="180" height="73" as="geometry"/>
+                </mxCell>
+                <mxCell id="sync_cc" value="UPSERT bảng ChamCong&lt;br&gt;(Trạng thái OM hoặc NP)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;fontFamily=Times New Roman;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="720" width="160" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="next_day" value="Chuyển sang&lt;br&gt;ngày tiếp theo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontFamily=Times New Roman;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="800" width="160" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="commit" value="Commit Transaction" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontFamily=Times New Roman;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="900" width="160" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="end" value="Kết thúc" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;fontSize=14;fontFamily=Times New Roman;" parent="1" vertex="1">
+                    <mxGeometry x="358" y="978" width="84" height="36" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_start_input" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=14;fontFamily=Times New Roman;" parent="1" source="start" target="input" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_input_val" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=14;fontFamily=Times New Roman;" parent="1" source="input" target="val_state" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_val_err" value="Sai/Không hợp lệ" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=14;fontFamily=Times New Roman;" parent="1" source="val_state" target="err" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_val_dec" value="Hợp lệ" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=14;fontFamily=Times New Roman;" parent="1" source="val_state" target="dec_action" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_dec_rc" value="Từ chối/Hủy" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;fontSize=14;fontFamily=Times New Roman;" parent="1" source="dec_action" target="act_rc" edge="1">
+                    <mxGeometry x="0.0463" y="-12" relative="1" as="geometry">
+                        <mxPoint x="8" y="2" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_dec_a" value="Duyệt" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=14;fontFamily=Times New Roman;" parent="1" source="dec_action" target="act_a" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_acta_loop" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=14;fontFamily=Times New Roman;" parent="1" source="act_a" target="loop_init" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_loop_week" value="Còn ngày" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=14;fontFamily=Times New Roman;" parent="1" source="loop_init" target="dec_weekend" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_week_sync" value="Không (Ngày thường)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=14;fontFamily=Times New Roman;" parent="1" source="dec_weekend" target="sync_cc" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_sync_next" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=14;fontFamily=Times New Roman;" parent="1" source="sync_cc" target="next_day" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_next_loop" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=1;entryY=0.5;fontSize=14;fontFamily=Times New Roman;" parent="1" source="next_day" target="loop_init" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="550" y="825"/>
+                            <mxPoint x="550" y="530"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_week_loop" value="Đúng (Cuối tuần)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=1;entryY=0.5;fontSize=14;fontFamily=Times New Roman;" parent="1" source="dec_weekend" target="loop_init" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="550" y="630"/>
+                            <mxPoint x="550" y="530"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_loop_commit" value="Hết ngày" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;entryX=0.5;entryY=0;fontSize=14;fontFamily=Times New Roman;" parent="1" source="loop_init" target="commit" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="260" y="530"/>
+                            <mxPoint x="260" y="880"/>
+                            <mxPoint x="400" y="880"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_actrc_commit" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;entryX=0;entryY=0.5;fontSize=14;fontFamily=Times New Roman;" parent="1" source="act_rc" target="commit" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="175" y="925"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_commit_end" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=14;fontFamily=Times New Roman;" parent="1" source="commit" target="end" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

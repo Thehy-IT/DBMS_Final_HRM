@@ -128,8 +128,13 @@ BEGIN
     IF p_Override = 1 THEN
         DELETE ctl FROM ChiTietLuong ctl
         INNER JOIN BangLuong bl ON ctl.MaBL = bl.MaBL
-        WHERE bl.Thang = p_Thang AND bl.Nam = p_Nam
-          AND bl.TrangThai = 'D'
+        WHERE bl.Thang = p_Thang AND bl.Nam = p_Nam AND bl.TrangThai = 'D'
+          AND (p_MaNV_Filter IS NULL OR bl.MaNV = p_MaNV_Filter);
+
+        UPDATE KhauTru kt
+        INNER JOIN BangLuong bl ON kt.MaBL = bl.MaBL
+        SET kt.MaBL = NULL, kt.TrangThai = 'P'
+        WHERE bl.Thang = p_Thang AND bl.Nam = p_Nam AND bl.TrangThai = 'D'
           AND (p_MaNV_Filter IS NULL OR bl.MaNV = p_MaNV_Filter);
 
         DELETE FROM BangLuong

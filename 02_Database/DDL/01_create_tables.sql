@@ -361,7 +361,7 @@ CREATE TABLE IF NOT EXISTS BangLuong (
     CONSTRAINT CK_BL_Nam            CHECK (Nam   BETWEEN 2000 AND 2099),
     CONSTRAINT CK_BL_TrangThai      CHECK (TrangThai IN ('D', 'C', 'P', 'L')),
     CONSTRAINT CK_BL_SoNgayCong     CHECK (SoNgayCong >= 0 AND SoNgayCong <= 31),
-    CONSTRAINT CK_BL_SoNgayChuan    CHECK (SoNgayLamChuan BETWEEN 20 AND 31),
+    CONSTRAINT CK_BL_SoNgayChuan    CHECK (SoNgayLamChuan BETWEEN 10 AND 31),
     CONSTRAINT CK_BangLuong_BaoHiemHopLe CHECK (
         BHXH_NLD >= 0 AND BHYT_NLD >= 0 AND BHTN_NLD >= 0
         AND (BHXH_NLD + BHYT_NLD + BHTN_NLD) <= LuongCoBan

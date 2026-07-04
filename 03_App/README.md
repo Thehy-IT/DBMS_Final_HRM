@@ -27,16 +27,19 @@ Bạn cần mở **2 cửa sổ Terminal (PowerShell/CMD)** độc lập để k
 Backend chịu trách nhiệm cung cấp dữ liệu qua RESTful APIs.
 
 1. Di chuyển vào thư mục backend:
+
    ```bash
    cd 03_App/backend
    ```
 2. Cài đặt các thư viện (Dependencies):
+
    ```bash
    npm install
    ```
 3. Cấu hình biến môi trường (`.env`):
    Sao chép file `.env.example` thành `.env` và cập nhật thông tin kết nối MySQL của bạn (nếu có).
 4. Chạy server ở chế độ phát triển:
+
    ```bash
    npm run dev
    ```
@@ -48,14 +51,17 @@ Backend chịu trách nhiệm cung cấp dữ liệu qua RESTful APIs.
 Frontend gọi API từ Backend để hiển thị dữ liệu và cho phép người dùng tương tác.
 
 1. Di chuyển vào thư mục frontend:
+
    ```bash
    cd 03_App/frontend
    ```
 2. Cài đặt các thư viện (Dependencies):
+
    ```bash
    npm install
    ```
 3. Chạy giao diện ở chế độ phát triển:
+
    ```bash
    npm run dev
    ```

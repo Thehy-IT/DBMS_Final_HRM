@@ -179,26 +179,4 @@ DELIMITER ;
 SELECT 'trg_BangLuong_AfterUpdate (Audit)' AS Status;
 
 
--- KIỂM THỬ
--- Test: Tăng lương NV000003 (chạy sau seed_data.sql)
--- Bước 1: Đóng mức lương cũ
-UPDATE LuongCoBan
-SET NgayHetHieuLuc = '2025-03-31'
-WHERE MaNV = 'NV000003' AND NgayHetHieuLuc IS NULL;
-
--- Bước 2: Thêm mức lương mới (trigger tự log)
-INSERT INTO LuongCoBan
-    (MaNV, LuongCB, LuongDongBH, NgayHieuLuc, NgayHetHieuLuc, LyDo, NguoiDuyet)
-VALUES
-    ('NV000003', 28000000, 28000000, '2025-04-01', NULL,
-     'Tăng lương theo đánh giá năm 2024', 'NV000001');
-
--- Xem audit log tự động
-SELECT
-    MaLog, MaNV, LoaiThayDoi, TenCot, GiaTriCu, GiaTriMoi,
-    DATE_FORMAT(ThoiGianThayDoi, '%d/%m %H:%i:%s') AS ThoiGian
-FROM AuditLog_Luong
-ORDER BY MaLog DESC
-LIMIT 5;
-
 SELECT '[DONE] trg_LogLuong.sql — 5 triggers hoàn tất' AS Status;

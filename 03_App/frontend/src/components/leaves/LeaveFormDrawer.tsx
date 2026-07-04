@@ -76,15 +76,32 @@ export function LeaveFormDrawer({ isOpen, onClose }: LeaveFormDrawerProps) {
     onClose();
   };
 
+  const [shouldRender, setRender] = useState(isOpen);
+
+  useEffect(() => {
+    if (isOpen) setRender(true);
+  }, [isOpen]);
+
+  const onAnimationEnd = () => {
+    if (!isOpen) setRender(false);
+  };
+
+  if (!shouldRender) return null;
+
   return (
     <>
-      {isOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 z-40 transition-opacity" onClick={handleClose} />
-      )}
+      <div 
+        className={cn(
+          "fixed inset-0 bg-slate-900/50 z-40 transition-opacity duration-300",
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )} 
+        onClick={handleClose} 
+      />
 
       <div
+        onTransitionEnd={onAnimationEnd}
         className={cn(
-          "fixed inset-y-0 right-0 w-full sm:w-[450px] bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col",
+          "fixed inset-y-0 right-0 w-full md:w-[600px] bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
       >

@@ -90,13 +90,35 @@ export function AttendanceFormDrawer({ isOpen, onClose, attendanceData }: Attend
     onClose();
   };
 
-  if (!isOpen) return null;
+  const [shouldRender, setRender] = useState(isOpen);
+
+  useEffect(() => {
+    if (isOpen) setRender(true);
+  }, [isOpen]);
+
+  const onAnimationEnd = () => {
+    if (!isOpen) setRender(false);
+  };
+
+  if (!shouldRender) return null;
 
   return (
     <>
-      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={handleClose} />
+      <div 
+        className={cn(
+          "fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity duration-300",
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )} 
+        onClick={handleClose} 
+      />
       
-      <div className="fixed inset-y-0 right-0 w-full md:w-[450px] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
+      <div 
+        onTransitionEnd={onAnimationEnd}
+        className={cn(
+          "fixed inset-y-0 right-0 w-full md:w-[600px] bg-white shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-in-out",
+          isOpen ? "translate-x-0" : "translate-x-full"
+        )}
+      >
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <div>
             <h2 className="text-xl font-bold text-slate-900">{attendanceData ? 'Sửa Chấm Công' : 'Thêm Chấm Công'}</h2>
@@ -107,7 +129,7 @@ export function AttendanceFormDrawer({ isOpen, onClose, attendanceData }: Attend
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30">
+        <div className="flex-1 overflow-y-auto p-6 bg-white">
           <div className="space-y-5">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Nhân Viên <span className="text-red-500">*</span></label>

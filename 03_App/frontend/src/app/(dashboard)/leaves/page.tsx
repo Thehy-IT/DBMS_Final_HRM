@@ -131,8 +131,9 @@ export default function LeaveRequestsPage() {
     const remaining = Math.max(0, 12 - approved);
 
     return (
-      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <>
         <LeaveFormDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Đơn nghỉ phép cá nhân</h1>
@@ -224,7 +225,7 @@ export default function LeaveRequestsPage() {
             ) : (
               <table className="w-full text-left border-collapse min-w-[700px]">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-600">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-600 whitespace-nowrap">
                     <th className="px-6 py-3">Mã Đơn</th>
                     <th className="px-6 py-3">Loại Nghỉ Phép</th>
                     <th className="px-6 py-3">Thời Gian</th>
@@ -235,18 +236,20 @@ export default function LeaveRequestsPage() {
                 <tbody className="text-sm">
                   {paginatedLeaves.map((record) => (
                     <tr key={record.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 font-medium text-indigo-600">{record.id}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 font-medium text-indigo-600 whitespace-nowrap">{record.id}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
                           {record.type}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
-                        <div>{formatDate(record.startDate)} - {formatDate(record.endDate)}</div>
-                        <div className="text-slate-500 text-xs mt-0.5">({record.days} ngày)</div>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span>{formatDate(record.startDate)} - {formatDate(record.endDate)}</span>
+                          <span className="text-slate-500 text-xs">({record.days} ngày)</span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 max-w-[200px] truncate" title={record.reason}>{record.reason}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <span className={cn(
                           "px-2.5 py-1 rounded-full text-xs font-medium border inline-flex items-center gap-1",
                           record.status === 'A' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
@@ -288,12 +291,14 @@ export default function LeaveRequestsPage() {
           )}
         </div>
       </div>
+      </>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <>
       <LeaveFormDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+      <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Quản lý Nghỉ phép</h1>
@@ -368,10 +373,8 @@ export default function LeaveRequestsPage() {
           ) : (
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-600">
-                  <th className="px-6 py-3 w-10">
-                    <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
-                  </th>
+                <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-600 whitespace-nowrap">
+                  <th className="px-6 py-3 w-10"></th>
                   <th className="px-6 py-3">Mã Đơn</th>
                   <th className="px-6 py-3">Nhân Viên</th>
                   <th className="px-6 py-3">Loại Nghỉ</th>
@@ -387,19 +390,21 @@ export default function LeaveRequestsPage() {
                     <td className="px-6 py-4">
                       <input type="checkbox" className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
                     </td>
-                    <td className="px-6 py-4 font-medium text-indigo-600 cursor-pointer hover:underline">{record.id}</td>
-                    <td className="px-6 py-4 font-medium text-slate-900">{record.empName}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 font-medium text-indigo-600 cursor-pointer hover:underline whitespace-nowrap">{record.id}</td>
+                    <td className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{record.empName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
                         {record.type}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div>{formatDate(record.startDate)} - {formatDate(record.endDate)}</div>
-                      <div className="text-slate-500 text-xs mt-0.5">({record.days} ngày)</div>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <span>{formatDate(record.startDate)} - {formatDate(record.endDate)}</span>
+                        <span className="text-slate-500 text-xs">({record.days} ngày)</span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 max-w-[200px] truncate" title={record.reason}>{record.reason}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={cn(
                         "px-2.5 py-1 rounded-full text-xs font-medium border",
                         record.status === 'P' ? "bg-amber-50 text-amber-700 border-amber-200" :
@@ -413,28 +418,28 @@ export default function LeaveRequestsPage() {
                          record.status === 'R' ? "Từ chối" : "Đã hủy"}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col items-start gap-1 w-[130px]">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-row items-center justify-end gap-2">
                         {/* Only HR/ADMIN can approve/reject leaves */}
                         {isHR && record.status === 'P' ? (
                           <>
                             <button 
                               onClick={() => approveMutation.mutate({ id: record.id, action: 'A' })}
                               disabled={approveMutation.isPending}
-                              className="w-full text-left px-3 py-1.5 rounded text-sm font-medium text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center justify-between"
+                              className="px-3 py-1.5 rounded text-sm font-medium text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center gap-1 border border-emerald-200 bg-white shadow-sm"
                             >
-                              Phê duyệt <Check className="w-4 h-4" />
+                              Duyệt <Check className="w-4 h-4" />
                             </button>
                             <button 
                               onClick={() => approveMutation.mutate({ id: record.id, action: 'R' })}
                               disabled={approveMutation.isPending}
-                              className="w-full text-left px-3 py-1.5 rounded text-sm font-medium text-red-600 hover:bg-red-50 transition-colors flex items-center justify-between"
+                              className="px-3 py-1.5 rounded text-sm font-medium text-red-600 hover:bg-red-50 transition-colors flex items-center gap-1 border border-red-200 bg-white shadow-sm"
                             >
                               Từ chối <X className="w-4 h-4" />
                             </button>
                           </>
                         ) : (
-                          <span className="text-sm text-slate-400 italic">Không có H.Động</span>
+                          <span className="text-sm text-slate-400 italic">Không có</span>
                         )}
                       </div>
                     </td>
@@ -465,5 +470,6 @@ export default function LeaveRequestsPage() {
         )}
       </div>
     </div>
+    </>
   );
 }

@@ -210,24 +210,4 @@ DELIMITER ;
 SELECT 'trg_HopDong_CheckOneActive' AS Status;
 
 
--- KIỂM THỬ TRIGGERS
-SELECT '  KIỂM THỬ trg_HopDong_*' AS Status;
-
--- Test: UPDATE lương hợp đồng NV000002
-UPDATE HopDong
-SET LuongCoBan = 9000000
-WHERE MaHD = 'HD000002' AND TrangThai = 'A';
-
--- Xem log được ghi tự động
-SELECT
-    MaLog, MaHD, MaNV, LoaiThayDoi, TenCot, GiaTriCu, GiaTriMoi,
-    DATE_FORMAT(ThoiGianThayDoi, '%d/%m/%Y %H:%i:%s') AS ThoiGian,
-    NguoiThayDoi
-FROM AuditLog_HopDong
-ORDER BY MaLog DESC
-LIMIT 5;
-
--- Rollback test change
-UPDATE HopDong SET LuongCoBan = 8500000 WHERE MaHD = 'HD000002';
-
 SELECT 'trg_LogHopDong.sql — 6 triggers hoàn tất' AS Status;
