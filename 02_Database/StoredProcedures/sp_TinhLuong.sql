@@ -3,9 +3,9 @@ PROJECT    : Hệ Thống Quản Lý Nhân Sự & Tính Lương Tự Động
 MỤC ĐÍCH   : Stored Procedure cốt lõi — tính lương tự động
              toàn bộ nhân viên cho 1 kỳ lương (tháng/năm)
 CÁCH GỌI:
-  CALL sp_TinhLuong(3, 2025, NULL, 0, 0);  -- Tính T3/2025 tất cả NV
-  CALL sp_TinhLuong(3, 2025, 'NV000001', 0, 0); -- Tính riêng 1 NV
-  CALL sp_TinhLuong(3, 2025, NULL, 1, 0);  -- Tính lại (ghi đè bản nháp)
+  CALL sp_TinhLuong(3, 2026, NULL, 0, 0);  -- Tính T3/2026 tất cả NV
+  CALL sp_TinhLuong(3, 2026, 'NV000001', 0, 0); -- Tính riêng 1 NV
+  CALL sp_TinhLuong(3, 2026, NULL, 1, 0);  -- Tính lại (ghi đè bản nháp)
 DBMS       : MySQL 8.0.46
 GHI CHÚ   : - CURSOR syntax khác SQL Server
              - GOTO không hỗ trợ → dùng ITERATE/LEAVE
@@ -455,9 +455,4 @@ BEGIN
 
 END$$
 DELIMITER ;
-
--- KIỂM THỬ (chạy sau khi có seed_data)
--- CALL sp_TinhLuong(1, 2025, NULL, 0, 1);  -- DryRun tháng 1/2025
--- CALL sp_TinhLuong(1, 2025, NULL, 0, 0);  -- Tính thật tháng 1/2025
-
 SELECT 'sp_TinhLuong.sql hoàn tất.' AS Status;
