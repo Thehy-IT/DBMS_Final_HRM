@@ -1,4 +1,3 @@
-
 # BÁO CÁO DỰ ÁN MÔN HỆ QUẢN TRỊ CƠ SỞ DỮ LIỆU
 
 ## Đề tài: Hệ Thống Quản Lý Nhân Sự và Tính Lương Tự Động (HRPayrollSystem)
@@ -375,7 +374,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
 * **Chi tiết Demo kết hợp UI & CSDL:**
 
   **Chuẩn bị trước mỗi lần demo:**
-  Chạy file [06_demo/03_Phantom Read.sql](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/06_demo/03_Phantom%20Read.sql) trong MySQL Workbench để:
+  Chạy file [06_demo/03_Phantom Read.sql](<file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/06_demo/03_Phantom%20Read.sql>) trong MySQL Workbench để:
 
   - Đưa toàn bộ các bảng lương của tháng hiện tại về trạng thái Nháp (`D`) để Kế toán có danh sách chờ duyệt.
   - Recreate lại các trigger bảo vệ chống xóa/sửa với `MESSAGE_TEXT` an toàn (< 128 byte).
@@ -437,7 +436,7 @@ Hệ thống áp dụng triệt để các đối tượng Database để xử l
    DEMO_PHANTOM_READ=false
    ```
 2. Khởi động lại Server Backend.
-3. Chạy lại file [03_Phantom Read.sql](file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/06_demo/03_Phantom%20Read.sql) để trả lại dữ liệu về trạng thái Draft.
+3. Chạy lại file [03_Phantom Read.sql](<file:///D:/kelangthanghocIT/UTH/DBMS_Final_HRM/06_demo/03_Phantom%20Read.sql>) để trả lại dữ liệu về trạng thái Draft.
 4. Lặp lại thao tác chuẩn bị ở Bước 3 của kịch bản 1 (Điền sẵn form Thêm nhân viên mới ở Tab HR).
 5. Bấm nút **"Xác nhận"** bên Kế toán, và ngay lập tức bấm **"Lưu"** bên HR.
 6. **Kết quả:**
